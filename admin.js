@@ -617,378 +617,169 @@ function triggerTabRender(tabId) {
 function renderDashboardBI() {
     const plazaFilter = document.getElementById("kpi-filter-plaza").value;
     
-    // Filtrar agendamentos e faturamentos por praça
-    let filteredAgendamentos = db.agendamentos;
-    let filteredLancamentos = db.lancamentos;
-    
-    if (plazaFilter !== "all") {
-        filteredAgendamentos = db.agendamentos.filter(a => a.praca === plazaFilter);
-        filteredLancamentos = db.lancamentos.filter(l => l.praca === plazaFilter);
+    // Greeting with dynamic user name
+    if (session.activeUser) {
+        document.getElementById("dashboard-user-greeting-title").innerText = session.activeUser.name;
     }
 
-    // KPI 1: Taxa de Ocupação
-    const totalSlotsDisponiveis = plazaFilter === "all" ? 32 : 16;
-    const slotsPreenchidos = filteredAgendamentos.filter(a => a.status !== "Cancelado").length;
-    const occupancyRate = Math.round((slotsPreenchidos / totalSlotsDisponiveis) * 100);
-    
-    document.getElementById("kpi-occupancy").innerText = `${occupancyRate}%`;
-    document.getElementById("kpi-occupancy-bar").style.width = `${occupancyRate}%`;
-    
-    // Equação da Ocupação
-    document.getElementById("math-occupancy").innerHTML = `
-        <span class="math-fraction">
-            <span class="math-numerator">${slotsPreenchidos}h reservadas</span>
-            <span class="math-denominator">${totalSlotsDisponiveis}h disponíveis</span>
-        </span>
-        <span class="math-operator">× 100 =</span>
-        <span class="math-result">${occupancyRate}%</span>
-    `;
+    // KPI 1: Pacientes Totais
+    const totalPatients = plazaFilter === 'all' ? db.pacientes.length : db.pacientes.filter(p => p.praca === plazaFilter).length;
+    document.getElementById("kpi-total-patients").innerText = totalPatients.toLocaleString('pt-BR');
 
-    // KPI 2: Taxa de Absenteísmo
-    const totalAgendados = filteredAgendamentos.length;
-    const cancelados = filteredAgendamentos.filter(a => a.status === "Cancelado").length;
-    const noShowRate = totalAgendados > 0 ? Math.round((cancelados / totalAgendados) * 100) : 0;
+    // KPI 2: Consultas Hoje
+    const todayAppts = db.agendamentos.filter(a => a.data === activeAgendaDate && (plazaFilter === 'all' || a.praca === plazaFilter) && a.status !== "Cancelado");
+    const todayApptsCount = todayAppts.length;
+    document.getElementById("kpi-today-appts").innerText = todayApptsCount;
     
-    document.getElementById("kpi-noshow").innerText = `${noShowRate}%`;
-    document.getElementById("kpi-noshow-bar").style.width = `${noShowRate}%`;
-    
-    // Equação do Absenteísmo
-    if (totalAgendados > 0) {
-        document.getElementById("math-noshow").innerHTML = `
-            <span class="math-fraction">
-                <span class="math-numerator">${cancelados} canceladas</span>
-                <span class="math-denominator">${totalAgendados} agendadas</span>
-            </span>
-            <span class="math-operator">× 100 =</span>
-            <span class="math-result">${noShowRate}%</span>
-        `;
-    } else {
-        document.getElementById("math-noshow").innerHTML = `
-            <span class="math-operator" style="font-size: 9px; color: var(--color-slate-comment); font-style: italic;">Sem agendamentos registrados</span>
-        `;
+    const pendingApptsCount = todayAppts.filter(a => a.status === "Confirmado").length;
+    document.getElementById("kpi-today-pending-sub").innerText = `${pendingApptsCount} pendentes`;
+
+    // KPI 3: Anamneses Pendentes
+    const pendingAnamneses = db.anamnese_tokens ? db.anamnese_tokens.filter(t => !t.preenchido).length : 0;
+    document.getElementById("kpi-pending-anamneses").innerText = pendingAnamneses;
+
+    // KPI 4: Insumos em Alerta (estoque <= minimo)
+    const alertSupplies = db.insumos ? db.insumos.filter(i => (plazaFilter === 'all' || i.praca === plazaFilter) && i.estoque <= i.minimo).length : 0;
+    document.getElementById("kpi-active-prescriptions").innerText = alertSupplies;
+
+    // 1. Upcoming Appointments
+    const upcomingList = document.getElementById("dashboard-upcoming-appointments-list");
+    if (upcomingList) {
+        const sortedAppts = [...todayAppts].sort((x, y) => x.hora.localeCompare(y.hora)).slice(0, 3);
+        if (sortedAppts.length === 0) {
+            upcomingList.innerHTML = `<div style="font-size: 13px; color: var(--color-slate-comment); text-align: center; padding: 20px;">Nenhuma consulta agendada para este dia.</div>`;
+        } else {
+            upcomingList.innerHTML = sortedAppts.map(appt => {
+                const patient = db.pacientes.find(p => p.id === appt.paciente_id);
+                const name = patient ? patient.nome : "Paciente";
+                const room = db.salas.find(s => s.id === appt.sala_id);
+                const roomName = room ? room.nome : "Sala";
+                return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--color-border); cursor: pointer;" onclick="switchTab('tab-agenda'); window.showPatientDetails(${appt.id});">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-future-blue-light); color: var(--color-future-blue); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px;">
+                                ${name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                            </div>
+                            <div>
+                                <div style="font-weight: 500; font-size: 13px; color: var(--color-midnight-ink);">${name}</div>
+                                <div style="font-size: 11px; color: var(--color-slate-comment);">${appt.tipo_consulta || 'Consulta Inicial'}</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 600; font-size: 12px; color: var(--color-future-blue);">${appt.hora}</div>
+                            <div style="font-size: 10px; color: var(--color-slate-comment);">${roomName}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
     }
 
-    // KPI 3: Ticket Médio
-    const doctorConsults = filteredAgendamentos.filter(a => a.profissional === "Dr. Charlington M. Cavalcante" && a.status !== "Cancelado");
-    
-    // Calcular faturamento dinamicamente com base se é Primeira Consulta ou Retorno
-    let faturamentoDoctor = 0;
-    doctorConsults.forEach(a => {
-        const patientAppts = db.agendamentos.filter(other => 
-            other.paciente_id === a.paciente_id && 
-            other.profissional.includes("Charlington") && 
-            other.status !== "Cancelado"
-        );
-        patientAppts.sort((x, y) => {
-            if (x.data !== y.data) return x.data.localeCompare(y.data);
-            return x.hora.localeCompare(y.hora);
-        });
-        const isFirst = patientAppts[0] && patientAppts[0].id === a.id;
-        const val = isFirst ? (db.configuracoes.valor_primeira_consulta || 1050.00) : (db.configuracoes.valor_seguimento_consulta || 950.00);
-        faturamentoDoctor += val;
-    });
-    
-    // Faturamento dos Terapeutas (Lançamentos de Receitas onde terapeuta_id não é nulo)
-    const receitasTerapeutas = filteredLancamentos.filter(l => l.tipo === "Receita" && l.status === "Pago" && l.terapeuta_id !== null);
-    const faturamentoTerapeutas = receitasTerapeutas.reduce((sum, r) => sum + r.valor, 0);
-    
-    const totalConsultas = doctorConsults.length;
-    const ticketMedio = totalConsultas > 0 ? Math.round(faturamentoDoctor / totalConsultas) : (db.configuracoes.valor_seguimento_consulta || 950.00);
-
-    document.getElementById("kpi-ticket").innerText = `R$ ${ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-    
-    // Equação do Ticket Médio
-    if (totalConsultas > 0) {
-        document.getElementById("math-ticket").innerHTML = `
-            <span class="math-fraction">
-                <span class="math-numerator">R$ ${Math.round(faturamentoDoctor).toLocaleString('pt-BR')} receita</span>
-                <span class="math-denominator">${totalConsultas} consultas</span>
-            </span>
-            <span class="math-operator">=</span>
-            <span class="math-result">R$ ${ticketMedio.toLocaleString('pt-BR')}</span>
-        `;
-    } else {
-        document.getElementById("math-ticket").innerHTML = `
-            <span class="math-operator" style="font-size: 9px; color: var(--color-slate-comment); font-style: italic;">Valor Base: R$ ${ticketMedio.toLocaleString('pt-BR')} / consulta</span>
-        `;
+    // 2. Recent Patients
+    const recentList = document.getElementById("dashboard-recent-patients-list");
+    if (recentList) {
+        const plazaPatients = plazaFilter === 'all' ? db.pacientes : db.pacientes.filter(p => p.praca === plazaFilter);
+        const sortedPatients = [...plazaPatients].sort((x, y) => y.id - x.id).slice(0, 4);
+        if (sortedPatients.length === 0) {
+            recentList.innerHTML = `<div style="font-size: 13px; color: var(--color-slate-comment); text-align: center; padding: 20px;">Nenhum paciente cadastrado.</div>`;
+        } else {
+            recentList.innerHTML = sortedPatients.map(p => {
+                return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--color-border); cursor: pointer;" onclick="switchTab('tab-pacientes');">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px;">
+                                ${p.nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                            </div>
+                            <div>
+                                <div style="font-weight: 500; font-size: 13px; color: var(--color-midnight-ink);">${p.nome}</div>
+                                <div style="font-size: 11px; color: var(--color-slate-comment);">${p.idade} • Unidade: ${p.praca}</div>
+                            </div>
+                        </div>
+                        <span style="font-size: 12px; color: var(--color-future-blue); font-weight: 500;">Ver Ficha</span>
+                    </div>
+                `;
+            }).join('');
+        }
     }
 
-
-
-    // RENDERIZAR GRÁFICOS SVG REATIVOS
-    renderRevenueExpensesChart(plazaFilter);
-    renderAgendaEfficiencyChart(plazaFilter);
-    renderDonutChart(plazaFilter);
-    renderPatientJourneyFunnel();
+    // 3. Patient Statistics Chart
+    renderPatientStatisticsChart(plazaFilter);
 }
 
-function renderRevenueExpensesChart(plaza) {
-    const container = document.getElementById("revenue-expenses-chart-container");
+function renderPatientStatisticsChart(plaza) {
+    const container = document.getElementById("dashboard-patient-statistics-chart");
     if (!container) return;
-    container.innerHTML = ""; 
     
-    // Atualizar título do card dinamicamente
-    const cardTitle = container.previousElementSibling;
-    if (cardTitle && cardTitle.tagName === "H3") {
-        cardTitle.innerText = `Evolução Mensal: Receitas, Despesas e Margem (${plaza === 'all' ? 'Consolidado' : 'Unidade ' + plaza})`;
-    }
-
-    let receitas = [31000, 36000, 38400, 42000, 47000, 52000];
-    let despesas = [14000, 15000, 14200, 16000, 17500, 16200];
+    let novos = [45, 52, 38, 70, 55, 65];
+    let retornos = [75, 90, 68, 110, 85, 100];
     
     if (plaza === "Campinas") {
-        receitas = [18500, 21000, 23000, 25000, 28500, 31000];
-        despesas = [8000, 8500, 8100, 9000, 9800, 9100];
+        novos = [25, 30, 22, 40, 32, 38];
+        retornos = [45, 55, 40, 65, 50, 58];
     } else if (plaza === "Fortaleza") {
-        receitas = [12500, 15000, 15500, 17500, 18500, 21000];
-        despesas = [6000, 6500, 6100, 7000, 7700, 7100];
+        novos = [20, 22, 16, 30, 23, 27];
+        retornos = [30, 35, 28, 45, 35, 42];
     }
 
-    const months = ["Dez", "Jan", "Fev", "Mar", "Abr", "Mai"];
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"];
     
-    let pointsMarg = "";
-    let areaMarg = "";
-    let margens = [];
-    
-    // Mapeamento de coordenadas Y e X com viewBox estendido (400x200)
-    for (let i = 0; i < 6; i++) {
-        const margem = ((receitas[i] - despesas[i]) / receitas[i]) * 100;
-        margens.push(Math.round(margem));
-
-        const x = 50 + i * 62;
-        const yMarg = 160 - (margem / 100) * 120;
-        
-        pointsMarg += `${x},${yMarg} `;
-    }
-
-    // Gerar string do path de preenchimento para a área de margem
-    const pathCoords = margens.map((m, i) => {
-        const x = 50 + i * 62;
-        const yMarg = 160 - (m / 100) * 120;
-        return `${x},${yMarg}`;
-    });
-    areaMarg = `M 50,160 L ${pathCoords.join(' L ')} L 360,160 Z`;
-
     let svgHtml = `
-    <svg viewBox="0 0 400 200" class="svg-graph">
+    <svg viewBox="0 0 600 220" style="width: 100%; height: 100%; font-family: inherit;">
         <defs>
-            <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="barBlue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="#0071e3" />
-                <stop offset="100%" stop-color="#005bb5" stop-opacity="0.6" />
+                <stop offset="100%" stop-color="#0071e3" stop-opacity="0.6" />
             </linearGradient>
-            <linearGradient id="orangeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#ff9500" />
-                <stop offset="100%" stop-color="#d67d00" stop-opacity="0.6" />
-            </linearGradient>
-            <linearGradient id="greenAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#34c759" stop-opacity="0.25" />
-                <stop offset="100%" stop-color="#34c759" stop-opacity="0" />
+            <linearGradient id="barGreen" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#34c759" />
+                <stop offset="100%" stop-color="#34c759" stop-opacity="0.6" />
             </linearGradient>
         </defs>
-
-        <!-- Gridlines de Fundo -->
-        <line x1="40" y1="160" x2="380" y2="160" stroke="#0f1012" stroke-opacity="0.08" />
-        <line x1="40" y1="100" x2="380" y2="100" stroke="#0f1012" stroke-opacity="0.04" />
-        <line x1="40" y1="40" x2="380" y2="40" stroke="#0f1012" stroke-opacity="0.04" />
+        <!-- Gridlines -->
+        <line x1="40" y1="180" x2="560" y2="180" stroke="var(--color-border)" stroke-opacity="0.5" />
+        <line x1="40" y1="130" x2="560" y2="130" stroke="var(--color-border)" stroke-opacity="0.3" />
+        <line x1="40" y1="80" x2="560" y2="80" stroke="var(--color-border)" stroke-opacity="0.3" />
+        <line x1="40" y1="30" x2="560" y2="30" stroke="var(--color-border)" stroke-opacity="0.3" />
         
-        <!-- Y-Axis Labels (Esquerda - Receitas/Despesas) -->
-        <text x="35" y="163" font-size="9" text-anchor="end" fill="#8f8f8f">R$ 0</text>
-        <text x="35" y="103" font-size="9" text-anchor="end" fill="#8f8f8f">R$ 25k</text>
-        <text x="35" y="43" font-size="9" text-anchor="end" fill="#8f8f8f">R$ 50k</text>
-
-        <!-- Y-Axis Labels (Direita - Margem %) -->
-        <text x="385" y="163" font-size="9" text-anchor="start" fill="#8f8f8f">0%</text>
-        <text x="385" y="103" font-size="9" text-anchor="start" fill="#8f8f8f">50%</text>
-        <text x="385" y="43" font-size="9" text-anchor="start" fill="#8f8f8f">100%</text>
-        
-        <!-- X-Axis Labels -->
-        ${months.map((m, i) => `<text x="${50 + i * 62}" y="180" font-size="9" text-anchor="middle" fill="#8f8f8f">${m}</text>`).join('')}
-
-        <!-- 1. Desenhar Barras de Receita e Despesa -->
-        ${months.map((m, i) => {
-            const x = 50 + i * 62;
-            const hRec = (receitas[i] / 55000) * 120;
-            const hDes = (despesas[i] / 55000) * 120;
-            const yRec = 160 - hRec;
-            const yDes = 160 - hDes;
-            return `
-                <!-- Barra Receita (Azul) -->
-                <rect x="${x - 12}" y="${yRec}" width="10" height="${hRec}" fill="url(#blueGrad)" rx="2" />
-                <text x="${x - 7}" y="${yRec - 4}" font-size="7" font-weight="600" text-anchor="middle" fill="#005bb5">R$ ${(receitas[i]/1000).toFixed(1)}k</text>
-
-                <!-- Barra Despesa (Laranja) -->
-                <rect x="${x + 2}" y="${yDes}" width="10" height="${hDes}" fill="url(#orangeGrad)" rx="2" />
-                <text x="${x + 7}" y="${yDes - 4}" font-size="7" font-weight="600" text-anchor="middle" fill="#d67d00">R$ ${(despesas[i]/1000).toFixed(1)}k</text>
-            `;
-        }).join('')}
-
-        <!-- 2. Área Sombreada da Margem Líquida -->
-        <path d="${areaMarg}" fill="url(#greenAreaGrad)" />
-
-        <!-- 3. Linha da Margem Líquida -->
-        <polyline fill="none" stroke="#34c759" stroke-width="2.5" points="${pointsMarg.trim()}" stroke-linecap="round" stroke-linejoin="round" />
-
-        <!-- 4. Nós e Labels da Margem Líquida -->
-        ${months.map((m, i) => {
-            const x = 50 + i * 62;
-            const yMarg = 160 - (margens[i] / 100) * 120;
-            return `
-                <circle cx="${x}" cy="${yMarg}" r="4" fill="#34c759" stroke="#fdfdfd" stroke-width="1.5" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.15));" />
-                <text x="${x}" y="${yMarg - 8}" font-size="8" font-weight="800" text-anchor="middle" fill="#1e7e34" stroke="#fdfdfd" stroke-width="2" paint-order="stroke fill">${margens[i]}%</text>
-            `;
-        }).join('')}
-    </svg>`;
-    
-    container.innerHTML = svgHtml;
-}
-
-// 2. Gráfico de Barras: Eficiência de Agendamento (Ocupação vs No-Show)
-function renderAgendaEfficiencyChart(plaza) {
-    const container = document.getElementById("agenda-efficiency-chart-container");
-    if (!container) return;
-    container.innerHTML = "";
-
-    // Atualizar título do card dinamicamente
-    const cardTitle = container.previousElementSibling;
-    if (cardTitle && cardTitle.tagName === "H3") {
-        cardTitle.innerText = `Eficiência de Agendamento (${plaza === 'all' ? 'Consolidado' : 'Unidade ' + plaza})`;
-    }
-
-    const days = ["Seg", "Ter", "Qua", "Qui", "Sex"];
-    
-    let ocupacao = [78, 85, 92, 80, 75];
-    let noshow = [12, 8, 5, 14, 18];
-
-    if (plaza === "Campinas") {
-        ocupacao = [80, 88, 95, 82, 70];
-        noshow = [10, 7, 3, 12, 20];
-    } else if (plaza === "Fortaleza") {
-        ocupacao = [75, 80, 88, 78, 80];
-        noshow = [15, 10, 8, 16, 15];
-    }
-
-    let svgHtml = `
-    <svg viewBox="0 0 400 200" class="svg-graph">
-        <!-- Linha Guia de Ocupação Saudável (80%) -->
-        <line x1="40" y1="64" x2="380" y2="64" stroke="#34c759" stroke-width="1.5" stroke-dasharray="3,3" />
-        <text x="340" y="58" font-size="7" text-anchor="start" fill="#34c759" font-weight="700" stroke="#fdfdfd" stroke-width="2.5" paint-order="stroke fill">Meta Ocupação: 80%</text>
-
         <!-- Y-Axis Labels -->
-        <text x="35" y="163" font-size="9" text-anchor="end" fill="#8f8f8f">0%</text>
-        <text x="35" y="104" font-size="9" text-anchor="end" fill="#8f8f8f">50%</text>
-        <text x="35" y="44" font-size="9" text-anchor="end" fill="#8f8f8f">100%</text>
-
-        <!-- X-Axis Labels -->
-        ${days.map((d, i) => `<text x="${60 + i * 65}" y="182" font-size="9" text-anchor="middle" fill="#8f8f8f">${d}</text>`).join('')}
-
-        <!-- Barras das Praças -->
-        ${days.map((d, i) => {
-            const xBase = 45 + i * 65;
-            const hOcup = (ocupacao[i] / 100) * 120;
-            const hNoShow = (noshow[i] / 100) * 120;
-            
-            const yOcup = 160 - hOcup;
-            const yNoShow = 160 - hNoShow;
-
-            return `
-                <!-- Ocupação (Dark) -->
-                <rect x="${xBase}" y="${yOcup}" width="12" height="${hOcup}" fill="#0f1012" rx="2" />
-                <text x="${xBase + 6}" y="${yOcup - 4}" font-size="7" text-anchor="middle" fill="#0f1012" font-weight="700" stroke="#fdfdfd" stroke-width="2" paint-order="stroke fill">${ocupacao[i]}%</text>
-                
-                <!-- No-Show (Red) -->
-                <rect x="${xBase + 15}" y="${yNoShow}" width="12" height="${hNoShow}" fill="#ea4e3d" rx="2" />
-                <text x="${xBase + 21}" y="${yNoShow - 4}" font-size="7" text-anchor="middle" fill="#ea4e3d" font-weight="700" stroke="#fdfdfd" stroke-width="2" paint-order="stroke fill">${noshow[i]}%</text>
-            `;
-        }).join('')}
+        <text x="30" y="184" font-size="9" text-anchor="end" fill="#8f8f8f">0</text>
+        <text x="30" y="134" font-size="9" text-anchor="end" fill="#8f8f8f">50</text>
+        <text x="30" y="84" font-size="9" text-anchor="end" fill="#8f8f8f">100</text>
+        <text x="30" y="34" font-size="9" text-anchor="end" fill="#8f8f8f">150</text>
         
-        <line x1="40" y1="160" x2="380" y2="160" stroke="#0f1012" stroke-opacity="0.08" />
-    </svg>`;
+        <!-- Legend -->
+        <g transform="translate(350, 10)">
+            <rect x="0" y="0" width="10" height="10" fill="#0071e3" rx="2" />
+            <text x="15" y="9" font-size="9" fill="#5f5f5f">Novos Pacientes</text>
+            <rect x="110" y="0" width="10" height="10" fill="#34c759" rx="2" />
+            <text x="125" y="9" font-size="9" fill="#5f5f5f">Retornos / Seguimentos</text>
+        </g>
 
-    container.innerHTML = svgHtml;
-}
-
-// 3. Gráfico de Rosca: Distribuição de Faturamento por Serviço
-function renderDonutChart(plaza) {
-    const container = document.getElementById("donut-chart-container");
-    const legendContainer = document.getElementById("donut-legend-container");
-    if (!container || !legendContainer) return;
-    container.innerHTML = "";
-    legendContainer.innerHTML = "";
-
-    let values = [50, 30, 15, 5]; // em porcentagem
-    let absolute = [26000, 15600, 7800, 2600];
-
-    if (plaza === "Campinas") {
-        values = [45, 35, 15, 5];
-        absolute = [13950, 10850, 4650, 1550];
-    } else if (plaza === "Fortaleza") {
-        values = [55, 25, 15, 5];
-        absolute = [11550, 5250, 3150, 1050];
-    }
-
-    const labels = ["Terapia Multidisciplinar", "Neuropediatria", "Avaliação Neuropsicológica", "Laudos & Relatórios"];
-    const colors = ["#0071e3", "#0f1012", "#868788", "#ff9500"];
-
-    const circ = 188.5;
-    let accumulatedPercent = 0;
-
-    let svgHtml = `
-    <svg viewBox="0 0 100 100" width="100%" height="100%">
-        <circle cx="50" cy="50" r="30" fill="transparent" stroke="rgba(15,16,18,0.03)" stroke-width="15" />
-        ${values.map((v, i) => {
-            const strokeDash = (v / 100) * circ;
-            const strokeOffset = circ - ((v + accumulatedPercent) / 100) * circ;
-            accumulatedPercent += v;
+        <!-- Bars rendering -->
+        ${months.map((m, i) => {
+            const xCenter = 70 + i * 82;
+            const hNovos = (novos[i] / 150) * 150;
+            const hRetornos = (retornos[i] / 150) * 150;
+            const yNovos = 180 - hNovos;
+            const yRetornos = 180 - hRetornos;
             return `
-                <circle cx="50" cy="50" r="30" fill="transparent" 
-                        stroke="${colors[i]}" 
-                        stroke-width="12" 
-                        stroke-dasharray="${strokeDash} ${circ}" 
-                        stroke-dashoffset="${strokeOffset}"
-                        transform="rotate(-90 50 50)" 
-                        stroke-linecap="butt" />
+                <!-- Novos (Blue) -->
+                <rect x="${xCenter - 14}" y="${yNovos}" width="12" height="${hNovos}" fill="url(#barBlue)" rx="3" />
+                <text x="${xCenter - 8}" y="${yNovos - 4}" font-size="8" text-anchor="middle" font-weight="600" fill="#0071e3">${novos[i]}</text>
+
+                <!-- Retornos (Green) -->
+                <rect x="${xCenter + 2}" y="${yRetornos}" width="12" height="${hRetornos}" fill="url(#barGreen)" rx="3" />
+                <text x="${xCenter + 8}" y="${yRetornos - 4}" font-size="8" text-anchor="middle" font-weight="600" fill="#34c759">${retornos[i]}</text>
+                
+                <!-- Month Label -->
+                <text x="${xCenter}" y="198" font-size="10" text-anchor="middle" fill="#8f8f8f">${m}</text>
             `;
         }).join('')}
-        <circle cx="50" cy="50" r="22" fill="#fdfdfd" />
-        <text x="50" y="53" font-size="8" text-anchor="middle" font-weight="600" fill="#0f1012">Serviços</text>
-    </svg>`;
-
+    </svg>
+    `;
     container.innerHTML = svgHtml;
-
-    // Renderizar legenda
-    legendContainer.innerHTML = labels.map((l, i) => `
-        <div class="donut-legend-item">
-            <span class="legend-item"><span class="legend-color" style="background-color: ${colors[i]}"></span> ${l}</span>
-            <strong>${values[i]}% <span class="small-text" style="color:#8f8f8f; font-weight:normal;">(R$ ${absolute[i].toLocaleString('pt-BR')})</span></strong>
-        </div>
-    `).join('');
 }
 
-// 4. Funil de Conversão e Adesão Terapêutica
-function renderPatientJourneyFunnel() {
-    const container = document.getElementById("patient-journey-funnel-container");
-    if (!container) return;
-    container.innerHTML = "";
-
-    const stages = [
-        { label: "1. Triagem / Primeiro Contato", count: 120, percent: 100 },
-        { label: "2. Primeira Consulta (Neuropediatra)", count: 98, percent: 81.6 },
-        { label: "3. Encaminhamento para Avaliação", count: 85, percent: 70.8 },
-        { label: "4. Emissão de Laudo/Parecer", count: 82, percent: 68.3 },
-        { label: "5. Adesão ao Plano Terapêutico", count: 65, percent: 54.1 }
-    ];
-
-    container.innerHTML = stages.map((s, i) => {
-        // Reduz a largura proporcionalmente
-        const width = 100 - i * 8;
-        return `
-            <div class="funnel-stage" style="width: ${width}%">
-                <strong>${s.label}</strong>
-                <span><strong>${s.count}</strong> pac. (${s.percent}%)</span>
-            </div>
-        `;
-    }).join('');
-}
 
 // Vincula o evento de recarga do dashboard ao mudar o filtro de praça
 document.getElementById("kpi-filter-plaza").addEventListener("change", () => {

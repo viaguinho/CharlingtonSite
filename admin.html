@@ -183,10 +183,10 @@
             <!-- ABA 1: DASHBOARD & BI (KPIs) -->
             <!-- ============================================== -->
             <section id="tab-dashboard" class="tab-pane active">
-                <div class="section-title-wrapper">
+                <div class="section-title-wrapper" style="margin-bottom: 24px;">
                     <div>
-                        <span class="eyebrow">Inteligência de Negócios</span>
-                        <h2>Dashboard Gerencial Multilocalidade</h2>
+                        <span class="eyebrow" id="dashboard-user-greeting-eyebrow">Bom dia,</span>
+                        <h2 id="dashboard-user-greeting-title">Carregando...</h2>
                     </div>
                     <!-- Filtro por unidade -->
                     <div class="dashboard-filters">
@@ -200,116 +200,78 @@
                 </div>
 
                 <!-- CARDS DE KPIS GERENCIAIS -->
-                <div class="kpi-grid">
-                    <div class="kpi-card">
-                        <span class="kpi-title">Taxa de Ocupação</span>
-                        <span class="kpi-value" id="kpi-occupancy">0%</span>
-
-                        <div class="kpi-math-container">
-                            <div class="math-formula-header">
-                                <span>Fórmula de Ocupação</span>
-                                <span class="math-formula-expression">Horas Reservadas / Horas Disponíveis × 100</span>
-                            </div>
-                            <div class="kpi-math-calc" id="math-occupancy">
-                                <!-- Renderizado dinamicamente -->
-                            </div>
+                <div class="dashboard-kpi-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px;">
+                    <!-- Pacientes Totais -->
+                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Pacientes Totais</span>
+                            <span id="kpi-total-patients" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
+                            <span style="font-size: 11px; color: var(--color-clinic-green); font-weight: 500;">+12% desde o mês passado</span>
                         </div>
-
-                        <div class="kpi-progress-bar">
-                            <div class="progress-fill blue" id="kpi-occupancy-bar" style="width: 0%"></div>
-                        </div>
-                        <p class="kpi-trend green">↑ 4.2% em relação ao mês anterior</p>
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 113, 227, 0.08); display: flex; align-items: center; justify-content: center; color: var(--color-future-blue); font-size: 18px;">👥</div>
                     </div>
-
-                    <div class="kpi-card">
-                        <span class="kpi-title">Absenteísmo (No-Show)</span>
-                        <span class="kpi-value" id="kpi-noshow">0%</span>
-
-                        <div class="kpi-math-container">
-                            <div class="math-formula-header">
-                                <span>Fórmula de Absenteísmo</span>
-                                <span class="math-formula-expression">Consultas Canceladas / Total Agendado × 100</span>
-                            </div>
-                            <div class="kpi-math-calc" id="math-noshow">
-                                <!-- Renderizado dinamicamente -->
-                            </div>
+                    <!-- Consultas de Hoje -->
+                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Consultas Hoje</span>
+                            <span id="kpi-today-appts" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
+                            <span style="font-size: 11px; color: var(--color-clinic-yellow); font-weight: 500;" id="kpi-today-pending-sub">0 pendentes</span>
                         </div>
-
-                        <div class="kpi-progress-bar">
-                            <div class="progress-fill orange" id="kpi-noshow-bar" style="width: 0%"></div>
-                        </div>
-                        <p class="kpi-trend green" id="kpi-noshow-trend">↓ 15% após lembretes de WhatsApp</p>
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(33, 150, 83, 0.08); display: flex; align-items: center; justify-content: center; color: var(--color-clinic-green); font-size: 18px;">📅</div>
                     </div>
-
-                    <div class="kpi-card">
-                        <span class="kpi-title">Ticket Médio por Consulta</span>
-                        <span class="kpi-value" id="kpi-ticket">R$ 0,00</span>
-
-                        <div class="kpi-math-container">
-                            <div class="math-formula-header">
-                                <span>Fórmula de Ticket Médio</span>
-                                <span class="math-formula-expression">Receita Médica / Total de Consultas</span>
-                            </div>
-                            <div class="kpi-math-calc" id="math-ticket">
-                                <!-- Renderizado dinamicamente -->
-                            </div>
+                    <!-- Laudos / Anamneses Pendentes -->
+                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Anamneses Pendentes</span>
+                            <span id="kpi-pending-anamneses" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
+                            <span style="font-size: 11px; color: var(--color-alert-error); font-weight: 500;">2 urgentes</span>
                         </div>
-
-                        <p class="kpi-meta">Base: Reembolsos e Particulares</p>
-                        <p class="kpi-trend grey">Faturamento consolidado estável</p>
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(234, 78, 61, 0.08); display: flex; align-items: center; justify-content: center; color: var(--color-alert-error); font-size: 18px;">📄</div>
                     </div>
-
+                    <!-- Receitas Ativas / Insumos -->
+                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Insumos em Alerta</span>
+                            <span id="kpi-active-prescriptions" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
+                            <span style="font-size: 11px; color: var(--color-future-blue); font-weight: 500;">Estoque crítico</span>
+                        </div>
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(156, 39, 176, 0.08); display: flex; align-items: center; justify-content: center; color: purple; font-size: 18px;">💊</div>
+                    </div>
                 </div>
 
-                <!-- SEÇÃO DE GRÁFICOS INTERATIVOS SVG -->
-                <div class="charts-row">
-                    <!-- Gráfico 1: Barras/Linhas (Receitas, Despesas e Margem) -->
-                    <div class="chart-card">
-                        <h3>Evolução Mensal: Receitas, Despesas e Margem (Consolidado)</h3>
-                        <div class="svg-chart-container" id="revenue-expenses-chart-container">
-                            <!-- Inserido dinamicamente via JS (SVG responsivo) -->
+                <!-- LINHA DO MEIO: Upcoming Appointments & Recent Patients -->
+                <div class="dashboard-middle-row" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; margin-bottom: 24px; align-items: start;">
+                    <!-- Upcoming Appointments -->
+                    <div class="dashboard-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="font-size: 16px; margin: 0;">Próximas Consultas</h3>
+                            <button class="btn-primary" onclick="switchTab('tab-agenda')" style="padding: 6px 12px; font-size: 11px;">Ver Detalhes</button>
                         </div>
-                        <div class="chart-legend">
-                            <span class="legend-item"><span class="legend-color blue" style="background-color: #0071e3;"></span> Receita Bruta</span>
-                            <span class="legend-item"><span class="legend-color orange" style="background-color: #ff9500;"></span> Despesa Operacional</span>
-                            <span class="legend-item"><span class="legend-color green" style="background-color: #34c759;"></span> Margem Líquida (%)</span>
+                        <div id="dashboard-upcoming-appointments-list" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Inserido dinamicamente via JS -->
                         </div>
                     </div>
 
-                    <!-- Gráfico 2: Barras (Ocupação de Agenda vs No-Show) -->
-                    <div class="chart-card">
-                        <h3>Eficiência de Agendamento: Ocupação vs Absenteísmo (No-Show)</h3>
-                        <div class="svg-chart-container" id="agenda-efficiency-chart-container">
-                            <!-- Inserido dinamicamente via JS (SVG) -->
+                    <!-- Recent Patients -->
+                    <div class="dashboard-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="font-size: 16px; margin: 0;">Pacientes Recentes</h3>
+                            <button class="btn-primary" onclick="switchTab('tab-pacientes')" style="padding: 6px 12px; font-size: 11px;">Ver Detalhes</button>
                         </div>
-                        <div class="chart-legend">
-                            <span class="legend-item"><span class="legend-color dark" style="background-color: #0f1012;"></span> Taxa de Ocupação Média (%)</span>
-                            <span class="legend-item"><span class="legend-color red" style="background-color: #ea4e3d;"></span> Absenteísmo (No-Show %)</span>
+                        <div id="dashboard-recent-patients-list" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Inserido dinamicamente via JS -->
                         </div>
                     </div>
                 </div>
 
-                <div class="charts-row">
-                    <!-- Gráfico 3: Rosca (Composição de Faturamento por Serviço) -->
-                    <div class="chart-card flex-grow-1">
-                        <h3>Distribuição de Faturamento por Tipo de Serviço</h3>
-                        <div class="donut-chart-layout">
-                            <div class="svg-chart-donut-container" id="donut-chart-container">
-                                <!-- Inserido via JS -->
-                            </div>
-                            <div class="donut-legend" id="donut-legend-container">
-                                <!-- Inserido via JS -->
-                            </div>
+                <!-- LINHA INFERIOR: Patient Statistics -->
+                <div class="dashboard-bottom-row" style="display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start;">
+                    <!-- Patient Statistics -->
+                    <div class="dashboard-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                        <h3 style="font-size: 16px; margin-bottom: 20px;">Estatísticas de Pacientes (Fluxo de Entrada)</h3>
+                        <div id="dashboard-patient-statistics-chart" style="width: 100%; height: 250px; display: flex; align-items: center; justify-content: center;">
+                            <!-- Inserido dinamicamente via JS (Gráfico de Barras SVG) -->
                         </div>
-                    </div>
-
-                    <!-- Funil da Jornada do Paciente -->
-                    <div class="chart-card flex-grow-1">
-                        <h3>Funil de Conversão e Adesão Terapêutica (Jornada Clinica)</h3>
-                        <div class="funnel-container" id="patient-journey-funnel-container">
-                            <!-- Inserido via JS -->
-                        </div>
-                        <p class="chart-caption">Adesão média de <strong>79%</strong> da consulta inicial para o plano de tratamento multidisciplinar recorrente.</p>
                     </div>
                 </div>
             </section>
