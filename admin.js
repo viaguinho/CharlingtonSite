@@ -124,9 +124,23 @@ function deleteFileFromIndexedDB(id) {
 
 // Carrega ou inicializa a base de dados
 let db = JSON.parse(localStorage.getItem('DrCharlingtonERP_DB'));
-if (!db || !db.funcionarios || !db.insumos || !db.configuracoes || !db.anexos) {
+if (!db || !db.funcionarios || !Array.isArray(db.funcionarios) || db.funcionarios.length === 0 || !db.insumos || !db.configuracoes || !db.anexos) {
     db = DEFAULT_DATABASE;
     localStorage.setItem('DrCharlingtonERP_DB', JSON.stringify(db));
+} else {
+    // Garantir que o médico administrador padrão sempre exista no banco local
+    const temMedico = db.funcionarios.some(f => f.email === "charlington@clinicacharlington.com.br");
+    if (!temMedico) {
+        db.funcionarios.push({
+            id: 999,
+            nome: "Dr. Charlington M. Cavalcante",
+            email: "charlington@clinicacharlington.com.br",
+            senha: "senha123",
+            perfil: "doctor",
+            praca: "Geral"
+        });
+        localStorage.setItem('DrCharlingtonERP_DB', JSON.stringify(db));
+    }
 }
 
 if (!db.bloqueios) {
@@ -296,7 +310,7 @@ function initLoginFlow() {
     const formSecMfa = document.getElementById("login-mfa-section");
     const form = document.getElementById("login-form");
 
-    btnNext.addEventListener("click", () => {
+    function processCredentialsStep() {
         const email = document.getElementById("login-email").value.trim();
         const pass = document.getElementById("login-password").value;
         if (email && pass) {
@@ -306,13 +320,20 @@ function initLoginFlow() {
                 session.tempUser = matchedUser;
                 formSecCredentials.classList.add("hidden");
                 formSecMfa.classList.remove("hidden");
-                document.getElementById("login-mfa-code").focus();
+                setTimeout(() => {
+                    document.getElementById("login-mfa-code").focus();
+                }, 50);
             } else {
                 alert("E-mail ou senha incorretos.");
             }
         } else {
             alert("Por favor, preencha as credenciais clínicas de acesso.");
         }
+    }
+
+    btnNext.addEventListener("click", (e) => {
+        e.preventDefault();
+        processCredentialsStep();
     });
 
     btnBack.addEventListener("click", () => {
@@ -323,6 +344,13 @@ function initLoginFlow() {
 
     form.addEventListener("submit", (e) => {
         e.preventDefault();
+        
+        // Se a seção de MFA ainda estiver oculta, processa a primeira etapa
+        if (formSecMfa.classList.contains("hidden")) {
+            processCredentialsStep();
+            return;
+        }
+
         const code = document.getElementById("login-mfa-code").value.trim();
         if (code === "123456") {
             if (session.tempUser) {
