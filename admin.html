@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Clínica (ERP/HMS) — Dr. Charlington M. Cavalcante</title>
+    <!-- Google Fonts: Inter como substituto para PP Neue Montreal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body class="admin-body">
+
+    <!-- CONTROLE DE GOVERNANÇA (RBAC & RLS SWITCHER) -->
+    <div id="governance-switcher-bar" class="gov-switcher-bar hidden">
+        <div class="gov-switcher-container">
+            <span class="gov-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                Controle de Governança (Filtro RLS / RBAC):
+            </span>
+            <div class="gov-pills">
+                <button class="gov-pill active" data-role="doctor">Dr. Charlington <span
+                        class="badge-role">Médico/Admin</span></button>
+
+                <!-- Secretária Wrapper com Dropdown Sub-menu -->
+                <div class="gov-dropdown-wrapper" style="position: relative; display: inline-block;">
+                    <button class="gov-pill" id="btn-gov-secretary" data-role="secretary">
+                        Atendimento <span class="badge-role" id="badge-secretary-plaza">Selecionar Praça</span>
+                    </button>
+                    <div class="gov-dropdown-menu hidden" id="gov-secretary-dropdown">
+                        <button type="button" class="gov-dropdown-item" onclick="selectSecretaryPlaza('Campinas')">
+                            <span class="dropdown-item-icon">🏙️</span>
+                            <div class="dropdown-item-text">
+                                <span class="dropdown-item-title">Campinas / SP</span>
+                                <span class="dropdown-item-subtitle">Sede Principal</span>
+                            </div>
+                        </button>
+                        <button type="button" class="gov-dropdown-item" onclick="selectSecretaryPlaza('Fortaleza')">
+                            <span class="dropdown-item-icon">🌊</span>
+                            <div class="dropdown-item-text">
+                                <span class="dropdown-item-title">Fortaleza / CE</span>
+                                <span class="dropdown-item-subtitle">Filial Nordeste</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <button class="gov-pill" data-role="financial">Financeiro <span class="badge-role">Admin</span></button>
+            </div>
+            <div class="gov-indicator">
+                <span class="indicator-dot green"></span> Praça: <strong id="active-plaza-name">Geral (Ambas)</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- TELA DE LOGIN COM MFA -->
+    <div id="login-screen" class="login-wrapper">
+        <div class="login-card">
+            <div class="login-logo-area">
+                <img src="assets/logo.png" alt="Logo Dr. Charlington Cavalcante" class="login-logo">
+                <h2>Gestão Clínica ERP/HMS</h2>
+                <p>Insira suas credenciais corporativas para entrar na rede clínica.</p>
+            </div>
+
+            <form id="login-form">
+                <!-- Fase 1: Email e Senha -->
+                <div id="login-credentials-section">
+                    <div class="input-group">
+                        <label for="login-email">Endereço de e-mail</label>
+                        <input type="email" id="login-email" required placeholder="exemplo@clinicacharlington.com.br"
+                            value="charlington@clinicacharlington.com.br">
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Senha de acesso</label>
+                        <input type="password" id="login-password" required placeholder="••••••••••••" value="senha123">
+                    </div>
+                    <button type="button" id="btn-next-mfa" class="btn-primary">Continuar</button>
+                </div>
+
+                <!-- Fase 2: Digitar Código MFA (TOTP) -->
+                <div id="login-mfa-section" class="hidden">
+                    <div class="mfa-info-alert">
+                        <span class="alert-icon">🔒</span>
+                        <div>
+                            <strong>Autenticação Multifator Ativa (MFA)</strong>
+                            <p>Um código de confirmação de 6 dígitos foi enviado ao seu aplicativo autenticador
+                                cadastrado.</p>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-mfa-code">Código de Segurança TOTP</label>
+                        <div class="mfa-code-input-container">
+                            <input type="text" id="login-mfa-code" maxlength="6" placeholder="000 000"
+                                autocomplete="one-time-code" autofocus>
+                        </div>
+                        <span class="mfa-hint" id="mfa-simulator-hint">Insira o código de segurança do seu
+                            autenticador.</span>
+                    </div>
+                    <button type="submit" id="btn-submit-login" class="btn-primary">Validar e Acessar</button>
+                    <button type="button" id="btn-back-credentials" class="btn-secondary">Voltar</button>
+                </div>
+            </form>
+
+            <div class="login-footer">
+                <p>Ambiente em conformidade com a LGPD e resoluções CFM nº 2.314/22.<br>Logs de acesso são imutáveis e
+                    auditados.</p>
+                <a href="index.html" class="back-to-site-link">← Voltar ao site público</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAINEL ADMINISTRATIVO (CONTEÚDO PRINCIPAL) -->
+    <div id="admin-dashboard-app" class="app-layout hidden">
+
+        <!-- SIDEBAR DE NAVEGAÇÃO -->
+        <aside class="app-sidebar">
+            <div class="sidebar-header">
+                <img src="assets/logo.png" alt="Logo Dr. Charlington Cavalcante" class="sidebar-logo">
+                <div class="sidebar-title-info">
+                    <h3>Dr. Charlington</h3>
+                    <span>Gestão & Governança</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <!-- Abas baseadas em permissões RBAC -->
+                <button class="nav-item active" data-tab="tab-dashboard" id="btn-tab-dashboard">
+                    <span class="nav-icon">📊</span> Dashboard & BI
+                </button>
+                <button class="nav-item" data-tab="tab-agenda" id="btn-tab-agenda">
+                    <span class="nav-icon">📅</span> Agenda
+                </button>
+                <button class="nav-item" data-tab="tab-pacientes" id="btn-tab-pacientes">
+                    <span class="nav-icon">👥</span> Pacientes & PEP
+                </button>
+                <button class="nav-item" data-tab="tab-financeiro" id="btn-tab-financeiro">
+                    <span class="nav-icon">💳</span> Financeiro & Splits
+                </button>
+                <button class="nav-item" data-tab="tab-insumos" id="btn-tab-insumos">
+                    <span class="nav-icon">📦</span> Insumos & Suprimentos
+                </button>
+                <button class="nav-item" data-tab="tab-auditoria" id="btn-tab-auditoria">
+                    <span class="nav-icon">🛡️</span> Segurança & LGPD
+                </button>
+                <button class="nav-item" data-tab="tab-funcionarios" id="btn-tab-funcionarios">
+                    <span class="nav-icon">🔑</span> Funcionários & Acessos
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-badge">
+                    <div class="avatar" id="active-user-avatar">DC</div>
+                    <div class="user-info">
+                        <h4 id="active-user-name">Dr. Charlington</h4>
+                        <p id="active-user-title">Médico Neuropediatra</p>
+                    </div>
+                </div>
+                <button id="btn-logout" class="btn-logout-action">
+                    <span>🚪</span> Sair da Área Restrita
+                </button>
+            </div>
+        </aside>
+
+        <!-- CONTAINER DAS ABAS (CONTEÚDO DINÂMICO) -->
+        <main class="app-content">
+
+
+
+            <!-- ALERTA DE RESTRIÇÃO RLS INFORMATIVO -->
+            <div id="rls-active-alert" class="rls-status-banner">
+                <span class="rls-icon">👁️</span>
+                <span id="rls-alert-text">Políticas de RLS ativas: Segmentação de dados por praça está ativa. Você tem
+                    acesso global.</span>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- ABA 1: DASHBOARD & BI (KPIs) -->
+            <!-- ============================================== -->
+            <section id="tab-dashboard" class="tab-pane active">
+                <div class="section-title-wrapper">
+                    <div>
+                        <span class="eyebrow">Inteligência de Negócios</span>
+                        <h2>Dashboard Gerencial Multilocalidade</h2>
+                    </div>
+                    <!-- Filtro por unidade -->
+                    <div class="dashboard-filters">
+                        <span class="filter-label">Filtrar Praça:</span>
+                        <select id="kpi-filter-plaza" class="select-clean">
+                            <option value="all">Todas as Praças (Consolidado)</option>
+                            <option value="Campinas">Campinas/SP</option>
+                            <option value="Fortaleza">Fortaleza/CE</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- CARDS DE KPIS GERENCIAIS -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-title">Taxa de Ocupação</span>
+                        <span class="kpi-value" id="kpi-occupancy">0%</span>
+
+                        <div class="kpi-math-container">
+                            <div class="math-formula-header">
+                                <span>Fórmula de Ocupação</span>
+                                <span class="math-formula-expression">Horas Reservadas / Horas Disponíveis × 100</span>
+                            </div>
+                            <div class="kpi-math-calc" id="math-occupancy">
+                                <!-- Renderizado dinamicamente -->
+                            </div>
+                        </div>
+
+                        <div class="kpi-progress-bar">
+                            <div class="progress-fill blue" id="kpi-occupancy-bar" style="width: 0%"></div>
+                        </div>
+                        <p class="kpi-trend green">↑ 4.2% em relação ao mês anterior</p>
+                    </div>
+
+                    <div class="kpi-card">
+                        <span class="kpi-title">Absenteísmo (No-Show)</span>
+                        <span class="kpi-value" id="kpi-noshow">0%</span>
+
+                        <div class="kpi-math-container">
+                            <div class="math-formula-header">
+                                <span>Fórmula de Absenteísmo</span>
+                                <span class="math-formula-expression">Consultas Canceladas / Total Agendado × 100</span>
+                            </div>
+                            <div class="kpi-math-calc" id="math-noshow">
+                                <!-- Renderizado dinamicamente -->
+                            </div>
+                        </div>
+
+                        <div class="kpi-progress-bar">
+                            <div class="progress-fill orange" id="kpi-noshow-bar" style="width: 0%"></div>
+                        </div>
+                        <p class="kpi-trend green" id="kpi-noshow-trend">↓ 15% após lembretes de WhatsApp</p>
+                    </div>
+
+                    <div class="kpi-card">
+                        <span class="kpi-title">Ticket Médio por Consulta</span>
+                        <span class="kpi-value" id="kpi-ticket">R$ 0,00</span>
+
+                        <div class="kpi-math-container">
+                            <div class="math-formula-header">
+                                <span>Fórmula de Ticket Médio</span>
+                                <span class="math-formula-expression">Receita Médica / Total de Consultas</span>
+                            </div>
+                            <div class="kpi-math-calc" id="math-ticket">
+                                <!-- Renderizado dinamicamente -->
+                            </div>
+                        </div>
+
+                        <p class="kpi-meta">Base: Reembolsos e Particulares</p>
+                        <p class="kpi-trend grey">Faturamento consolidado estável</p>
+                    </div>
+
+                </div>
+
+                <!-- SEÇÃO DE GRÁFICOS INTERATIVOS SVG -->
+                <div class="charts-row">
+                    <!-- Gráfico 1: Barras/Linhas (Receitas, Despesas e Margem) -->
+                    <div class="chart-card">
+                        <h3>Evolução Mensal: Receitas, Despesas e Margem (Consolidado)</h3>
+                        <div class="svg-chart-container" id="revenue-expenses-chart-container">
+                            <!-- Inserido dinamicamente via JS (SVG responsivo) -->
+                        </div>
+                        <div class="chart-legend">
+                            <span class="legend-item"><span class="legend-color blue" style="background-color: #0071e3;"></span> Receita Bruta</span>
+                            <span class="legend-item"><span class="legend-color orange" style="background-color: #ff9500;"></span> Despesa Operacional</span>
+                            <span class="legend-item"><span class="legend-color green" style="background-color: #34c759;"></span> Margem Líquida (%)</span>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico 2: Barras (Ocupação de Agenda vs No-Show) -->
+                    <div class="chart-card">
+                        <h3>Eficiência de Agendamento: Ocupação vs Absenteísmo (No-Show)</h3>
+                        <div class="svg-chart-container" id="agenda-efficiency-chart-container">
+                            <!-- Inserido dinamicamente via JS (SVG) -->
+                        </div>
+                        <div class="chart-legend">
+                            <span class="legend-item"><span class="legend-color dark" style="background-color: #0f1012;"></span> Taxa de Ocupação Média (%)</span>
+                            <span class="legend-item"><span class="legend-color red" style="background-color: #ea4e3d;"></span> Absenteísmo (No-Show %)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-row">
+                    <!-- Gráfico 3: Rosca (Composição de Faturamento por Serviço) -->
+                    <div class="chart-card flex-grow-1">
+                        <h3>Distribuição de Faturamento por Tipo de Serviço</h3>
+                        <div class="donut-chart-layout">
+                            <div class="svg-chart-donut-container" id="donut-chart-container">
+                                <!-- Inserido via JS -->
+                            </div>
+                            <div class="donut-legend" id="donut-legend-container">
+                                <!-- Inserido via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Funil da Jornada do Paciente -->
+                    <div class="chart-card flex-grow-1">
+                        <h3>Funil de Conversão e Adesão Terapêutica (Jornada Clinica)</h3>
+                        <div class="funnel-container" id="patient-journey-funnel-container">
+                            <!-- Inserido via JS -->
+                        </div>
+                        <p class="chart-caption">Adesão média de <strong>79%</strong> da consulta inicial para o plano de tratamento multidisciplinar recorrente.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- ABA 2: AGENDA (SECRETÁRIA / RECEPÇÃO) -->
+            <!-- ============================================== -->
+            <section id="tab-agenda" class="tab-pane">
+                
+                <!-- SUB-NAVEGAÇÃO INTERNA DA AGENDA -->
+                <div class="agenda-sub-nav">
+                    <div class="sub-nav-tabs">
+                        <button class="sub-nav-tab active" data-sub-tab="subtab-agenda-view">Agenda</button>
+                        <button class="sub-nav-tab" data-sub-tab="subtab-checkin-view">Check-In</button>
+                        <button class="sub-nav-tab" data-sub-tab="subtab-bloqueios-view">Bloqueios</button>
+                    </div>
+                </div>
+
+                <!-- SUB-PAINEL 1: AGENDA (VISUALIZAÇÃO DE GRADE) -->
+                <div id="subtab-agenda-view" class="sub-tab-pane">
+                    <div class="section-title-wrapper">
+                        <div>
+                            <span class="eyebrow">Operação e Logística</span>
+                            <h2>Grades de Agendamentos</h2>
+                        </div>
+                        <div class="agenda-controls">
+                            <select id="agenda-filter-plaza" class="select-clean">
+                                <option value="Campinas">Campinas/SP</option>
+                                <option value="Fortaleza">Fortaleza/CE</option>
+                            </select>
+                            <button id="btn-open-booking-modal" class="btn-primary">+ Novo Agendamento</button>
+                        </div>
+                    </div>
+
+                    <!-- ALERTA DE FERIADOS LOCAIS AUTOMATIZADO -->
+                    <div id="holiday-alert-banner" class="holiday-alert hidden">
+                        <span class="holiday-icon">📅</span>
+                        <span id="holiday-alert-text">Feriado Local Detectado na unidade: a agenda está bloqueada para este dia.</span>
+                    </div>
+
+                    <!-- BARRA DE FERRAMENTAS DA AGENDA -->
+                    <div class="agenda-tools-bar">
+                        <div class="toggle-cancelled-container">
+                            <label class="switch-toggle">
+                                <input type="checkbox" id="toggle-show-cancelled">
+                                <span class="switch-slider"></span>
+                            </label>
+                            <span class="toggle-text">Mostrar agendamentos cancelados</span>
+                        </div>
+                        <button id="btn-share-booking" class="btn-share-link">
+                            <span>🔗</span> Compartilhar link de agendamento
+                        </button>
+                    </div>
+
+                    <!-- GRADE VISUAL DE AGENDAMENTO -->
+                    <div class="agenda-layout">
+                        <!-- Grade Horária Diária -->
+                        <div class="schedule-grid-card">
+                            <div class="schedule-header">
+                                <button id="btn-prev-day" class="schedule-nav-btn">←</button>
+                                <div class="schedule-date-wrapper" style="position: relative; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    <h3 id="schedule-active-date" style="cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--color-future-blue)'" onmouseout="this.style.color=''">Segunda-feira, 25 de Maio de 2026</h3>
+                                    <input type="date" id="agenda-date-picker" style="opacity: 0; width: 0; height: 0; border: none; padding: 0; position: absolute; pointer-events: none;">
+                                </div>
+                                <button id="btn-next-day" class="schedule-nav-btn">→</button>
+                            </div>
+
+                            <div class="schedule-timeline" id="schedule-timeline-container">
+                                <!-- Inserido dinamicamente via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PAINEL 2: CHECK-IN -->
+                <div id="subtab-checkin-view" class="sub-tab-pane hidden">
+                    <div class="section-title-wrapper">
+                        <div>
+                            <span class="eyebrow">Atendimento e Recepção</span>
+                            <h2>Check-In de Pacientes</h2>
+                        </div>
+                        <div class="agenda-controls">
+                            <select id="checkin-filter-plaza" class="select-clean">
+                                <option value="Campinas">Campinas/SP</option>
+                                <option value="Fortaleza">Fortaleza/CE</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="checkin-layout">
+                        <div class="checkin-header-info">
+                            <span class="checkin-icon-badge">👤</span>
+                            <div class="checkin-title-info">
+                                <h3>Fila de Espera e Acolhimento</h3>
+                                <p>Acompanhe os pacientes que já realizaram o check-in e aguardam atendimento hoje.</p>
+                            </div>
+                        </div>
+
+                        <!-- Lista de pacientes em check-in ou empty state se vazio -->
+                        <div id="checkin-content-area" class="checkin-content-area-style">
+                            <!-- Inserido dinamicamente via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PAINEL 3: BLOQUEIOS -->
+                <div id="subtab-bloqueios-view" class="sub-tab-pane hidden">
+                    <div class="section-title-wrapper">
+                        <div>
+                            <span class="eyebrow">Planejamento e Escalas</span>
+                            <h2>Bloqueios de Agenda</h2>
+                        </div>
+                        <div class="agenda-controls">
+                            <select id="bloqueios-filter-plaza" class="select-clean">
+                                <option value="Campinas">Campinas/SP</option>
+                                <option value="Fortaleza">Fortaleza/CE</option>
+                            </select>
+                            <button id="btn-open-bloqueio-modal" class="btn-primary">+ Criar Bloqueio</button>
+                        </div>
+                    </div>
+
+                    <div class="bloqueios-layout">
+                        <div class="bloqueios-header-info">
+                            <span class="bloqueios-icon-badge">📅</span>
+                            <div class="bloqueios-title-info">
+                                <h3>Gerenciamento de Indisponibilidade</h3>
+                                <p>Gerencie os horários em que sua agenda ou salas estarão indisponíveis.</p>
+                            </div>
+                        </div>
+
+                        <!-- Lista de bloqueios ou empty state se vazio -->
+                        <div id="bloqueios-content-area" class="bloqueios-content-area-style">
+                            <!-- Inserido dinamicamente via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL DE NOVO AGENDAMENTO -->
+                <div id="booking-modal" class="modal-wrapper hidden">
+                    <div class="modal-card">
+                        <div class="modal-header">
+                            <h3>Novo Agendamento Clínico</h3>
+                            <button class="modal-close" id="btn-close-booking-modal">×</button>
+                        </div>
+                        <form id="booking-form">
+                            <div class="modal-body">
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="booking-plaza">Unidade / Praça</label>
+                                        <select id="booking-plaza" class="select-clean" required>
+                                            <option value="Campinas">Campinas/SP</option>
+                                            <option value="Fortaleza">Fortaleza/CE</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="booking-room">Sala Física</label>
+                                        <select id="booking-room" class="select-clean" required>
+                                            <!-- Atualizado dinamicamente -->
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="booking-patient">Paciente (Criança)</label>
+                                    <select id="booking-patient" class="select-clean" required>
+                                        <!-- Carregado do banco simulado -->
+                                    </select>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="booking-doctor">Profissional de Saúde</label>
+                                    <select id="booking-doctor" class="select-clean" required>
+                                        <option value="Dr. Charlington M. Cavalcante">Dr. Charlington M. Cavalcante
+                                            (Neuropediatra)</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="booking-date">Data</label>
+                                        <input type="date" id="booking-date" required value="2026-05-25">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="booking-time">Horário de Início</label>
+                                        <select id="booking-time" class="select-clean" required>
+                                            <option value="08:00">08:00</option>
+                                            <option value="09:00">09:00</option>
+                                            <option value="10:00">10:00</option>
+                                            <option value="11:00">11:00</option>
+                                            <option value="12:00">12:00</option>
+                                            <option value="13:00">13:00</option>
+                                            <option value="14:00">14:00</option>
+                                            <option value="15:00">15:00</option>
+                                            <option value="16:00">16:00</option>
+                                            <option value="17:00">17:00</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Sinalização de Erro de Conflito RLS/Overbooking -->
+                                <div id="booking-error-message" class="booking-error-banner hidden">
+                                    <strong>🚫 Conflito de Sala Detectado!</strong>
+                                    <span id="booking-error-text">Esta sala já está ocupada para outro atendimento neste
+                                        horário.</span>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn-secondary"
+                                    id="btn-cancel-booking-modal">Cancelar</button>
+                                <button type="submit" class="btn-primary">Reservar Horário</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- MODAL DE NOVO BLOQUEIO -->
+                <div id="bloqueio-modal" class="modal-wrapper hidden">
+                    <div class="modal-card">
+                        <div class="modal-header">
+                            <h3>Bloquear Horário na Agenda</h3>
+                            <button class="modal-close" id="btn-close-bloqueio-modal">×</button>
+                        </div>
+                        <form id="bloqueio-form">
+                            <div class="modal-body">
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="bloqueio-plaza">Unidade / Praça</label>
+                                        <select id="bloqueio-plaza" class="select-clean" required>
+                                            <option value="Campinas">Campinas/SP</option>
+                                            <option value="Fortaleza">Fortaleza/CE</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="bloqueio-room">Sala Física</label>
+                                        <select id="bloqueio-room" class="select-clean" required>
+                                            <!-- Atualizado dinamicamente -->
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="bloqueio-date-start">Data de Início</label>
+                                        <input type="date" id="bloqueio-date-start" required>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="bloqueio-date-end">Data de Fim</label>
+                                        <input type="date" id="bloqueio-date-end" required>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="bloqueio-time-start">Horário de Início</label>
+                                        <select id="bloqueio-time-start" class="select-clean" required>
+                                            <option value="08:00">08:00</option>
+                                            <option value="09:00">09:00</option>
+                                            <option value="10:00">10:00</option>
+                                            <option value="11:00">11:00</option>
+                                            <option value="12:00">12:00</option>
+                                            <option value="13:00">13:00</option>
+                                            <option value="14:00">14:00</option>
+                                            <option value="15:00">15:00</option>
+                                            <option value="16:00">16:00</option>
+                                            <option value="17:00">17:00</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="bloqueio-time-end">Horário de Término</label>
+                                        <select id="bloqueio-time-end" class="select-clean" required>
+                                            <option value="09:00">09:00</option>
+                                            <option value="10:00">10:00</option>
+                                            <option value="11:00">11:00</option>
+                                            <option value="12:00">12:00</option>
+                                            <option value="13:00">13:00</option>
+                                            <option value="14:00">14:00</option>
+                                            <option value="15:00">15:00</option>
+                                            <option value="16:00">16:00</option>
+                                            <option value="17:00">17:00</option>
+                                            <option value="18:00">18:00</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="bloqueio-reason">Motivo / Descrição do Bloqueio</label>
+                                    <input type="text" id="bloqueio-reason" required placeholder="Ex: Manutenção da sala, Horário de almoço, Viagem..." class="input-clean">
+                                </div>
+
+                                <div id="bloqueio-error-message" class="booking-error-banner hidden">
+                                    <strong>🚫 Conflito de Bloqueio Detectado!</strong>
+                                    <span id="bloqueio-error-text">Esta sala já possui um compromisso ou bloqueio neste horário.</span>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn-secondary" id="btn-cancel-bloqueio-modal">Cancelar</button>
+                                <button type="submit" class="btn-primary">Bloquear Horário</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- ABA 3: PACIENTES & PEP (PRONTUÁRIO ELETRÔNICO CORE) -->
+            <!-- ============================================== -->
+            <section id="tab-pacientes" class="tab-pane">
+                <div class="section-title-wrapper">
+                    <div>
+                        <span class="eyebrow">Governança Clínica e LGPD</span>
+                        <h2>Gestão de Pacientes e PEP Imutável</h2>
+                    </div>
+                </div>
+
+                <div class="patients-main-layout">
+                    <!-- Coluna da Esquerda: Lista de Pacientes -->
+                    <div class="patients-list-sidebar">
+                        <div class="sidebar-search-box">
+                            <input type="text" id="patient-search-input"
+                                placeholder="Buscar paciente ou responsável...">
+                        </div>
+                        <div class="patient-list" id="patient-list-container">
+                            <!-- Gerado dinamicamente via JS -->
+                        </div>
+                        <button id="btn-add-patient" class="btn-secondary w-100">+ Cadastrar Paciente (Criança)</button>
+                    </div>
+
+                    <!-- Coluna da Direita: Prontuário Clínico PEP do Paciente Ativo -->
+                    <div class="patient-pep-viewport">
+                        <div id="pep-empty-state" class="pep-empty-view">
+                            <span class="pep-empty-icon">📁</span>
+                            <h3>Nenhum Paciente Selecionado</h3>
+                            <p>Escolha um paciente da lista lateral para visualizar a ficha cadastral completa, anamnese
+                                pré-consulta e a linha do tempo do Prontuário Eletrônico (PEP).</p>
+                        </div>
+
+                        <div id="pep-active-view" class="pep-active-content hidden">
+                            <!-- Ficha de Cabeçalho do Paciente Premium -->
+                            <div class="pep-patient-header-card">
+                                <div class="pep-patient-info-block">
+                                    <div class="patient-large-avatar" id="pep-patient-avatar">P</div>
+                                    <div class="patient-detail-name">
+                                        <div class="patient-name-row">
+                                            <h3 id="pep-patient-name">Lucas Silva Santos</h3>
+                                            <span class="location-badge" id="pep-patient-plaza">Campinas/SP</span>
+                                        </div>
+                                        <div class="patient-meta-grid">
+                                            <div class="meta-item">
+                                                <span class="meta-label">Idade</span>
+                                                <span id="pep-patient-age" class="meta-val">5 anos</span>
+                                            </div>
+                                            <div class="meta-item">
+                                                <span class="meta-label">Nascimento</span>
+                                                <span id="pep-patient-dob" class="meta-val">12/03/2021</span>
+                                            </div>
+                                            <div class="meta-item flex-colspan-2" style="grid-column: span 2;">
+                                                <span class="meta-label">Responsável / CPF</span>
+                                                <strong id="pep-patient-parent" class="meta-val">Ana Silva Santos — CPF:
+                                                    123.543.963-22</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="pep-patient-meta-actions">
+                                    <div class="action-buttons-group">
+                                        <button class="btn-primary-action" onclick="window.schedulePatientAppointment(activePatientId)"
+                                            title="Agendar Consulta Diretamente">
+                                            📅 Agendar Consulta
+                                        </button>
+                                        <button class="btn-secondary-action" onclick="window.editPatientBasicInfo(activePatientId)"
+                                            title="Editar Cadastro do Paciente">
+                                            ✏️ Editar
+                                        </button>
+                                        <button class="btn-primary-action" id="btn-generate-anamnese-link"
+                                            title="Gerar Token de Anamnese de 128 bits para os Pais">
+                                            🔗 Enviar Anamnese
+                                        </button>
+                                        <button class="btn-secondary-action" id="btn-print-receita"
+                                            onclick="openPrintDocumentModal('receita')"
+                                            title="Gerar e Imprimir Prescrição Médica">
+                                            📝 + Prescrição
+                                        </button>
+                                        <button class="btn-secondary-action" id="btn-print-atestado"
+                                            onclick="openPrintDocumentModal('atestado')"
+                                            title="Gerar e Imprimir Atestado Médico">
+                                            📄 + Atestado
+                                        </button>
+                                    </div>
+                                    <button class="btn-delete-action" id="btn-delete-patient"
+                                        title="Excluir ficha deste paciente permanentemente (LGPD)">
+                                        🗑️ Excluir Paciente
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- CARD DE ESCALAS DE TRIAGEM E ACOMPANHAMENTO DO NEURODESENVOLVIMENTO -->
+                            <div class="anamnese-status-card" id="pep-anamnese-card">
+                                <div class="anamnese-card-title">
+                                    <h4>📋 Escalas de Triagem e Acompanhamento do Neurodesenvolvimento</h4>
+                                </div>
+                                <div class="anamnese-card-body">
+                                    <div class="scales-dashboard-grid">
+                                        <!-- Escala 1: M-CHAT-R/F -->
+                                        <div class="scale-info-card" id="scale-card-mchat">
+                                            <div class="scale-card-header">
+                                                <h5>M-CHAT-R/F (Pais)</h5>
+                                                <span class="anamnese-badge" id="pep-anamnese-badge">Não Enviado</span>
+                                            </div>
+                                            <p id="pep-anamnese-text" class="scale-card-desc">Nenhum questionário
+                                                M-CHAT-R/F associado a este paciente.</p>
+                                            <div class="score-alert-box hidden" id="pep-anamnese-alert-box">
+                                                <strong id="pep-anamnese-score-label">Risco: Baixo (Pontuação:
+                                                    1/20)</strong>
+                                                <p id="pep-anamnese-score-desc">Os marcos de neurodesenvolvimento estão
+                                                    dentro do esperado.</p>
+                                            </div>
+                                            <div class="link-copier-area hidden" id="pep-anamnese-copier">
+                                                <input type="text" id="anamnese-token-url" readonly
+                                                    class="input-clean flex-1">
+                                                <button class="btn-primary" id="btn-simulate-anamnese-fill"
+                                                    style="padding: 6px 12px; font-size: 10px;">Simular
+                                                    Preenchimento</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Escala 2: CARS -->
+                                        <div class="scale-info-card" id="scale-card-cars">
+                                            <div class="scale-card-header">
+                                                <h5>Escala CARS (Clínico/Pais)</h5>
+                                                <span class="anamnese-badge grey-tint" id="pep-cars-badge">Não
+                                                    Preenchido</span>
+                                            </div>
+                                            <p id="pep-cars-text" class="scale-card-desc">Avaliação de autismo infantil
+                                                baseada em observação e entrevista.</p>
+                                            <div class="score-alert-box hidden" id="pep-cars-alert-box">
+                                                <!-- Preenchido via JS -->
+                                            </div>
+                                            <div class="scale-actions" id="pep-cars-actions-area">
+                                                <button class="btn-secondary" onclick="openCARSModal()"
+                                                    style="padding: 6px 12px; font-size: 10px; width: 100%; border-color: rgba(0,113,227,0.15); color: var(--color-future-blue);">📝
+                                                    Aplicar Escala CARS</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Escala 3: ADOS-2 -->
+                                        <div class="scale-info-card" id="scale-card-ados">
+                                            <div class="scale-card-header">
+                                                <h5>Protocolo ADOS-2 (Médico)</h5>
+                                                <span class="anamnese-badge grey-tint" id="pep-ados-badge">Não
+                                                    Registrado</span>
+                                            </div>
+                                            <p id="pep-ados-text" class="scale-card-desc">Protocolo padrão-ouro de
+                                                observação clínica para diagnóstico de autismo.</p>
+                                            <div class="score-alert-box hidden" id="pep-ados-alert-box">
+                                                <!-- Preenchido via JS -->
+                                            </div>
+                                            <div class="scale-actions" id="pep-ados-actions-area">
+                                                <button class="btn-secondary" onclick="openADOS2Modal()"
+                                                    style="padding: 6px 12px; font-size: 10px; width: 100%; border-color: rgba(0,113,227,0.15); color: var(--color-future-blue);">📊
+                                                    Registrar Protocolo ADOS-2</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CARD DE ANEXOS E DOCUMENTOS CLÍNICOS -->
+                            <div class="anamnese-status-card" id="pep-attachments-card" style="margin-top: 20px;">
+                                <div class="anamnese-card-title">
+                                    <h4>📁 Anexos &amp; Pareceres Multidisciplinares (Exames, Laudos, Escolas)</h4>
+                                    <span class="anamnese-badge" id="pep-attachments-badge"
+                                        style="background-color: rgba(0, 113, 227, 0.06); color: var(--color-future-blue);">0
+                                        Anexos</span>
+                                </div>
+                                <div class="anamnese-card-body">
+                                    <p class="small-text"
+                                        style="color: var(--color-slate-comment); margin-bottom: 12px;">
+                                        Adicione relatórios pedagógicos, exames de imagem (EEG, RM) ou pareceres de
+                                        terapeutas externos à pasta clínica criptografada do paciente.
+                                    </p>
+
+                                    <!-- Zona de Upload -->
+                                    <div class="file-upload-zone" id="pep-upload-zone"
+                                        style="border: 2px dashed rgba(15, 16, 18, 0.1); border-radius: 8px; padding: 20px; text-align: center; background-color: rgba(15, 16, 18, 0.01); transition: all 0.2s ease; cursor: pointer; margin-bottom: 16px;">
+                                        <span style="font-size: 24px; display: block; margin-bottom: 8px;">📤</span>
+                                        <span
+                                            style="font-size: 11px; font-weight: 500; color: var(--color-deep-graphite); display: block;">Clique
+                                            aqui ou arraste arquivos para anexar</span>
+                                        <span
+                                            style="font-size: 9px; color: var(--color-slate-comment); display: block; margin-top: 4px;">PDF,
+                                            PNG, JPG, DOCX (Máx. 10MB)</span>
+                                        <input type="file" id="pep-file-input" class="hidden" multiple>
+                                    </div>
+
+                                    <!-- Lista de Anexos do Paciente Ativo -->
+                                    <div id="pep-attachments-list"
+                                        style="display: flex; flex-direction: column; gap: 8px;">
+                                        <!-- Renderizado dinamicamente via JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ADICIONAR REGISTRO NA LINHA DO TEMPO (CONFORME RBAC) -->
+                            <div class="pep-add-evolution-card" id="pep-add-evolution-section">
+                                <h4>✍️ Nova Evolução Clínica / Relatório Multidisciplinar</h4>
+                                <div class="evolution-author-info">
+                                    <span class="author-badge" id="pep-author-badge">Dr. Charlington M. Cavalcante
+                                        (Neuropediatra)</span>
+                                </div>
+                                <textarea id="pep-evolution-textarea" class="textarea-clean"
+                                    placeholder="Digite aqui o prontuário do paciente, observações clínicas, CID e orientações..."></textarea>
+
+                                <div class="evolution-action-row">
+                                    <span class="icp-brasil-info">🔏 Assinatura ICP-Brasil habilitada em trânsito
+                                        (AES-256 e TLS 1.3)</span>
+                                    <button class="btn-primary" id="btn-submit-evolution">
+                                        Assinar e Congelar Evolução
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- LINHA DO TEMPO DO PEP -->
+                            <div class="pep-timeline-section" id="pep-timeline-section">
+                                <h4>📜 Linha do Tempo Multidisciplinar</h4>
+                                <div class="pep-timeline-list" id="pep-timeline-container">
+                                    <!-- Inserido dinamicamente via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL DE RESUMO DE ARQUIVO POR IA -->
+                <div id="ai-summary-modal" class="modal-wrapper hidden">
+                    <div class="modal-card"
+                        style="max-width: 700px; width: 90%; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid rgba(0, 113, 227, 0.15); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);">
+                        <div class="modal-header" style="border-bottom: 1px solid rgba(15,16,18,0.08); padding: 20px;">
+                            <h3
+                                style="display: flex; align-items: center; gap: 8px; color: var(--color-future-blue); font-weight: 600;">
+                                <span>🧠</span> Resumo Cognitivo por IA (Laudo/Exame)
+                            </h3>
+                            <button class="modal-close" onclick="closeAISummaryModal()"
+                                style="font-size: 24px; cursor: pointer; border: none; background: none; color: var(--color-slate-comment);">×</button>
+                        </div>
+                        <div class="modal-body" style="padding: 20px; overflow-y: auto; max-height: 70vh;">
+                            <!-- Detalhes do arquivo e do paciente -->
+                            <div
+                                style="background: rgba(0, 113, 227, 0.05); padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 11px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; border-left: 3px solid var(--color-future-blue);">
+                                <div><strong>Arquivo:</strong> <span id="summary-file-name"
+                                        style="color: var(--color-future-blue); font-weight: 500;">documento.pdf</span>
+                                </div>
+                                <div><strong>SHA-256:</strong> <span id="summary-file-hash"
+                                        style="font-family: monospace; opacity: 0.8;">SHA256...</span></div>
+                            </div>
+
+                            <!-- Configuração rápida da chave de API no próprio modal -->
+                            <div
+                                style="background: rgba(99, 102, 241, 0.04); border: 1px solid rgba(99, 102, 241, 0.12); padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 11px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
+                                    onclick="document.getElementById('modal-gemini-key-wrapper').classList.toggle('hidden')">
+                                    <span
+                                        style="font-weight: 600; color: #6366f1; display: flex; align-items: center; gap: 6px;">
+                                        🔑 Configurar Chave Gemini API <span
+                                            style="font-size: 9px; font-weight: normal; color: var(--color-slate-comment);">(Clique
+                                            para expandir/ocultar)</span>
+                                    </span>
+                                    <span id="modal-key-status"
+                                        style="font-weight: bold; color: var(--color-clinic-green);">Não Configurada
+                                        ⚠️</span>
+                                </div>
+                                <div id="modal-gemini-key-wrapper" class="hidden"
+                                    style="margin-top: 10px; border-top: 1px dashed rgba(99, 102, 241, 0.2); padding-top: 10px;">
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="password" id="modal-gemini-key-input" class="input-clean"
+                                            placeholder="Cole sua API Key do Gemini aqui (AIzaSy...)"
+                                            style="padding: 6px; font-family: monospace; font-size: 11px; flex: 1;">
+                                        <button type="button" class="btn-primary" onclick="saveGeminiKeyFromModal()"
+                                            style="padding: 6px 12px; font-size: 11px; width: auto;">Salvar</button>
+                                    </div>
+                                    <p style="margin: 6px 0 0 0; font-size: 9px; color: var(--color-slate-comment);">A
+                                        chave de API é salva localmente e permite a análise real de arquivos por IA.</p>
+                                </div>
+                            </div>
+
+                            <!-- Efeito de Loading animado e premium -->
+                            <div id="summary-loading" class="hidden" style="text-align: center; padding: 40px 20px;">
+                                <div style="width: 48px; height: 48px; border: 3px solid rgba(0,113,227,0.1); border-radius: 50%; border-top-color: var(--color-future-blue); margin: 0 auto 16px;"
+                                    class="spin-animation"></div>
+                                <h4 style="font-weight: 600; color: var(--color-deep-graphite); margin-bottom: 6px;">
+                                    Processando com IA do Dr. Charlington...</h4>
+                                <p style="font-size: 11px; color: var(--color-slate-comment);">Extraindo informações
+                                    clínicas estruturadas e cruzando com o prontuário.</p>
+                            </div>
+
+                            <!-- Conteúdo do resumo formatado primorosamente -->
+                            <div id="summary-content-container"
+                                style="line-height: 1.6; color: var(--color-deep-graphite); font-size: 13px;">
+                                <div id="summary-text" style="white-space: pre-line;"></div>
+
+                                <div
+                                    style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed rgba(15,16,18,0.1); display: flex; justify-content: space-between; align-items: center;">
+                                    <span
+                                        style="font-size: 10px; color: var(--color-clinic-green); font-weight: 600; background: var(--color-clinic-green-light); padding: 2px 8px; border-radius: 4px;">
+                                        🛡️ Proteção LGPD e Criptografia AES-256 ativa
+                                    </span>
+                                    <button class="btn-secondary" onclick="copySummaryToClipboard()"
+                                        style="padding: 6px 12px; font-size: 11px; font-weight: 500;">📋 Copiar
+                                        Resumo</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL DE CADASTRO DE NOVO PACIENTE (CRIANÇA) -->
+                <div id="patient-modal" class="modal-wrapper hidden">
+                    <div class="modal-card">
+                        <div class="modal-header">
+                            <h3>Cadastrar Novo Paciente (Criança)</h3>
+                            <button class="modal-close" id="btn-close-patient-modal">×</button>
+                        </div>
+                        <form id="patient-form">
+                            <div class="modal-body">
+                                <div class="form-row">
+                                    <div class="input-group flex-2">
+                                        <label for="patient-new-name">Nome Completo da Criança</label>
+                                        <input type="text" id="patient-new-name" required
+                                            placeholder="Ex: Lucas Silva Santos" class="input-clean">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="patient-new-dob">Data de Nascimento</label>
+                                        <input type="date" id="patient-new-dob" required class="input-clean">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="input-group flex-2">
+                                        <label for="patient-new-parent-name">Nome do Responsável 1</label>
+                                        <input type="text" id="patient-new-parent-name" required
+                                            placeholder="Ex: Ana Silva Santos" class="input-clean">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="patient-new-parent-cpf">CPF do Responsável 1</label>
+                                        <input type="text" id="patient-new-parent-cpf" required
+                                            placeholder="000.000.000-00" class="input-clean">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="input-group flex-2">
+                                        <label for="patient-new-parent2-name">Nome do Responsável 2 (Opcional)</label>
+                                        <input type="text" id="patient-new-parent2-name"
+                                            placeholder="Ex: João Silva Santos" class="input-clean">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="patient-new-parent2-cpf">CPF do Responsável 2</label>
+                                        <input type="text" id="patient-new-parent2-cpf" placeholder="000.000.000-00"
+                                            class="input-clean">
+                                    </div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="patient-new-plaza">Praça / Unidade Relacionada</label>
+                                    <select id="patient-new-plaza" class="select-clean" required>
+                                        <option value="Campinas">Campinas/SP</option>
+                                        <option value="Fortaleza">Fortaleza/CE</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn-secondary"
+                                    id="btn-cancel-patient-modal">Cancelar</button>
+                                <button type="submit" class="btn-primary">Registrar e Cadastrar Ficha</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- FORMULÁRIO EXTERNO SIMULADO DO PORTAL DE ANAMNESE DOS PAIS (MODAL POPUP) -->
+                <div id="anamnese-portal-modal" class="modal-wrapper hidden">
+                    <div class="modal-card max-width-600">
+                        <div class="modal-header">
+                            <h3>Portal de Anamnese Pré-Consulta — Dr. Charlington M. Cavalcante</h3>
+                            <button class="modal-close" id="btn-close-anamnese-modal">×</button>
+                        </div>
+                        <div class="modal-body max-height-600 overflow-y">
+                            <div class="portal-intro">
+                                <span class="portal-badge">Token Seguro de Escrita: <strong
+                                        id="portal-token-display">128-bit-token</strong></span>
+                                <p>Prezada família de <strong id="portal-patient-name">Lucas Silva</strong>, por favor
+                                    responda com atenção às perguntas abaixo para auxiliar o Dr. Charlington na triagem
+                                    clínica de desenvolvimento da criança.</p>
+                            </div>
+
+                            <form id="anamnese-questions-form">
+                                <div class="anamnese-section">
+                                    <h4>Escala M-CHAT-R/F (Triagem de Desenvolvimento & Autismo)</h4>
+
+                                    <!-- Pergunta 1 -->
+                                    <div class="question-block">
+                                        <p>1. Se você apontar para algo do outro lado da sala, seu filho olha para isso?
+                                            (ex: apontar para um brinquedo ou um animal)</p>
+                                        <div class="radio-group">
+                                            <label><input type="radio" name="q1" value="0" required checked> Sim
+                                                (Normal)</label>
+                                            <label><input type="radio" name="q1" value="1"> Não (Risco)</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pergunta 2 -->
+                                    <div class="question-block">
+                                        <p>2. Você já se perguntou se seu filho é surdo? (ex: ele não reage ao chamarem
+                                            seu nome)</p>
+                                        <div class="radio-group">
+                                            <label><input type="radio" name="q2" value="1" required> Sim (Risco)</label>
+                                            <label><input type="radio" name="q2" value="0" checked> Não (Normal)</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pergunta 3 -->
+                                    <div class="question-block">
+                                        <p>3. Seu filho brinca de faz-de-conta? (ex: finge beber em um copo vazio, fala
+                                            no telefone, finge alimentar um boneco)</p>
+                                        <div class="radio-group">
+                                            <label><input type="radio" name="q3" value="0" required checked> Sim
+                                                (Normal)</label>
+                                            <label><input type="radio" name="q3" value="1"> Não (Risco)</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pergunta 4 -->
+                                    <div class="question-block">
+                                        <p>4. Seu filho gosta de subir nas coisas? (ex: subir em móveis, parquinho,
+                                            escadas)</p>
+                                        <div class="radio-group">
+                                            <label><input type="radio" name="q4" value="0" required checked> Sim
+                                                (Normal)</label>
+                                            <label><input type="radio" name="q4" value="1"> Não (Risco)</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pergunta 5 -->
+                                    <div class="question-block">
+                                        <p>5. Seu filho faz movimentos incomuns com os dedos perto dos olhos dele? (ex:
+                                            abana os dedos perto dos olhos)</p>
+                                        <div class="radio-group">
+                                            <label><input type="radio" name="q5" value="1" required> Sim (Risco)</label>
+                                            <label><input type="radio" name="q5" value="0" checked> Não (Normal)</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pergunta 6 (Controladora de Risco Alto na simulação) -->
+                                    <div class="question-block">
+                                        <p>6. Seu filho aponta com um dedo para mostrar algo que interessa a ele? (ex:
+                                            apontar para um avião no céu ou um caminhão grande)</p>
+                                        <div class="radio-group">
+                                            <label><input type="radio" name="q6" value="0" required id="q6-yes"> Sim
+                                                (Normal)</label>
+                                            <label><input type="radio" name="q6" value="1" id="q6-no"> Não
+                                                (Risco)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FORMULÁRIO DO PROTOCOLO CARS (CHILDHOOD AUTISM RATING SCALE) -->
+                <div id="cars-portal-modal" class="modal-wrapper hidden">
+                    <div class="modal-card max-width-600">
+                        <div class="modal-header">
+                            <h3>Escala de Pontuação CARS (Triagem Avançada)</h3>
+                            <button class="modal-close" onclick="closeCARSModal()">×</button>
+                        </div>
+                        <div class="modal-body max-height-600 overflow-y">
+                            <div class="portal-intro">
+                                <p>Preencha os 15 itens comportamentais abaixo com base na observação clínica e
+                                    entrevista familiar para computar o score CARS do paciente.</p>
+                            </div>
+                            <form id="cars-questions-form" onsubmit="submitCARSForm(event)">
+                                <div class="anamnese-section">
+                                    <!-- Item 1 -->
+                                    <div class="question-block">
+                                        <p>1. Relação com pessoas</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q1" value="1" required checked> 1.0 -
+                                                Adequada para a idade (Sem dificuldade)</label>
+                                            <label><input type="radio" name="cars_q1" value="2"> 2.0 - Levemente anormal
+                                                (Evita olhares, tímido)</label>
+                                            <label><input type="radio" name="cars_q1" value="3"> 3.0 - Moderadamente
+                                                anormal (Isolamento constante, rejeição)</label>
+                                            <label><input type="radio" name="cars_q1" value="4"> 4.0 - Gravemente
+                                                anormal (Totalmente alheio, sem contato)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 2 -->
+                                    <div class="question-block">
+                                        <p>2. Imitação</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q2" value="1" required checked> 1.0 -
+                                                Adequada (Imita sons e gestos normais)</label>
+                                            <label><input type="radio" name="cars_q2" value="2"> 2.0 - Levemente anormal
+                                                (Imita na maior parte do tempo, com atraso)</label>
+                                            <label><input type="radio" name="cars_q2" value="3"> 3.0 - Moderadamente
+                                                anormal (Imita apenas com grande insistência)</label>
+                                            <label><input type="radio" name="cars_q2" value="4"> 4.0 - Gravemente
+                                                anormal (Raramente ou nunca imita)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 3 -->
+                                    <div class="question-block">
+                                        <p>3. Resposta emocional</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q3" value="1" required checked> 1.0 -
+                                                Adequada à situação (Reação emocional normal)</label>
+                                            <label><input type="radio" name="cars_q3" value="2"> 2.0 - Levemente anormal
+                                                (Reações um pouco exageradas ou apáticas)</label>
+                                            <label><input type="radio" name="cars_q3" value="3"> 3.0 - Moderadamente
+                                                anormal (Reações claramente desproporcionais/inadequadas)</label>
+                                            <label><input type="radio" name="cars_q3" value="4"> 4.0 - Gravemente
+                                                anormal (Respostas emocionais extremamente rígidas ou ausentes)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 4 -->
+                                    <div class="question-block">
+                                        <p>4. Uso do corpo</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q4" value="1" required checked> 1.0 -
+                                                Adequado (Movimentos normais e coordenados)</label>
+                                            <label><input type="radio" name="cars_q4" value="2"> 2.0 - Levemente anormal
+                                                (Pequenas peculiaridades ou movimentos repetitivos leves)</label>
+                                            <label><input type="radio" name="cars_q4" value="3"> 3.0 - Moderadamente
+                                                anormal (Gesto estereotipado bizarro, andar nas pontas dos pés)</label>
+                                            <label><input type="radio" name="cars_q4" value="4"> 4.0 - Gravemente
+                                                anormal (Estereotipias constantes ou posturas corporais
+                                                bizarras)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 5 -->
+                                    <div class="question-block">
+                                        <p>5. Uso de objetos</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q5" value="1" required checked> 1.0 -
+                                                Adequado (Brinca com brinquedos de forma funcional)</label>
+                                            <label><input type="radio" name="cars_q5" value="2"> 2.0 - Levemente anormal
+                                                (Interesse incomum em partes de objetos)</label>
+                                            <label><input type="radio" name="cars_q5" value="3"> 3.0 - Moderadamente
+                                                anormal (Uso não funcional de objetos de forma rígida)</label>
+                                            <label><input type="radio" name="cars_q5" value="4"> 4.0 - Gravemente
+                                                anormal (Fixação extrema em girar ou enfileirar objetos)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 6 -->
+                                    <div class="question-block">
+                                        <p>6. Adaptação à mudança</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q6" value="1" required checked> 1.0 -
+                                                Adequada (Tolera mudanças na rotina facilmente)</label>
+                                            <label><input type="radio" name="cars_q6" value="2"> 2.0 - Levemente anormal
+                                                (Resistência leve a alterações de rotina)</label>
+                                            <label><input type="radio" name="cars_q6" value="3"> 3.0 - Moderadamente
+                                                anormal (Resistência ativa, irritabilidade marcante com
+                                                mudanças)</label>
+                                            <label><input type="radio" name="cars_q6" value="4"> 4.0 - Gravemente
+                                                anormal (Crises graves ou pânico ao mudar qualquer detalhe)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 7 -->
+                                    <div class="question-block">
+                                        <p>7. Resposta visual</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q7" value="1" required checked> 1.0 -
+                                                Adequada (Olhar coordenado e sustentado)</label>
+                                            <label><input type="radio" name="cars_q7" value="2"> 2.0 - Levemente anormal
+                                                (Evita contato visual direto às vezes)</label>
+                                            <label><input type="radio" name="cars_q7" value="3"> 3.0 - Moderadamente
+                                                anormal (Olhar de soslaio, fixa-se em luzes)</label>
+                                            <label><input type="radio" name="cars_q7" value="4"> 4.0 - Gravemente
+                                                anormal (Rejeição total do contato visual, examina objetos muito de
+                                                perto)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 8 -->
+                                    <div class="question-block">
+                                        <p>8. Resposta auditiva</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q8" value="1" required checked> 1.0 -
+                                                Adequada (Reação adequada a sons ambientais)</label>
+                                            <label><input type="radio" name="cars_q8" value="2"> 2.0 - Levemente anormal
+                                                (Ignora alguns sons ou reage com leve atraso)</label>
+                                            <label><input type="radio" name="cars_q8" value="3"> 3.0 - Moderadamente
+                                                anormal (Finge-se de surdo ou reage de forma muito assustada a ruídos
+                                                normais)</label>
+                                            <label><input type="radio" name="cars_q8" value="4"> 4.0 - Gravemente
+                                                anormal (Hipersensibilidade severa ou total indiferença a qualquer
+                                                som)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 9 -->
+                                    <div class="question-block">
+                                        <p>9. Resposta e uso do paladar, olfato e tato</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q9" value="1" required checked> 1.0 -
+                                                Adequada (Uso normal dos sentidos sensoriais)</label>
+                                            <label><input type="radio" name="cars_q9" value="2"> 2.0 - Levemente anormal
+                                                (Cheirar ou colocar objetos não comestíveis na boca às vezes)</label>
+                                            <label><input type="radio" name="cars_q9" value="3"> 3.0 - Moderadamente
+                                                anormal (Reação exagerada ao toque, texturas ou cheiros)</label>
+                                            <label><input type="radio" name="cars_q9" value="4"> 4.0 - Gravemente
+                                                anormal (Seletividade extrema ou fascinação olfativa/tátil
+                                                severa)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 10 -->
+                                    <div class="question-block">
+                                        <p>10. Medo ou ansiedade</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q10" value="1" required checked> 1.0 -
+                                                Adequado (Medo razoável frente a perigos)</label>
+                                            <label><input type="radio" name="cars_q10" value="2"> 2.0 - Levemente
+                                                anormal (Medo levemente exagerado ou ausência de medo em situações
+                                                bobas)</label>
+                                            <label><input type="radio" name="cars_q10" value="3"> 3.0 - Moderadamente
+                                                anormal (Medos irracionais graves ou total falta de perigo e
+                                                autopreservação)</label>
+                                            <label><input type="radio" name="cars_q10" value="4"> 4.0 - Gravemente
+                                                anormal (Crises de pânico constantes sem motivo evidente ou
+                                                comportamento de alto risco extremo)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 11 -->
+                                    <div class="question-block">
+                                        <p>11. Comunicação verbal</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q11" value="1" required checked> 1.0 -
+                                                Adequada (Fala clara e funcional para a idade)</label>
+                                            <label><input type="radio" name="cars_q11" value="2"> 2.0 - Levemente
+                                                anormal (Atraso leve na fala ou ecolalia ocasional)</label>
+                                            <label><input type="radio" name="cars_q11" value="3"> 3.0 - Moderadamente
+                                                anormal (Ecolalia frequente, jargões, inversão pronominal)</label>
+                                            <label><input type="radio" name="cars_q11" value="4"> 4.0 - Gravemente
+                                                anormal (Mutismo ou fala não-funcional bizarra constante)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 12 -->
+                                    <div class="question-block">
+                                        <p>12. Comunicação não-verbal</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q12" value="1" required checked> 1.0 -
+                                                Adequada (Uso correto de gestos e expressão facial)</label>
+                                            <label><input type="radio" name="cars_q12" value="2"> 2.0 - Levemente
+                                                anormal (Expressão facial menos expressiva ou gestos simples
+                                                demais)</label>
+                                            <label><input type="radio" name="cars_q12" value="3"> 3.0 - Moderadamente
+                                                anormal (Dificuldade marcante em apontar ou ler expressões
+                                                alheias)</label>
+                                            <label><input type="radio" name="cars_q12" value="4"> 4.0 - Gravemente
+                                                anormal (Expressões faciais congeladas/bizarras, ausência total de
+                                                gestos)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 13 -->
+                                    <div class="question-block">
+                                        <p>13. Nível de atividade</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q13" value="1" required checked> 1.0 -
+                                                Adequado (Nível de energia normal para a idade)</label>
+                                            <label><input type="radio" name="cars_q13" value="2"> 2.0 - Levemente
+                                                anormal (Leve agitação física ou letargia ocasional)</label>
+                                            <label><input type="radio" name="cars_q13" value="3"> 3.0 - Moderadamente
+                                                anormal (Hiperatividade marcante ou grande dificuldade em se
+                                                acalmar)</label>
+                                            <label><input type="radio" name="cars_q13" value="4"> 4.0 - Gravemente
+                                                anormal (Agitação motora violenta constante ou apatia extrema)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 14 -->
+                                    <div class="question-block">
+                                        <p>14. Nível e consistência da resposta intelectual</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q14" value="1" required checked> 1.0 -
+                                                Adequado (Habilidades intelectuais equilibradas)</label>
+                                            <label><input type="radio" name="cars_q14" value="2"> 2.0 - Levemente
+                                                anormal (Pequenas assimetrias de aprendizado, habilidades
+                                                irregulares)</label>
+                                            <label><input type="radio" name="cars_q14" value="3"> 3.0 - Moderadamente
+                                                anormal (Irregularidade marcante: excelente em certas áreas, muito
+                                                atrasado em outras)</label>
+                                            <label><input type="radio" name="cars_q14" value="4"> 4.0 - Gravemente
+                                                anormal (Discrepâncias intelectuais severas, savantismo
+                                                pronunciado)</label>
+                                        </div>
+                                    </div>
+                                    <!-- Item 15 -->
+                                    <div class="question-block">
+                                        <p>15. Impressões gerais</p>
+                                        <div class="radio-group flex-column"
+                                            style="display:flex; flex-direction:column; gap:6px;">
+                                            <label><input type="radio" name="cars_q15" value="1" required checked> 1.0 -
+                                                Sem autismo (Sem manifestação clínica relevante)</label>
+                                            <label><input type="radio" name="cars_q15" value="2"> 2.0 - Autismo leve
+                                                (Poucos sinais leves do espectro)</label>
+                                            <label><input type="radio" name="cars_q15" value="3"> 3.0 - Autismo moderado
+                                                (Vários sinais claros que afetam o dia a dia)</label>
+                                            <label><input type="radio" name="cars_q15" value="4"> 4.0 - Autismo grave
+                                                (Quadro clínico severo do transtorno do espectro autista)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer padding-lr-0" style="margin-top: 20px;">
+                                    <button type="button" class="btn-secondary" onclick="closeCARSModal()"
+                                        style="width: auto; margin-right: 10px;">Cancelar</button>
+                                    <button type="submit" class="btn-primary"
+                                        style="width: auto; flex-grow: 1;">Registrar e Calcular Escala CARS</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REGISTRO DO PROTOCOLO ADOS-2 (MÉDICO) -->
+                <div id="ados2-portal-modal" class="modal-wrapper hidden">
+                    <div class="modal-card">
+                        <div class="modal-header">
+                            <h3>Registrar Protocolo ADOS-2 (Padrão-Ouro)</h3>
+                            <button class="modal-close" onclick="closeADOS2Modal()">×</button>
+                        </div>
+                        <form id="ados2-form" onsubmit="submitADOS2Form(event)">
+                            <div class="modal-body">
+                                <div class="portal-intro" style="margin-bottom: 16px;">
+                                    <p>Insira a classificação obtida na observação padronizada do protocolo ADOS-2
+                                        realizada em consultório pelo Dr. Charlington.</p>
+                                </div>
+                                <div class="input-group" style="margin-bottom: 12px;">
+                                    <label for="ados2-modulo">Módulo Aplicado</label>
+                                    <select id="ados2-modulo" class="select-clean" required>
+                                        <option value="Toddler">Módulo Toddler (12 a 30 meses, fala não-verbal)</option>
+                                        <option value="Modulo 1" selected>Módulo 1 (A partir de 31 meses, fala
+                                            não-verbal ou palavras soltas)</option>
+                                        <option value="Modulo 2">Módulo 2 (Qualquer idade, fala com frases simples,
+                                            não-fluente)</option>
+                                        <option value="Modulo 3">Módulo 3 (Crianças/adolescentes, fala fluente)</option>
+                                        <option value="Modulo 4">Módulo 4 (Adolescentes/adultos, fala fluente)</option>
+                                    </select>
+                                </div>
+                                <div class="form-row" style="margin-bottom: 12px; align-items: flex-end;">
+                                     <div class="input-group flex-1">
+                                        <label for="ados2-score">Pontuação de Classificação (ADOS-2 Score)</label>
+                                        <select id="ados2-score" class="select-clean" required>
+                                             <option value="1">1 (Risco Nulo)</option>
+                                             <option value="2">2 (Risco Mínimo)</option>
+                                             <option value="3">3 (Risco Baixo)</option>
+                                             <option value="4">4 (Atenção / Espectro Leve)</option>
+                                             <option value="5">5 (Espectro Autista)</option>
+                                             <option value="6">6 (Espectro Autista)</option>
+                                             <option value="7">7 (Autismo Moderado)</option>
+                                             <option value="8">8 (Autismo)</option>
+                                             <option value="9">9 (Autismo Grave)</option>
+                                             <option value="10">10 (Autismo Severo)</option>
+                                         </select>
+                                     </div>
+                                     <div class="input-group flex-1">
+                                         <label for="ados2-classificacao">Classificação Diagnóstica</label>
+                                         <select id="ados2-classificacao" class="select-clean" required>
+                                             <option value="Não-Espectro">Não-Espectro (Dentro dos Padrões)</option>
+                                             <option value="Espectro do Autismo">Espectro do Autismo (TEA Leve/Moderado)</option>
+                                             <option value="Autismo" selected>Autismo (TEA Clássico)</option>
+                                         </select>
+                                     </div>
+                                </div>
+                                <div class="input-group">
+                                    <label for="ados2-obs">Observações do Comportamento e Interação Social</label>
+                                    <textarea id="ados2-obs" class="textarea-clean" style="height: 90px;"
+                                        placeholder="Descreva os comportamentos observados, reciprocidade socioemocional, gestos, contato visual, interesses restritos..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn-secondary"
+                                    onclick="closeADOS2Modal()">Cancelar</button>
+                                <button type="submit" class="btn-primary">Registrar Protocolo ADOS-2</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- MODAL DE EMISSÃO DE DOCUMENTOS CLÍNICOS PREMIUM (SPLIT-PANE) -->
+                <div id="clinical-doc-modal" class="modal-wrapper hidden">
+                    <div class="modal-card"
+                        style="max-width: 1100px; width: 95%; height: 85vh; display: flex; flex-direction: column;">
+                        <div class="modal-header">
+                            <h3>Central Emissora de Documentos Clínicos Assinados</h3>
+                            <button class="modal-close" onclick="closeClinicalDocModal()">×</button>
+                        </div>
+                        <div style="flex-grow: 1; display: grid; grid-template-columns: 1.1fr 0.9fr; overflow: hidden;">
+                            <!-- Painel Esquerdo: Editor -->
+                            <div
+                                style="padding: 20px; border-right: 1px solid rgba(15,16,18,0.08); display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
+                                <h4
+                                    style="font-size: 13px; font-weight: 600; text-transform: uppercase; color: var(--color-slate-comment); letter-spacing: 0.05em; margin: 0 0 5px 0;">
+                                    ✍️ Editor do Neuropediatra</h4>
+
+                                <div class="form-row"
+                                    style="margin-bottom: 0; display: flex; gap: 12px; flex-wrap: wrap;">
+                                    <div class="input-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                                        <label for="clinical-doc-type"
+                                            style="font-size: 10px; font-weight: 600; color: var(--color-slate-comment); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Tipo
+                                            de Documento</label>
+                                        <select id="clinical-doc-type" class="select-clean"
+                                            onchange="handleDocTypeChange()"
+                                            style="width: 100%; box-sizing: border-box; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+                                            <option value="receita">Prescrição Médica Especial</option>
+                                            <option value="atestado">Atestado Médico de Comparecimento</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                                        <label for="clinical-doc-template"
+                                            style="font-size: 10px; font-weight: 600; color: var(--color-slate-comment); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Modelo
+                                            Rápido (Template)</label>
+                                        <select id="clinical-doc-template" class="select-clean"
+                                            onchange="applyDocTemplate()"
+                                            style="width: 100%; box-sizing: border-box; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+                                            <!-- Preenchido via JS -->
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Opções de Assinaturas Digitais e PIN -->
+                                <div class="form-row" style="margin-bottom: 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                                    <div class="input-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                                        <label for="clinical-doc-signature" style="font-size: 10px; font-weight: 600; color: var(--color-slate-comment); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Provedor de Assinatura</label>
+                                        <select id="clinical-doc-signature" class="select-clean" onchange="handleSignatureProviderChange()" style="width: 100%; box-sizing: border-box; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; height: 43px;">
+                                            <option value="birdid" selected>Bird ID (Soluti)</option>
+                                            <option value="vidaas">VIDaaS (Valid)</option>
+                                            <option value="icpbrasil">ICP-Brasil (Tradicional)</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group" id="signature-pin-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                                        <label for="clinical-doc-pin" id="clinical-doc-pin-label" style="font-size: 10px; font-weight: 600; color: var(--color-slate-comment); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">PIN / Código OTP</label>
+                                        <input type="password" id="clinical-doc-pin" class="input-clean" placeholder="Digite o Token do celular" style="width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(15,16,18,0.08); height: 43px; background-color: rgba(15, 16, 18, 0.03); font-family: var(--font-family); font-size: 13px; outline: none;">
+                                    </div>
+                                </div>
+
+                                <div class="input-group"
+                                    style="flex-grow: 1; display: flex; flex-direction: column; margin-bottom: 0;">
+                                    <label for="clinical-doc-textarea"
+                                        style="font-size: 10px; font-weight: 600; color: var(--color-slate-comment); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Texto
+                                        do Documento</label>
+                                    <textarea id="clinical-doc-textarea" class="textarea-clean"
+                                        style="flex-grow: 1; height: 320px; font-family: monospace; font-size: 12px; line-height: 1.5; padding: 12px; resize: none; box-sizing: border-box;"
+                                        oninput="syncDocPreview()"
+                                        placeholder="Escreva o texto do documento clínico aqui..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Painel Direito: Preview Imutável Timbrado -->
+                            <div
+                                style="padding: 20px; background-color: #f7f7f9; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
+                                <div id="clinical-doc-preview-page"
+                                    style="width: 100%; max-width: 440px; aspect-ratio: 1 / 1.41; background-color: var(--color-canvas); border: 1px solid rgba(15,16,18,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.06); padding: 140px 45px 110px 60px; display: flex; flex-direction: column; justify-content: space-between; font-family: 'Inter', sans-serif; position: relative; box-sizing: border-box;">
+
+                                    <!-- Imagem do Papel Timbrado Campinas -->
+                                    <img src="assets/Papel - Campinas.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; pointer-events: none;">
+
+                                    <!-- Cabeçalho Oficial (Ocultado em favor do Papel Timbrado) -->
+                                    <div
+                                        style="display: none; text-align: center; border-bottom: 2px solid var(--color-future-blue); padding-bottom: 10px; margin-bottom: 15px; position: relative; z-index: 2;">
+                                        <h2
+                                            style="font-size: 13px; font-weight: 600; margin: 0; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-deep-graphite);">
+                                            Dr. Charlington M. Cavalcante</h2>
+                                        <p
+                                            style="font-size: 8px; color: var(--color-slate-comment); margin: 2px 0 0 0; text-transform: uppercase; font-weight: 500;">
+                                            Neurologia Infantil | CRM-SP 173.176</p>
+                                        <p
+                                            style="font-size: 7px; color: var(--color-slate-comment); margin: 1px 0 0 0;">
+                                            Campinas/SP - Fortaleza/CE</p>
+                                    </div>
+
+                                    <!-- Ficha do Paciente -->
+                                    <div
+                                        style="background-color: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 8px; color: var(--color-midnight-ink); display: flex; justify-content: space-between; border-left: 2px solid var(--color-future-blue); position: relative; z-index: 2;">
+                                        <div><strong>Paciente:</strong> <span id="preview-patient-name">Lucas Silva</span></div>
+                                        <div><strong>Data:</strong> <span id="preview-doc-date">26/05/2026</span></div>
+                                    </div>
+
+                                    <!-- Conteúdo Principal -->
+                                    <div style="flex-grow: 1; display: flex; flex-direction: column; position: relative; z-index: 2;">
+                                        <h3 id="preview-doc-title"
+                                            style="font-size: 11px; border-bottom: 1px solid rgba(15,16,18,0.06); padding-bottom: 4px; margin-bottom: 10px; color: var(--color-future-blue); font-weight: 600;">
+                                            PRESCRIÇÃO MÉDICA ESPECIAL</h3>
+                                        <div id="preview-doc-content"
+                                            style="font-size: 9px; line-height: 1.5; color: var(--color-deep-graphite); white-space: pre-line; flex-grow: 1; min-height: 140px;">
+                                            <!-- Atualizado via JS -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Assinatura Dinâmica -->
+                                    <div
+                                        style="border-top: 1px solid rgba(15,16,18,0.08); padding-top: 10px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 2;">
+                                        <div
+                                            style="width: 140px; border-top: 1px solid var(--color-midnight-ink); margin-bottom: 4px;">
+                                        </div>
+                                        <strong style="font-size: 9px; color: var(--color-deep-graphite);">Dr.
+                                            Charlington M. Cavalcante</strong>
+                                        <div id="preview-signature-badge"
+                                            style="font-size: 7px; color: var(--color-future-blue); font-weight: 600; display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; background-color: rgba(0, 86, 179, 0.05); padding: 1px 6px; border-radius: 4px;">
+                                            🔏 Assinado Bird ID (Selo AES-256 e SHA-256)
+                                        </div>
+                                        <div id="preview-signature-verify" style="font-size: 6px; color: var(--color-slate-comment); margin-top: 2px; display: none;">
+                                            Validação: <a href="#" id="preview-signature-link" target="_blank" style="color: var(--color-future-blue); text-decoration: underline;">Verificar Certificado</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="padding: 15px 20px;">
+                            <button type="button" class="btn-secondary" onclick="closeClinicalDocModal()"
+                                style="width: auto; margin-right: 10px;">Fechar</button>
+                            <button type="button" class="btn-primary" onclick="printClinicalDocument()"
+                                style="width: auto; padding: 10px 24px;">✓ Assinar e Emitir Documento</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- ABA 4: FINANCEIRO & SPLITS (FATURAMENTO) -->
+            <!-- ============================================== -->
+            <section id="tab-financeiro" class="tab-pane">
+                <div class="section-title-wrapper">
+                    <div>
+                        <span class="eyebrow">Contabilidade e Faturamento</span>
+                        <h2>Fluxo de Caixa e Split de Repasse de Terapeutas</h2>
+                    </div>
+                    <div class="financial-controls">
+                        <select id="finance-filter-plaza" class="select-clean">
+                            <option value="all">Faturamento Consolidado</option>
+                            <option value="Campinas">Campinas/SP</option>
+                            <option value="Fortaleza">Fortaleza/CE</option>
+                        </select>
+                        <button id="btn-trigger-month-close" class="btn-primary">Fechar Repasses do Mês</button>
+                    </div>
+                </div>
+
+                <!-- BALANÇO DE PRAÇAS -->
+                <div class="financial-balance-row">
+                    <div class="balance-card green-tint">
+                        <span class="balance-title">Receitas Confirmadas (Pago)</span>
+                        <h3 id="finance-total-revenues">R$ 0,00</h3>
+                        <p class="balance-meta" id="finance-revenue-detail">Campinas: R$ 0 | Fortaleza: R$ 0</p>
+                    </div>
+                    <div class="balance-card orange-tint">
+                        <span class="balance-title">Despesas Operacionais</span>
+                        <h3 id="finance-total-expenses">R$ 0,00</h3>
+                        <p class="balance-meta" id="finance-expense-detail">Aluguéis, Tributos e NF-e</p>
+                    </div>
+                    <div class="balance-card blue-tint">
+                        <span class="balance-title">Splits de Parceiros Calculados</span>
+                        <h3 id="finance-total-splits">R$ 0,00</h3>
+                        <p class="balance-meta">Custos de Sala / Repasse de Agenda</p>
+                    </div>
+                </div>
+
+                <!-- CONFIGURAÇÃO DE PARÂMETROS EDITÁVEIS & NOVA DESPESA -->
+                <div class="parameters-panel-card">
+                    <h4>⚙️ Painel de Governança: Parâmetros do Negócio & Fluxo de Despesas</h4>
+                    <p class="small-text" style="color: var(--color-slate-comment); margin-bottom: 16px;">
+                        Configure os valores operacionais que moldam os indicadores de BI e insira novas despesas reais
+                        no fluxo de caixa da clínica.
+                    </p>
+
+                    <div class="parameters-grid">
+                        <!-- Ajuste de Parâmetros de BI -->
+                        <div style="border-right: 1px solid rgba(15,16,18,0.06); padding-right: 20px;">
+                            <h5
+                                style="margin-top: 0; font-size: 12px; color: var(--color-deep-graphite); display: flex; align-items: center; gap: 6px;">
+                                📊 Métricas do Dashboard
+                                <span class="locked-indicator-badge">⚡ Reativo</span>
+                            </h5>
+                            <div class="form-row" style="margin-top: 10px;">
+                                <div class="input-group flex-1">
+                                    <label for="param-first-consult-price">Valor 1ª Consulta (R$)</label>
+                                    <input type="number" id="param-first-consult-price" class="input-clean" value="1050"
+                                        min="100" step="50" style="padding: 8px;">
+                                </div>
+                                <div class="input-group flex-1">
+                                    <label for="param-followup-consult-price">Valor Seguimento (R$)</label>
+                                    <input type="number" id="param-followup-consult-price" class="input-clean"
+                                        value="950" min="100" step="50" style="padding: 8px;">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="input-group flex-1">
+                                    <label for="param-wait-campinas">Espera Média Campinas (min)</label>
+                                    <input type="number" id="param-wait-campinas" class="input-clean" value="12" min="1"
+                                        max="60" style="padding: 8px;">
+                                </div>
+                                <div class="input-group flex-1">
+                                    <label for="param-wait-fortaleza">Espera Média Fortaleza (min)</label>
+                                    <input type="number" id="param-wait-fortaleza" class="input-clean" value="11"
+                                        min="1" max="60" style="padding: 8px;">
+                                </div>
+                            </div>
+                            <button type="button" id="btn-save-params" class="btn-secondary w-100"
+                                style="margin-top: 10px; font-size: 11px; padding: 8px;">
+                                Atualizar Indicadores de BI
+                            </button>
+
+                            <div class="input-group flex-1"
+                                style="margin-top: 15px; border-top: 1px dashed rgba(15,16,18,0.1); padding-top: 12px;">
+                                <label for="param-gemini-key"
+                                    style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                                    🔑 Chave de API Gemini (Opcional)
+                                    <span class="locked-indicator-badge"
+                                        style="background: rgba(99,102,241,0.08); color: #6366f1;">Gemini 2.5</span>
+                                </label>
+                                <input type="password" id="param-gemini-key" class="input-clean"
+                                    placeholder="Insira sua API Key do Gemini (AIzaSy...)"
+                                    style="padding: 8px; font-family: monospace;">
+                                <p class="small-text"
+                                    style="color: var(--color-slate-comment); margin-top: 4px; font-size: 9px; line-height: 1.3;">
+                                    Habilita a análise real e leitura profunda de PDFs/Imagens usando inteligência
+                                    artificial do Google Gemini de forma direta e segura no navegador.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Lançar Nova Despesa Operacional -->
+                        <div>
+                            <h5
+                                style="margin-top: 0; font-size: 12px; color: var(--color-deep-graphite); display: flex; align-items: center; gap: 6px;">
+                                💸 Lançar Nova Despesa Operacional
+                                <span class="locked-indicator-badge"
+                                    style="background-color:rgba(234, 78, 61, 0.06); color:var(--color-clinic-red);">Caixa</span>
+                            </h5>
+                            <form id="param-expense-form">
+                                <div class="form-row" style="margin-top: 10px;">
+                                    <div class="input-group flex-2">
+                                        <label for="expense-desc">Descrição da Despesa</label>
+                                        <input type="text" id="expense-desc" class="input-clean" required
+                                            placeholder="Ex: Compra de materiais, energia..." style="padding: 8px;">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="expense-val">Valor (R$)</label>
+                                        <input type="number" id="expense-val" class="input-clean" required min="1"
+                                            placeholder="0.00" style="padding: 8px;">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="expense-category">Categoria da Despesa</label>
+                                        <select id="expense-category" class="select-clean" required
+                                            style="padding: 8px;">
+                                            <option value="Aluguel & Infraestrutura">Aluguel & Infraestrutura</option>
+                                            <option value="Impostos & Tributos">Impostos & Tributos</option>
+                                            <option value="Insumos Clínicos">Insumos Clínicos</option>
+                                            <option value="Salários & Encargos">Salários & Encargos</option>
+                                            <option value="Tecnologia & Softwares">Tecnologia & Softwares</option>
+                                            <option value="Marketing & Comunicação">Marketing & Comunicação</option>
+                                            <option value="Outras Despesas">Outras Despesas</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="expense-status">Status de Pagamento</label>
+                                        <select id="expense-status" class="select-clean" required style="padding: 8px;">
+                                            <option value="Pago">Pago</option>
+                                            <option value="Pendente">Pendente</option>
+                                            <option value="Atrasado">Atrasado</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="expense-plaza">Praça / Unidade</label>
+                                        <select id="expense-plaza" class="select-clean" required style="padding: 8px;">
+                                            <option value="Campinas">Campinas/SP</option>
+                                            <option value="Fortaleza">Fortaleza/CE</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="expense-date">Data do Lançamento</label>
+                                        <input type="date" id="expense-date" class="input-clean" required
+                                            style="padding: 8px;">
+                                    </div>
+                                </div>
+                                <button type="submit" id="btn-submit-expense" class="btn-primary w-100"
+                                    style="margin-top: 10px; font-size: 11px; padding: 8px;">
+                                    Registrar Lançamento Financeiro
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAINEL DE DESPESAS RECORRENTES (CONTAS MENSAIS) -->
+                <div class="parameters-panel-card" style="margin-top: 24px;">
+                    <h4>🔁 Gestão de Despesas Recorrentes (Contas do Mês)</h4>
+                    <p class="small-text" style="color: var(--color-slate-comment); margin-bottom: 16px;">
+                        Cadastre contas fixas recorrentes (Aluguel, Luz, Internet, Água) com seus respectivos dias de
+                        vencimento. O sistema alerta as contas próximas do vencimento para pagamento.
+                    </p>
+
+                    <div class="parameters-grid">
+                        <!-- Novo Cadastro de Recorrente -->
+                        <div style="border-right: 1px solid rgba(15,16,18,0.06); padding-right: 20px;">
+                            <h5
+                                style="margin-top: 0; font-size: 12px; color: var(--color-deep-graphite); display: flex; align-items: center; gap: 6px;">
+                                📝 Cadastrar Conta Recorrente
+                            </h5>
+                            <form id="param-recurring-form">
+                                <div class="form-row" style="margin-top: 10px;">
+                                    <div class="input-group flex-2">
+                                        <label for="recurring-desc">Nome / Descrição</label>
+                                        <input type="text" id="recurring-desc" class="input-clean" required
+                                            placeholder="Ex: Aluguel Unidade Campinas..." style="padding: 8px;">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="recurring-val">Valor Fixo (R$)</label>
+                                        <input type="number" id="recurring-val" class="input-clean" required min="1"
+                                            placeholder="0.00" style="padding: 8px;">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="recurring-category">Categoria</label>
+                                        <select id="recurring-category" class="select-clean" required
+                                            style="padding: 8px;">
+                                            <option value="Aluguel & Infraestrutura">Aluguel & Infraestrutura</option>
+                                            <option value="Impostos & Tributos">Impostos & Tributos</option>
+                                            <option value="Insumos Clínicos">Insumos Clínicos</option>
+                                            <option value="Salários & Encargos">Salários & Encargos</option>
+                                            <option value="Tecnologia & Softwares">Tecnologia & Softwares</option>
+                                            <option value="Marketing & Comunicação">Marketing & Comunicação</option>
+                                            <option value="Outras Despesas">Outras Despesas</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="recurring-due-day">Dia de Vencimento (1 a 31)</label>
+                                        <input type="number" id="recurring-due-day" class="input-clean" required min="1"
+                                            max="31" value="10" style="padding: 8px;">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="recurring-plaza">Unidade / Praça</label>
+                                        <select id="recurring-plaza" class="select-clean" required
+                                            style="padding: 8px;">
+                                            <option value="Campinas">Campinas/SP</option>
+                                            <option value="Fortaleza">Fortaleza/CE</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" id="btn-submit-recurring" class="btn-primary w-100"
+                                    style="margin-top: 10px; font-size: 11px; padding: 8px;">
+                                    Salvar Conta Recorrente
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Acompanhamento das Contas do Mês -->
+                        <div>
+                            <h5
+                                style="margin-top: 0; font-size: 12px; color: var(--color-deep-graphite); display: flex; align-items: center; gap: 6px;">
+                                📅 Acompanhamento das Contas do Mês
+                            </h5>
+                            <div class="table-scroll-container"
+                                style="max-height: 250px; overflow-y: auto; margin-top: 10px;">
+                                <table class="fin-table" style="font-size: 11px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th>Vencimento</th>
+                                            <th>Valor</th>
+                                            <th>Status</th>
+                                            <th>Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="finance-recurring-table-body">
+                                        <!-- Inserido dinamicamente via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- TABELA DE LANÇAMENTOS DE CAIXA -->
+                <div class="financial-tables-layout">
+                    <!-- Fluxo de Caixa -->
+                    <div class="fin-table-card">
+                        <h3>Fluxo de Caixa (Lançamentos de Receitas e Despesas)</h3>
+                        <div class="table-scroll-container">
+                            <table class="fin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Descrição</th>
+                                        <th>Categoria</th>
+                                        <th>Unidade</th>
+                                        <th>Valor</th>
+                                        <th>Status</th>
+                                        <th>Ações / NFS-e</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finance-cashflow-table-body">
+                                    <!-- Inserido dinamicamente via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Splits de Terapeutas -->
+                        <div class="fin-table-card">
+                            <h3>Divisão de Repasses & Splits de Terapeutas</h3>
+                            <div class="table-scroll-container">
+                                <table class="fin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Terapeuta</th>
+                                            <th>Consultas</th>
+                                            <th>Faturamento</th>
+                                            <th>Taxa Clínica</th>
+                                            <th>Repasse Líquido</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="finance-splits-table-body">
+                                        <!-- Inserido dinamicamente via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- ABA 5: CONTROLE DE INSUMOS & SUPRIMENTOS        -->
+            <!-- ============================================== -->
+            <section id="tab-insumos" class="tab-pane">
+                <div class="section-title-wrapper">
+                    <div>
+                        <span class="eyebrow">Logística e Operações</span>
+                        <h2>Controle de Insumos & Suprimentos da Clínica</h2>
+                    </div>
+                    <div class="agenda-controls">
+                        <select id="insumos-filter-plaza" class="select-clean">
+                            <option value="all">Todas as Praças</option>
+                            <option value="Campinas">Campinas/SP</option>
+                            <option value="Fortaleza">Fortaleza/CE</option>
+                        </select>
+                        <button id="btn-open-insumo-modal" class="btn-primary">+ Novo Insumo</button>
+                    </div>
+                </div>
+
+                <!-- CARDS DE RESUMO DE INSUMOS -->
+                <div class="insumos-summary-cards">
+                    <div class="insumo-stat-card">
+                        <div class="insumo-stat-icon red">⚠️</div>
+                        <div class="insumo-stat-info">
+                            <p>Itens Críticos</p>
+                            <h3 id="insumos-criticos-count">0</h3>
+                        </div>
+                    </div>
+                    <div class="insumo-stat-card">
+                        <div class="insumo-stat-icon blue">📦</div>
+                        <div class="insumo-stat-info">
+                            <p>Total de Itens Cadastrados</p>
+                            <h3 id="insumos-total-count">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABELA DE INSUMOS -->
+                <div class="fin-table-card">
+                    <h3>Lista de Suprimentos Ativos</h3>
+                    <div class="table-scroll-container">
+                        <table class="fin-table">
+                            <thead>
+                                <tr>
+                                    <th>Insumo / Item</th>
+                                    <th>Unidade / Praça</th>
+                                    <th>Estoque Atual</th>
+                                    <th>Estoque Mínimo</th>
+                                    <th>Prioridade</th>
+                                    <th>Status de Estoque</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="insumos-table-body">
+                                <!-- Preenchido dinamicamente via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MODAL DE NOVO INSUMO -->
+                <div id="insumo-modal" class="modal-wrapper hidden">
+                    <div class="modal-card">
+                        <div class="modal-header">
+                            <h3>Adicionar Novo Insumo</h3>
+                            <button class="modal-close" id="btn-close-insumo-modal">×</button>
+                        </div>
+                        <form id="insumo-form">
+                            <div class="modal-body">
+                                <div class="input-group">
+                                    <label for="insumo-nome">Nome do Insumo</label>
+                                    <input type="text" id="insumo-nome" required
+                                        placeholder="Ex: Luvas de Nitrilo, Lençóis Descartáveis..." class="input-clean">
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="insumo-plaza">Praça / Unidade</label>
+                                        <select id="insumo-plaza" class="select-clean" required>
+                                            <option value="Campinas">Campinas/SP</option>
+                                            <option value="Fortaleza">Fortaleza/CE</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="insumo-prioridade">Prioridade de Reposição</label>
+                                        <select id="insumo-prioridade" class="select-clean" required>
+                                            <option value="Alta">Alta</option>
+                                            <option value="Média" selected>Média</option>
+                                            <option value="Baixa">Baixa</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="insumo-estoque">Estoque Inicial</label>
+                                        <input type="number" id="insumo-estoque" required min="0" value="10"
+                                            class="input-clean">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="insumo-minimo">Estoque Mínimo Exigido</label>
+                                        <input type="number" id="insumo-minimo" required min="1" value="5"
+                                            class="input-clean">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn-secondary"
+                                    id="btn-cancel-insumo-modal">Cancelar</button>
+                                <button type="submit" class="btn-primary">Cadastrar Suprimento</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- CENTRAL DE COMUNICAÇÃO DE INSUMOS (LOGS DE WHATSAPP SIMULADOS) -->
+                    <div class="fin-table-card" style="margin-top: 24px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(15, 16, 18, 0.05); padding-bottom: 10px; margin-bottom: 15px;">
+                            <h3
+                                style="margin: 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                💬 Central de Disparos WhatsApp (Notificações de Estoque Mínimo)
+                            </h3>
+                            <span class="location-badge"
+                                style="background-color: var(--color-clinic-green-light); color: var(--color-clinic-green); font-size: 9px; padding: 2px 8px;">Gateway
+                                Oficial Ativo</span>
+                        </div>
+                        <p class="small-text"
+                            style="color: var(--color-slate-comment); margin-bottom: 12px; font-size: 11px;">
+                            Histórico em tempo real de mensagens automatizadas enviadas via API para o gestor
+                            administrativo quando o estoque de materiais de Campinas ou Fortaleza atinge o nível mínimo.
+                        </p>
+                        <div class="table-scroll-container" style="max-height: 250px; overflow-y: auto;">
+                            <table class="fin-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 120px;">Data/Hora</th>
+                                        <th style="width: 150px;">Destinatário</th>
+                                        <th>Conteúdo da Notificação (WhatsApp)</th>
+                                        <th style="width: 100px; text-align: center;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="whatsapp-logs-table-body">
+                                    <!-- Preenchido dinamicamente via JS -->
+                                    <tr>
+                                        <td colspan="4"
+                                            style="text-align: center; color: var(--color-slate-comment); font-size: 11px; padding: 20px;">
+                                            Nenhuma notificação crítica enviada nas últimas 24 horas.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- ABA 5: SEGURANÇA, LGPD & AUDITORIA DE DADOS -->
+            <!-- ============================================== -->
+            <section id="tab-auditoria" class="tab-pane">
+                <div class="section-title-wrapper">
+                    <div>
+                        <span class="eyebrow">Segurança e Governança</span>
+                        <h2>Logs de Auditoria Clínicos e Criptografia AES-256</h2>
+                    </div>
+                </div>
+
+                <div class="security-layout">
+                    <!-- Bloco 1: Criptografia AES-256 de Dados de Saúde -->
+                    <div class="security-card">
+                        <div class="security-card-header">
+                            <h4>🔒 Criptografia e Integridade de Dados de Saúde (LGPD)</h4>
+                            <span class="badge-active green">AES-256 Ativo</span>
+                        </div>
+                        <div class="security-card-body">
+                            <p>Conforme as exigências da LGPD e CFM, dados clínicos sensíveis (como diagnósticos e CID)
+                                são guardados de forma criptografada no PostgreSQL. Abaixo, você pode ver em tempo real
+                                a tabela física criptografada comparada ao que o Dr. Charlington visualiza
+                                descriptografado na tela após autenticação MFA.</p>
+
+                            <div class="crypto-viewer-controls">
+                                <button id="btn-toggle-crypto" class="btn-primary">Alternar Visualização (Ver Dados no
+                                    Banco)</button>
+                            </div>
+
+                            <div class="database-preview-box">
+                                <div class="db-header">
+                                    <span>Tabela Física: <code>clinical_records_table</code></span>
+                                    <span id="db-view-mode" class="db-mode-indicator">Modo de Exibição:
+                                        <strong>Descriptografado (Visualização Médica)</strong></span>
+                                </div>
+                                <div class="table-scroll-container">
+                                    <table class="db-preview-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Paciente</th>
+                                                <th>Médico Responsável</th>
+                                                <th>CID-10 / Diagnóstico</th>
+                                                <th>Evolução Clínica</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="db-crypto-preview-body">
+                                            <!-- Gerado dinamicamente via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloco 2: Logs de Auditoria Imutáveis -->
+                    <div class="security-card">
+                        <div class="security-card-header">
+                            <h4>🛡️ Logs Imutáveis de Acesso e Auditoria (CFM)</h4>
+                            <span class="badge-active">Retenção de 6 anos ativa</span>
+                        </div>
+                        <div class="security-card-body">
+                            <p>Toda operação de leitura, escrita ou assinatura no prontuário eletrônico registra uma
+                                entrada permanente e inalterável no log de auditoria, registrando usuário, IP, praça,
+                                ação realizada e data/hora.</p>
+
+                            <div class="audit-log-filter">
+                                <input type="text" id="audit-log-search"
+                                    placeholder="Filtrar logs de auditoria por usuário, ação ou IP...">
+                            </div>
+
+                            <div class="audit-log-box">
+                                <div class="audit-log-header-row">
+                                    <span>Data/Hora</span>
+                                    <span>Usuário</span>
+                                    <span>Perfil</span>
+                                    <span>Unidade</span>
+                                    <span>Operação Realizada</span>
+                                    <span>IP de Origem</span>
+                                </div>
+                                <div class="audit-log-list" id="audit-log-container">
+                                    <!-- Inserido dinamicamente via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloco 3: Gerenciamento de Dados e Backup Real -->
+                <div class="security-card" style="margin-top: 20px;">
+                    <div class="security-card-header">
+                        <h4>💾 Gerenciamento de Dados Clínicos Reais &amp; Backup</h4>
+                        <span class="badge-active green"
+                            style="background-color: var(--color-clinic-green); color: white;">Modo Produção
+                            Habilitado</span>
+                    </div>
+                    <div class="security-card-body">
+                        <p>Use os controles abaixo para fazer a transição para a operação real da clínica ou gerenciar
+                            seus backups. O backup baixa todas as configurações, pacientes, prontuários, registros
+                            financeiros e insumos em um arquivo JSON que pode ser restaurado a qualquer momento.</p>
+
+                        <div class="data-management-buttons"
+                            style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 15px;">
+                            <button onclick="clearSimulationData()" class="btn-primary"
+                                style="background-color: var(--color-clinic-red); border-color: var(--color-clinic-red); color: white;"
+                                id="btn-clear-db">⚠️ Limpar Todos os Dados do Sistema (Iniciar do Zero)</button>
+                            <button onclick="exportDatabase()" class="btn-secondary" id="btn-export-db">📤 Exportar
+                                Backup Completo (JSON)</button>
+                            <label class="btn-secondary"
+                                style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border-radius: 4px; font-weight: 500; font-size: 11px; border: 1px solid rgba(15,16,18,0.15); background-color: white; color: var(--color-deep-graphite); margin: 0;"
+                                id="lbl-import-db">
+                                📥 Importar Backup Completo (JSON)
+                                <input type="file" accept=".json" onchange="importDatabase(this)"
+                                    style="display: none;">
+                            </label>
+                            <button onclick="toggleSwitcherBar()" class="btn-secondary" id="btn-toggle-switcher">👁️
+                                Ocultar/Exibir Barra de Governança</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- ABA 6: GESTÃO DE FUNCIONÁRIOS & ACESSOS        -->
+            <!-- ============================================== -->
+            <section id="tab-funcionarios" class="tab-pane">
+                <div class="section-title-wrapper">
+                    <div>
+                        <span class="eyebrow">Segurança e Recursos Humanos</span>
+                        <h2>Gestão de Funcionários & Controle de Acessos</h2>
+                    </div>
+                </div>
+
+                <div class="security-layout" style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Bloco 1: Cadastrar Novo Funcionário -->
+                    <div class="security-card">
+                        <div class="security-card-header">
+                            <h4>🔑 Cadastrar Novo Colaborador (Acesso Real)</h4>
+                            <span class="badge-active green">LGPD Compliance</span>
+                        </div>
+                        <div class="security-card-body">
+                            <form id="funcionario-form" style="display: flex; flex-direction: column; gap: 15px;">
+                                <div class="form-row">
+                                    <div class="input-group flex-2">
+                                        <label for="func-nome">Nome Completo</label>
+                                        <input type="text" id="func-nome" class="input-clean" required
+                                            placeholder="Ex: Maria de Souza Silva" style="padding: 10px;">
+                                    </div>
+                                    <div class="input-group flex-2">
+                                        <label for="func-email">E-mail Corporativo (Login)</label>
+                                        <input type="email" id="func-email" class="input-clean" required
+                                            placeholder="exemplo@clinicacharlington.com.br" style="padding: 10px;">
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="func-senha">Senha de Acesso</label>
+                                        <input type="password" id="func-senha" class="input-clean" required
+                                            placeholder="Digite a senha" style="padding: 10px;">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group flex-1">
+                                        <label for="func-perfil">Perfil de Acesso (Função RBAC)</label>
+                                        <select id="func-perfil" class="select-clean" required style="padding: 10px;">
+                                            <option value="secretary">Secretária / Recepção</option>
+                                            <option value="financial">Financeiro / Contabilidade</option>
+                                            <option value="therapist">Terapeuta Parceiro (Multidisciplinar)</option>
+                                            <option value="doctor">Médico / Administrador Geral</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group flex-1">
+                                        <label for="func-praca">Praça de Atuação (Row-Level Security)</label>
+                                        <select id="func-praca" class="select-clean" required style="padding: 10px;">
+                                            <option value="Campinas">Campinas/SP</option>
+                                            <option value="Fortaleza">Fortaleza/CE</option>
+                                            <option value="Geral">Geral (Acesso a Ambas)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn-primary"
+                                    style="align-self: flex-start; padding: 10px 20px;">
+                                    Cadastrar e Registrar Acesso
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Bloco 2: Lista de Funcionários Cadastrados -->
+                    <div class="security-card">
+                        <div class="security-card-header">
+                            <h4>👥 Colaboradores Ativos com Acesso ao Sistema</h4>
+                            <span class="badge-active">Segurança Auditada</span>
+                        </div>
+                        <div class="security-card-body">
+                            <div class="table-scroll-container">
+                                <table class="fin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome do Funcionário</th>
+                                            <th>E-mail</th>
+                                            <th>Perfil de Acesso</th>
+                                            <th>Praça Vinculada</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="funcionarios-table-body">
+                                        <!-- Inserido dinamicamente via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="admin.js"></script>
+</body>
+
+</html>
