@@ -123,10 +123,24 @@ function deleteFileFromIndexedDB(id) {
 }
 
 // Carrega ou inicializa a base de dados
-let db = JSON.parse(localStorage.getItem('DrCharlingtonERP_DB'));
+let db = null;
+try {
+    const rawDB = localStorage.getItem('DrCharlingtonERP_DB');
+    if (rawDB) {
+        db = JSON.parse(rawDB);
+    }
+} catch (e) {
+    console.error("Erro crítico ao carregar DrCharlingtonERP_DB do LocalStorage. Resetando...", e);
+    db = null;
+}
+
 if (!db || !db.funcionarios || !Array.isArray(db.funcionarios) || db.funcionarios.length === 0 || !db.insumos || !db.configuracoes || !db.anexos) {
     db = DEFAULT_DATABASE;
-    localStorage.setItem('DrCharlingtonERP_DB', JSON.stringify(db));
+    try {
+        localStorage.setItem('DrCharlingtonERP_DB', JSON.stringify(db));
+    } catch (e) {
+        console.error("Erro ao salvar banco de dados inicial:", e);
+    }
 } else {
     // Garantir que o médico administrador padrão sempre exista no banco local
     const temMedico = db.funcionarios.some(f => f.email === "charlington@clinicacharlington.com.br");
@@ -139,7 +153,11 @@ if (!db || !db.funcionarios || !Array.isArray(db.funcionarios) || db.funcionario
             perfil: "doctor",
             praca: "Geral"
         });
-        localStorage.setItem('DrCharlingtonERP_DB', JSON.stringify(db));
+        try {
+            localStorage.setItem('DrCharlingtonERP_DB', JSON.stringify(db));
+        } catch (e) {
+            console.error("Erro ao atualizar médico administrador no banco local:", e);
+        }
     }
 }
 
@@ -313,9 +331,15 @@ function initLoginFlow() {
     function processCredentialsStep() {
         const email = document.getElementById("login-email").value.trim();
         const pass = document.getElementById("login-password").value;
+        console.log("=== TENTATIVA DE LOGIN ===");
+        console.log("E-mail digitado:", email);
+        console.log("Senha digitada:", pass);
+        console.log("Funcionários cadastrados no DB local:", db ? db.funcionarios : 'db nulo');
+        
         if (email && pass) {
             // Validar no array de funcionários reais
             const matchedUser = db.funcionarios.find(f => f.email === email && f.senha === pass);
+            console.log("Usuário correspondente encontrado:", matchedUser);
             if (matchedUser) {
                 session.tempUser = matchedUser;
                 formSecCredentials.classList.add("hidden");
