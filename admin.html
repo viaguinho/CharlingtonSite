@@ -365,20 +365,127 @@
                     </div>
 
                     <!-- GRADE VISUAL DE AGENDAMENTO -->
-                    <div class="agenda-layout">
-                        <!-- Grade Horária Diária -->
-                        <div class="schedule-grid-card">
-                            <div class="schedule-header">
-                                <button id="btn-prev-day" class="schedule-nav-btn">←</button>
-                                <div class="schedule-date-wrapper" style="position: relative; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                    <h3 id="schedule-active-date" style="cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--color-future-blue)'" onmouseout="this.style.color=''">Segunda-feira, 25 de Maio de 2026</h3>
-                                    <input type="date" id="agenda-date-picker" style="opacity: 0; width: 0; height: 0; border: none; padding: 0; position: absolute; pointer-events: none;">
-                                </div>
-                                <button id="btn-next-day" class="schedule-nav-btn">→</button>
+                    <div class="agenda-layout" style="display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start;">
+                        <!-- Main Area (Esquerda) -->
+                        <div class="agenda-main-area" style="display: flex; flex-direction: column; gap: 20px;">
+                            
+                            <!-- Cabeçalho do Paciente Selecionado -->
+                            <div class="agenda-patient-header-card" id="agenda-patient-header-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: none;">
+                                <!-- Preenchido dinamicamente via JS -->
                             </div>
 
-                            <div class="schedule-timeline" id="schedule-timeline-container">
-                                <!-- Inserido dinamicamente via JS -->
+                            <!-- Grade Horária Semanal -->
+                            <div class="schedule-grid-card">
+                                <div class="schedule-header">
+                                    <button id="btn-prev-week" class="schedule-nav-btn">←</button>
+                                    <div class="schedule-date-wrapper" style="position: relative; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                        <h3 id="schedule-active-week" style="cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--color-future-blue)'" onmouseout="this.style.color=''">Semana de 25 a 31 de Maio de 2026</h3>
+                                        <input type="date" id="agenda-date-picker" style="opacity: 0; width: 0; height: 0; border: none; padding: 0; position: absolute; pointer-events: none;">
+                                    </div>
+                                    <button id="btn-next-week" class="schedule-nav-btn">→</button>
+                                </div>
+
+                                <div class="schedule-timeline" id="schedule-timeline-container">
+                                    <!-- Inserido dinamicamente via JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar (Direita) -->
+                        <div class="agenda-sidebar" style="display: flex; flex-direction: column; gap: 20px;">
+                            <!-- Mini Calendário Mensal -->
+                            <div class="sidebar-mini-calendar" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                                <h3 style="margin-bottom: 15px; font-size: 16px;">Fevereiro 2026</h3>
+                                <div class="mini-calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 12px;">
+                                    <div style="color: var(--color-text-light);">Seg</div>
+                                    <div style="color: var(--color-text-light);">Ter</div>
+                                    <div style="color: var(--color-text-light);">Qua</div>
+                                    <div style="color: var(--color-text-light);">Qui</div>
+                                    <div style="color: var(--color-text-light);">Sex</div>
+                                    <div style="color: var(--color-text-light);">Sáb</div>
+                                    <div style="color: var(--color-text-light);">Dom</div>
+                                    
+                                    <!-- Mocked Dates for layout representation -->
+                                    <div style="padding: 4px;">1</div>
+                                    <div style="padding: 4px;">2</div>
+                                    <div style="padding: 4px;">3</div>
+                                    <div style="padding: 4px;">4</div>
+                                    <div style="padding: 4px;">5</div>
+                                    <div style="padding: 4px;">6</div>
+                                    <div style="padding: 4px;">7</div>
+                                    <div style="padding: 4px;">8</div>
+                                    <div style="padding: 4px;">9</div>
+                                    <div style="padding: 4px;">10</div>
+                                    <div style="padding: 4px;">11</div>
+                                    <div style="padding: 4px;">12</div>
+                                    <div style="padding: 4px;">13</div>
+                                    <div style="padding: 4px;">14</div>
+                                    <div style="padding: 4px;">15</div>
+                                    <div style="padding: 4px;">16</div>
+                                    <div style="padding: 4px;">17</div>
+                                    <div style="padding: 4px;">18</div>
+                                    <div style="padding: 4px;">19</div>
+                                    <div style="padding: 4px;">20</div>
+                                    <div style="padding: 4px;">21</div>
+                                    <div style="padding: 4px;">22</div>
+                                    <div style="padding: 4px;">23</div>
+                                    <div style="padding: 4px;">24</div>
+                                    <div style="background: var(--color-future-blue); color: white; border-radius: 4px; padding: 4px;">25</div>
+                                    <div style="padding: 4px;">26</div>
+                                    <div style="padding: 4px;">27</div>
+                                    <div style="padding: 4px;">28</div>
+                                </div>
+                            </div>
+
+                            <!-- Métricas de Agenda -->
+                            <div class="sidebar-metrics" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                                <h3 style="margin-bottom: 15px; font-size: 16px;">Métricas Semanais</h3>
+                                <div style="display: flex; flex-direction: column; gap: 15px;">
+                                    <div>
+                                        <div style="font-size: 12px; color: var(--color-text-light);">Duração Média (Neuropediatria)</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
+                                            <span style="font-size: 18px; font-weight: 600;">1h45m</span>
+                                            <span style="font-size: 12px; color: var(--color-alert-error); background: rgba(220, 53, 69, 0.1); padding: 2px 6px; border-radius: 10px;">+15m planejado</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 12px; color: var(--color-text-light);">No-show e Remarcações</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
+                                            <span style="font-size: 18px; font-weight: 600;">8%</span>
+                                            <span style="font-size: 12px; color: var(--color-clinic-green); background: rgba(33, 150, 83, 0.1); padding: 2px 6px; border-radius: 10px;">-2% vs. mês ant.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lista de Profissionais -->
+                            <div class="sidebar-doctors-list" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="font-size: 16px;">Profissionais (Hoje)</h3>
+                                    <span style="color: var(--color-text-light); font-size: 18px; cursor: pointer;">^</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <img src="https://ui-avatars.com/api/?name=Charlington+C&background=EBF4FA&color=2196F3" alt="Dr. Charlington" style="width: 40px; height: 40px; border-radius: 50%;">
+                                        <div>
+                                            <div style="font-weight: 500; font-size: 14px;">Dr. Charlington C.</div>
+                                            <div style="color: var(--color-text-light); font-size: 12px;">Neuropediatra</div>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <img src="https://ui-avatars.com/api/?name=Amanda+S&background=E8F5E9&color=4CAF50" alt="Dra. Amanda" style="width: 40px; height: 40px; border-radius: 50%;">
+                                        <div>
+                                            <div style="font-weight: 500; font-size: 14px;">Dra. Amanda S.</div>
+                                            <div style="color: var(--color-text-light); font-size: 12px;">Psicóloga</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Banner de Ação -->
+                            <div class="sidebar-action-banner" style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius: 12px; padding: 20px; text-align: center; position: relative; overflow: hidden;">
+                                <h3 style="color: var(--color-future-blue); margin-bottom: 10px; font-size: 16px; position: relative; z-index: 1;">Emitir Laudo para o Paciente</h3>
+                                <button class="btn-primary" style="background: var(--color-future-blue); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 10px auto 0; padding: 0;">+</button>
                             </div>
                         </div>
                     </div>
@@ -484,6 +591,16 @@
                                     <select id="booking-doctor" class="select-clean" required>
                                         <option value="Dr. Charlington M. Cavalcante">Dr. Charlington M. Cavalcante
                                             (Neuropediatra)</option>
+                                    </select>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="booking-type">Tipo de Consulta</label>
+                                    <select id="booking-type" class="select-clean" required>
+                                        <option value="Consulta Inicial">Consulta Inicial</option>
+                                        <option value="Retorno">Retorno</option>
+                                        <option value="Avaliação Multidisciplinar">Avaliação Multidisciplinar</option>
+                                        <option value="Emissão de Laudo">Emissão de Laudo</option>
                                     </select>
                                 </div>
 

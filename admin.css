@@ -924,32 +924,89 @@ h1, h2, h3, h4, h5, h6 {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
 }
 
-.schedule-slot {
+.weekly-grid-header {
     display: grid;
-    grid-template-columns: 80px 1fr;
-    align-items: center;
+    grid-template-columns: 60px repeat(7, 1fr);
+    border-bottom: 1px solid rgba(15, 16, 18, 0.05);
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+}
+
+.weekly-day-header {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-slate-comment);
+}
+
+.weekly-day-header.active-day {
+    color: var(--color-future-blue);
+    font-weight: 600;
+}
+
+.schedule-row {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    min-height: 80px;
     border-bottom: 1px solid rgba(15, 16, 18, 0.03);
-    padding: 8px 0;
+}
+
+.schedule-cell {
+    border-right: 1px solid rgba(15, 16, 18, 0.03);
+    padding: 4px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.schedule-cell:last-child {
+    border-right: none;
 }
 
 .slot-time {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--color-slate-comment);
+    padding-top: 8px;
+    text-align: right;
+    padding-right: 8px;
 }
 
 .slot-appointment {
     background-color: var(--color-ghost-white);
     border-left: 3px solid var(--color-skyline-gray);
-    padding: 12px 16px;
-    border-radius: 0 var(--radius-buttons) var(--radius-buttons) 0;
+    padding: 8px;
+    border-radius: 4px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
     transition: all 0.2s ease;
+    font-size: 11px;
+    width: 100%;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+/* Tipos de Consulta */
+.appt-type-inicial {
+    border-left-color: #4CAF50;
+    background-color: #E8F5E9;
+}
+.appt-type-retorno {
+    border-left-color: #FF9800;
+    background-color: #FFF3E0;
+}
+.appt-type-avaliacao {
+    border-left-color: #9C27B0;
+    background-color: #F3E5F5;
+}
+.appt-type-laudo {
+    border-left-color: #607D8B;
+    background-color: #ECEFF1;
 }
 
 .slot-appointment.active-medical {
@@ -968,7 +1025,11 @@ h1, h2, h3, h4, h5, h6 {
     border-left: 1px dashed rgba(15, 16, 18, 0.08);
     color: var(--color-slate-comment);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10px;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    min-height: 40px;
 }
 
 .slot-appointment.free:hover {
@@ -978,9 +1039,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .appt-title {
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
 }
 
 .appt-meta {

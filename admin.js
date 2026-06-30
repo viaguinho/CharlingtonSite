@@ -1143,7 +1143,7 @@ function adjustAgendaDate(daysOffset) {
     renderAgenda();
 }
 
-function openBookingModal(defaultTime = "08:00", patientId = null) {
+function openBookingModal(defaultTime = "08:00", patientId = null, defaultDate = null) {
     const modal = document.getElementById("booking-modal");
     if (!modal) return;
     modal.classList.remove("hidden");
@@ -1166,7 +1166,7 @@ function openBookingModal(defaultTime = "08:00", patientId = null) {
     }
 
     // Set data padrão ativa
-    document.getElementById("booking-date").value = activeAgendaDate;
+    document.getElementById("booking-date").value = defaultDate || activeAgendaDate;
     document.getElementById("booking-time").value = defaultTime;
     
     // Definir praça padrão baseada no perfil RLS ativo
@@ -1195,6 +1195,46 @@ function loadModalRooms(plaza) {
     roomSelect.innerHTML = filteredRooms.map(r => `<option value="${r.id}">${r.nome}</option>`).join('');
 }
 
+window.showPatientDetails = function(apptId) {
+    const appt = db.agendamentos.find(a => a.id === apptId);
+    if (!appt) return;
+    const patient = db.pacientes.find(p => p.id === appt.paciente_id);
+    const card = document.getElementById("agenda-patient-header-card");
+    if (!card || !patient) return;
+    
+    card.style.display = "block";
+    card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(patient.nome)}&background=2196F3&color=fff" style="width: 60px; height: 60px; border-radius: 12px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 20px; color: var(--color-future-blue);">${patient.nome}</h2>
+                    <div style="font-size: 13px; color: var(--color-slate-comment); margin-top: 4px;">
+                        ${patient.idade} • Consulta: <strong>${appt.tipo_consulta || 'Consulta Inicial'}</strong>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 40px; font-size: 13px;">
+                <div>
+                    <div style="color: var(--color-slate-comment); margin-bottom: 4px;">Data/Hora</div>
+                    <strong>${appt.data.split('-').reverse().join('/')} às ${appt.hora}</strong>
+                </div>
+                <div>
+                    <div style="color: var(--color-slate-comment); margin-bottom: 4px;">Profissional</div>
+                    <strong>${appt.profissional}</strong>
+                </div>
+                <div>
+                    <div style="color: var(--color-slate-comment); margin-bottom: 4px;">Sala</div>
+                    <strong>${db.salas.find(s => s.id === appt.sala_id)?.nome || 'Sala'}</strong>
+                </div>
+                <div>
+                    <button class="btn-primary" onclick="alert('Funcionalidade em desenvolvimento')" style="padding: 8px 16px; font-size: 12px;">Iniciar Atendimento</button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
 function renderAgenda() {
     const plaza = document.getElementById("agenda-filter-plaza").value;
     
@@ -1217,192 +1257,131 @@ function renderAgenda() {
         document.getElementById("agenda-filter-plaza").disabled = false;
     }
 
-    // Formatar data ativa para exibição humana
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dateObj = new Date(activeAgendaDate + "T00:00:00");
-    document.getElementById("schedule-active-date").innerText = dateObj.toLocaleDateString('pt-BR', options);
-
     // Sincronizar com date picker se existir
     const datePicker = document.getElementById("agenda-date-picker");
     if (datePicker) {
         datePicker.value = activeAgendaDate;
     }
 
-    // Alerta de Feriados Nacionais e Municipais
-    const feriadosNacionais = {
-        "01-01": "Confraternização Universal (Ano Novo)",
-        "04-21": "Tiradentes",
-        "05-01": "Dia do Trabalho",
-        "09-07": "Independência do Brasil",
-        "10-12": "Nossa Senhora Aparecida (Padroeira do Brasil)",
-        "11-02": "Finados",
-        "11-15": "Proclamação da República",
-        "11-20": "Dia Nacional de Zumbi e da Consciência Negra",
-        "12-25": "Natal"
-    };
-
-    const monthDay = activeAgendaDate.substring(5); // MM-DD
-    let holidayName = feriadosNacionais[monthDay];
-    let isHoliday = false;
-    let holidayType = "";
-
-    if (holidayName) {
-        isHoliday = true;
-        holidayType = "Feriado Nacional";
-    } else if (plaza === "Campinas" && monthDay === "05-26") {
-        isHoliday = true;
-        holidayName = "Dia de Nossa Senhora do Desterro";
-        holidayType = "Feriado Municipal (Campinas)";
-    } else if (plaza === "Fortaleza" && monthDay === "05-28") {
-        isHoliday = true;
-        holidayName = "Corpus Christi";
-        holidayType = "Feriado Municipal (Fortaleza)";
-    } else if (plaza === "Geral") {
-        if (monthDay === "05-26") {
-            isHoliday = true;
-            holidayName = "Dia de Nossa Senhora do Desterro";
-            holidayType = "Feriado Municipal (Campinas)";
-        } else if (monthDay === "05-28") {
-            isHoliday = true;
-            holidayName = "Corpus Christi";
-            holidayType = "Feriado Municipal (Fortaleza)";
-        }
-    }
-
-    const holidayAlert = document.getElementById("holiday-alert-banner");
-    const holidayText = document.getElementById("holiday-alert-text");
-
-    if (isHoliday) {
-        holidayText.innerText = `${holidayType}: ${holidayName}. A agenda está disponível para bloqueio ou agendamento conforme necessidade.`;
-        holidayAlert.classList.remove("hidden");
-    } else {
-        holidayAlert.classList.add("hidden");
-    }
-
-    // Renderizar painel de Salas Físicas da Unidade se o container existir
-    const roomsList = document.getElementById("rooms-list-container");
-    if (roomsList) {
-        const currentSalas = db.salas.filter(s => s.praca === plaza);
-        
-        // Obter agendamentos não cancelados para a contagem de salas
-        const activeAgendamentos = db.agendamentos.filter(a => a.data === activeAgendaDate && a.praca === plaza && a.status !== "Cancelado");
-
-        roomsList.innerHTML = currentSalas.map(s => {
-            const count = activeAgendamentos.filter(a => a.sala_id === s.id).length;
-            const statusClass = count >= 4 ? "red" : (count > 0 ? "yellow" : "green");
-            const statusText = count >= 4 ? "Ocupação Máxima" : (count > 0 ? `${count} Consultas Hoje` : "Livre / Disponível");
-            
-            return `
-                <div class="room-item-status">
-                    <div class="room-name-row">
-                        <strong>${s.nome}</strong>
-                        <span class="status-pill ${statusClass}">${statusText}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    // Renderizar Grade Horária Diária (08:00 às 17:00)
+    // Renderizar Grade Horária Semanal (08:00 às 17:00, 7 dias)
     const timeline = document.getElementById("schedule-timeline-container");
     timeline.innerHTML = "";
 
     const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+    
+    // Obter inicio da semana (Domingo como 0, Sábado como 6)
+    const activeDateObj = new Date(activeAgendaDate + "T12:00:00");
+    const dayOfWeek = activeDateObj.getDay();
+    const startOfWeek = new Date(activeDateObj);
+    startOfWeek.setDate(activeDateObj.getDate() - dayOfWeek);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    const fmt = { month: 'long', year: 'numeric' };
+    const monthYear = endOfWeek.toLocaleDateString('pt-BR', fmt);
+    const scheduleActiveWeekLabel = document.getElementById("schedule-active-week");
+    if (scheduleActiveWeekLabel) {
+        scheduleActiveWeekLabel.innerText = `Semana de ${startOfWeek.getDate()} a ${endOfWeek.getDate()} de ${monthYear}`;
+    }
 
+    // Montar Cabeçalho da Grade
+    const daysName = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    let headerHtml = `<div class="weekly-grid-header"><div></div>`; // primeira coluna vazia pras horas
+    
+    let weekDates = [];
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    for(let i=0; i<7; i++) {
+        let d = new Date(startOfWeek);
+        d.setDate(startOfWeek.getDate() + i);
+        weekDates.push(d);
+        
+        const dateStr = d.toISOString().split('T')[0];
+        const isToday = dateStr === todayStr;
+        headerHtml += `
+            <div class="weekly-day-header ${isToday ? 'active-day' : ''}">
+                <div style="font-size: 16px; margin-bottom: 2px;">${d.getDate()}</div>
+                <div>${daysName[i]}</div>
+            </div>
+        `;
+    }
+    headerHtml += `</div>`;
+    timeline.innerHTML += headerHtml;
+
+    // Montar Linhas (Horas) e Células (Dias)
     hours.forEach(hr => {
-        // Achar agendamento neste horário nesta praça (respeitando o toggle de cancelados)
-        const appt = db.agendamentos.find(a => {
-            const matchDataPlacaHr = a.data === activeAgendaDate && a.hora === hr && a.praca === plaza;
-            if (!matchDataPlacaHr) return false;
-            if (a.status === "Cancelado") {
-                return showCancelledAppointments;
-            }
-            return true;
-        });
-
-        let apptHtml = "";
-        if (appt) {
-            const patient = db.pacientes.find(p => p.id === appt.paciente_id);
-            const sala = db.salas.find(s => s.id === appt.sala_id);
-            const isMedical = appt.profissional.includes("Charlington");
+        let rowHtml = `<div class="schedule-row">
+            <div class="slot-time">${hr}</div>
+        `;
+        
+        weekDates.forEach(date => {
+            const dateStr = date.toISOString().split('T')[0];
             
-            if (appt.status === "Cancelado") {
-                apptHtml = `
-                    <div class="slot-appointment cancelled">
-                        <div>
-                            <div class="appt-title">
-                                ${patient ? patient.nome : 'Paciente Desconhecido'}
-                                <span class="cancelled-badge">Cancelado</span>
-                            </div>
-                            <div class="appt-meta">Profissional: <strong>${appt.profissional}</strong> | Sala: <strong>${sala ? sala.nome : 'Sem Sala'}</strong></div>
+            // Procurar agendamento neste dia, hora, praca
+            const appt = db.agendamentos.find(a => {
+                if (a.data !== dateStr || a.hora !== hr || a.praca !== plaza) return false;
+                if (a.status === "Cancelado") return showCancelledAppointments;
+                return true;
+            });
+            
+            let cellHtml = `<div class="schedule-cell">`;
+            
+            if (appt && appt.status !== "Cancelado") {
+                const patient = db.pacientes.find(p => p.id === appt.paciente_id);
+                const sala = db.salas.find(s => s.id === appt.sala_id);
+                let typeClass = "";
+                if (appt.tipo_consulta === "Consulta Inicial") typeClass = "appt-type-inicial";
+                else if (appt.tipo_consulta === "Retorno") typeClass = "appt-type-retorno";
+                else if (appt.tipo_consulta === "Avaliação Multidisciplinar") typeClass = "appt-type-avaliacao";
+                else if (appt.tipo_consulta === "Emissão de Laudo") typeClass = "appt-type-laudo";
+                else typeClass = "active-medical"; 
+                
+                cellHtml += `
+                    <div class="slot-appointment ${typeClass}" onclick="window.showPatientDetails(${appt.id}); event.stopPropagation();">
+                        <div class="appt-title" title="${patient ? patient.nome : 'Paciente'}">${patient ? patient.nome : 'Paciente'}</div>
+                        <div style="font-size: 9px; color: var(--color-slate-comment); margin-bottom: 2px;">${appt.tipo_consulta || 'Consulta Inicial'}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-top: auto;">
+                            <img src="https://ui-avatars.com/api/?name=${patient ? encodeURIComponent(patient.nome) : 'P'}&background=random&color=fff&size=20" style="border-radius:50%; width: 16px; height: 16px;">
+                            <span style="font-size:9px; color: var(--color-slate-comment);">${sala ? sala.nome.substring(0,3) : ''}</span>
                         </div>
-                        <div class="appt-right">
-                            <button class="appt-action-cancel" style="color: var(--color-future-blue); opacity: 1; margin-right: 6px;" onclick="reactivateAppointment(${appt.id})">Reativar</button>
-                        </div>
+                    </div>
+                `;
+            } else if (appt && appt.status === "Cancelado") {
+                cellHtml += `
+                    <div class="slot-appointment" style="background-color: #f5f5f5; border-left-color: #ccc; text-decoration: line-through; opacity: 0.7;">
+                        <div class="appt-title" style="color: #999;">Cancelado</div>
                     </div>
                 `;
             } else {
-                const isAcolhido = appt.status === "Acolhido";
-                const canCheckin = !isAcolhido && (session.activeRole === 'sec-campinas' || session.activeRole === 'sec-fortaleza');
-
-                apptHtml = `
-                    <div class="slot-appointment ${isMedical ? 'active-medical' : 'active-therapist'}">
-                        <div>
-                            <div class="appt-title">
-                                ${patient ? patient.nome : 'Paciente Desconhecido'}
-                                ${isAcolhido ? '<span class="status-pill green" style="margin-left: 8px; font-size: 9px; padding: 2px 6px; font-weight: normal; text-transform: none;">Acolhido na Recepção 🛋️</span>' : ''}
-                            </div>
-                            <div class="appt-meta">Profissional: <strong>${appt.profissional}</strong> | Sala: <strong>${sala ? sala.nome : 'Sem Sala'}</strong></div>
-                        </div>
-                        <div class="appt-right">
-                            <span class="appt-room-badge">${plaza}</span>
-                            ${canCheckin ? `<button class="appt-action-cancel" style="background-color: var(--color-clinic-green); color: white; border-color: var(--color-clinic-green); margin-right: 6px;" onclick="checkinPatientReception(${appt.id})">Sinalizar Chegada</button>` : ''}
-                            <button class="appt-action-cancel" onclick="cancelAppointment(${appt.id})">Cancelar Consulta</button>
-                        </div>
-                    </div>
-                `;
-            }
-        } else {
-            // Verificar se há bloqueios ativos neste horário
-            const bloqueio = db.bloqueios ? db.bloqueios.find(b => 
-                activeAgendaDate >= b.data_inicio && activeAgendaDate <= b.data_fim && 
-                b.praca === plaza && 
-                hr >= b.hora_inicio && 
-                hr < b.hora_fim
-            ) : null;
-
-            if (bloqueio) {
-                if (bloqueio.sala_id === "all") {
-                    apptHtml = `
-                        <div class="slot-appointment blocked">
-                            🔒 Horário Bloqueado: <strong>${bloqueio.motivo}</strong> (Unidade Inteira)
+                // Verificar bloqueios
+                const bloqueio = db.bloqueios ? db.bloqueios.find(b => 
+                    dateStr >= b.data_inicio && dateStr <= b.data_fim && 
+                    b.praca === plaza && 
+                    hr >= b.hora_inicio && 
+                    hr < b.hora_fim
+                ) : null;
+                if (bloqueio) {
+                    cellHtml += `
+                        <div class="slot-appointment free" style="background-color: #fafafa; border-color: transparent; min-height: 40px;">
+                            🔒 Bloqueado
                         </div>
                     `;
                 } else {
-                    const salaBloqueada = db.salas.find(s => s.id === parseInt(bloqueio.sala_id));
-                    apptHtml = `
-                        <div class="slot-appointment blocked">
-                            🔒 Sala Bloqueada: <strong>${bloqueio.motivo}</strong> (${salaBloqueada ? salaBloqueada.nome : 'Sala'})
+                    cellHtml += `
+                        <div class="slot-appointment free" onclick="openBookingModal('${hr}', null, '${dateStr}')">
+                            +
                         </div>
                     `;
                 }
-            } else {
-                // Slots livres permanecem disponíveis para agendamento, mesmo em feriados
-                apptHtml = `
-                    <div class="slot-appointment free" onclick="openBookingModal('${hr}')">
-                        + Clique para Agendar
-                    </div>
-                `;
             }
-        }
-
-        const slotHtml = `
-            <div class="schedule-slot">
-                <div class="slot-time">${hr}</div>
-                <div class="slot-content">${apptHtml}</div>
-            </div>
-        `;
-        timeline.innerHTML += slotHtml;
+            
+            cellHtml += `</div>`;
+            rowHtml += cellHtml;
+        });
+        
+        rowHtml += `</div>`;
+        timeline.innerHTML += rowHtml;
     });
 }
 
@@ -1412,6 +1391,7 @@ function saveNewAppointment() {
     const roomId = parseInt(document.getElementById("booking-room").value);
     const patientId = parseInt(document.getElementById("booking-patient").value);
     const doctor = document.getElementById("booking-doctor").value;
+    const tipoConsulta = document.getElementById("booking-type").value;
     const date = document.getElementById("booking-date").value;
     const time = document.getElementById("booking-time").value;
 
@@ -1462,6 +1442,7 @@ function saveNewAppointment() {
         id: newId,
         paciente_id: patientId,
         profissional: doctor,
+        tipo_consulta: tipoConsulta,
         sala_id: roomId,
         data: date,
         hora: time,
