@@ -394,47 +394,8 @@
                         <!-- Sidebar (Direita) -->
                         <div class="agenda-sidebar" style="display: flex; flex-direction: column; gap: 20px;">
                             <!-- Mini Calendário Mensal -->
-                            <div class="sidebar-mini-calendar" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
-                                <h3 style="margin-bottom: 15px; font-size: 16px;">Fevereiro 2026</h3>
-                                <div class="mini-calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 12px;">
-                                    <div style="color: var(--color-text-light);">Seg</div>
-                                    <div style="color: var(--color-text-light);">Ter</div>
-                                    <div style="color: var(--color-text-light);">Qua</div>
-                                    <div style="color: var(--color-text-light);">Qui</div>
-                                    <div style="color: var(--color-text-light);">Sex</div>
-                                    <div style="color: var(--color-text-light);">Sáb</div>
-                                    <div style="color: var(--color-text-light);">Dom</div>
-                                    
-                                    <!-- Mocked Dates for layout representation -->
-                                    <div style="padding: 4px;">1</div>
-                                    <div style="padding: 4px;">2</div>
-                                    <div style="padding: 4px;">3</div>
-                                    <div style="padding: 4px;">4</div>
-                                    <div style="padding: 4px;">5</div>
-                                    <div style="padding: 4px;">6</div>
-                                    <div style="padding: 4px;">7</div>
-                                    <div style="padding: 4px;">8</div>
-                                    <div style="padding: 4px;">9</div>
-                                    <div style="padding: 4px;">10</div>
-                                    <div style="padding: 4px;">11</div>
-                                    <div style="padding: 4px;">12</div>
-                                    <div style="padding: 4px;">13</div>
-                                    <div style="padding: 4px;">14</div>
-                                    <div style="padding: 4px;">15</div>
-                                    <div style="padding: 4px;">16</div>
-                                    <div style="padding: 4px;">17</div>
-                                    <div style="padding: 4px;">18</div>
-                                    <div style="padding: 4px;">19</div>
-                                    <div style="padding: 4px;">20</div>
-                                    <div style="padding: 4px;">21</div>
-                                    <div style="padding: 4px;">22</div>
-                                    <div style="padding: 4px;">23</div>
-                                    <div style="padding: 4px;">24</div>
-                                    <div style="background: var(--color-future-blue); color: white; border-radius: 4px; padding: 4px;">25</div>
-                                    <div style="padding: 4px;">26</div>
-                                    <div style="padding: 4px;">27</div>
-                                    <div style="padding: 4px;">28</div>
-                                </div>
+                            <div class="sidebar-mini-calendar" id="sidebar-mini-calendar" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                                <!-- Inserido dinamicamente via JS -->
                             </div>
 
                             <!-- Métricas de Agenda -->
@@ -458,34 +419,15 @@
                                 </div>
                             </div>
 
-                            <!-- Lista de Profissionais -->
-                            <div class="sidebar-doctors-list" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
+                            <!-- Lista de Pacientes -->
+                            <div class="sidebar-patients-list" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <h3 style="font-size: 16px;">Profissionais (Hoje)</h3>
+                                    <h3 style="font-size: 16px;" id="sidebar-patients-title">Pacientes (Hoje)</h3>
                                     <span style="color: var(--color-text-light); font-size: 18px; cursor: pointer;">^</span>
                                 </div>
-                                <div style="display: flex; flex-direction: column; gap: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 12px;">
-                                        <img src="https://ui-avatars.com/api/?name=Charlington+C&background=EBF4FA&color=2196F3" alt="Dr. Charlington" style="width: 40px; height: 40px; border-radius: 50%;">
-                                        <div>
-                                            <div style="font-weight: 500; font-size: 14px;">Dr. Charlington C.</div>
-                                            <div style="color: var(--color-text-light); font-size: 12px;">Neuropediatra</div>
-                                        </div>
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 12px;">
-                                        <img src="https://ui-avatars.com/api/?name=Amanda+S&background=E8F5E9&color=4CAF50" alt="Dra. Amanda" style="width: 40px; height: 40px; border-radius: 50%;">
-                                        <div>
-                                            <div style="font-weight: 500; font-size: 14px;">Dra. Amanda S.</div>
-                                            <div style="color: var(--color-text-light); font-size: 12px;">Psicóloga</div>
-                                        </div>
-                                    </div>
+                                <div id="sidebar-patients-container" style="display: flex; flex-direction: column; gap: 12px;">
+                                    <!-- Inserido dinamicamente via JS -->
                                 </div>
-                            </div>
-
-                            <!-- Banner de Ação -->
-                            <div class="sidebar-action-banner" style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius: 12px; padding: 20px; text-align: center; position: relative; overflow: hidden;">
-                                <h3 style="color: var(--color-future-blue); margin-bottom: 10px; font-size: 16px; position: relative; z-index: 1;">Emitir Laudo para o Paciente</h3>
-                                <button class="btn-primary" style="background: var(--color-future-blue); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 10px auto 0; padding: 0;">+</button>
                             </div>
                         </div>
                     </div>

@@ -1041,12 +1041,18 @@ function initAgendaBindings() {
     });
     
     // Controles de data (Agenda)
-    document.getElementById("btn-prev-day").addEventListener("click", () => {
-        adjustAgendaDate(-1);
-    });
-    document.getElementById("btn-next-day").addEventListener("click", () => {
-        adjustAgendaDate(1);
-    });
+    const btnPrevWeek = document.getElementById("btn-prev-week");
+    if (btnPrevWeek) {
+        btnPrevWeek.addEventListener("click", () => {
+            adjustAgendaDate(-7);
+        });
+    }
+    const btnNextWeek = document.getElementById("btn-next-week");
+    if (btnNextWeek) {
+        btnNextWeek.addEventListener("click", () => {
+            adjustAgendaDate(7);
+        });
+    }
 
     const datePicker = document.getElementById("agenda-date-picker");
     if (datePicker) {
@@ -1058,7 +1064,7 @@ function initAgendaBindings() {
             }
         });
         
-        const activeDateEl = document.getElementById("schedule-active-date");
+        const activeDateEl = document.getElementById("schedule-active-week");
         if (activeDateEl) {
             activeDateEl.addEventListener("click", () => {
                 datePicker.showPicker();
@@ -1235,6 +1241,142 @@ window.showPatientDetails = function(apptId) {
     `;
 };
 
+function renderMiniCalendar() {
+    const miniCalendarContainer = document.getElementById("sidebar-mini-calendar");
+    if (!miniCalendarContainer) return;
+
+    const activeDate = new Date(activeAgendaDate + "T12:00:00");
+    const currentMonth = activeDate.getMonth();
+    const currentYear = activeDate.getFullYear();
+
+    const monthsName = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    // Brazil calendar: Seg = 0, Dom = 6
+    let startOffset = (firstDayOfMonth.getDay() + 6) % 7;
+
+    let miniCalHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="font-size: 14px; margin: 0; font-weight:600;">${monthsName[currentMonth]} ${currentYear}</h3>
+            <div style="display: flex; gap: 4px;">
+                <button id="btn-mini-prev" class="schedule-nav-btn" style="width:20px; height:20px; font-size:10px; padding:0; display:flex; align-items:center; justify-content:center;">←</button>
+                <button id="btn-mini-next" class="schedule-nav-btn" style="width:20px; height:20px; font-size:10px; padding:0; display:flex; align-items:center; justify-content:center;">→</button>
+            </div>
+        </div>
+        <div class="mini-calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 11px;">
+            <div style="color: var(--color-text-light); font-weight: 500;">Seg</div>
+            <div style="color: var(--color-text-light); font-weight: 500;">Ter</div>
+            <div style="color: var(--color-text-light); font-weight: 500;">Qua</div>
+            <div style="color: var(--color-text-light); font-weight: 500;">Qui</div>
+            <div style="color: var(--color-text-light); font-weight: 500;">Sex</div>
+            <div style="color: var(--color-text-light); font-weight: 500;">Sáb</div>
+            <div style="color: var(--color-text-light); font-weight: 500;">Dom</div>
+    `;
+
+    for (let i = 0; i < startOffset; i++) {
+        miniCalHtml += `<div></div>`;
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const checkDate = new Date(currentYear, currentMonth, day);
+        const checkDateStr = checkDate.toISOString().split('T')[0];
+        const isSelected = checkDateStr === activeAgendaDate;
+        const isToday = checkDateStr === new Date().toISOString().split('T')[0];
+
+        let style = "padding: 4px 0; border-radius: 4px; cursor: pointer; transition: all 0.2s;";
+        if (isSelected) {
+            style += " background: var(--color-future-blue); color: white; font-weight: 600;";
+        } else if (isToday) {
+            style += " border: 1px solid var(--color-future-blue); color: var(--color-future-blue); font-weight: 600;";
+        } else {
+            style += " color: var(--color-midnight-ink);";
+        }
+
+        miniCalHtml += `
+            <div style="${style}" onclick="changeActiveAgendaDate('${checkDateStr}')" onmouseover="if(!${isSelected}) this.style.background='rgba(0,113,227,0.05)'" onmouseout="if(!${isSelected}) this.style.background='transparent'">
+                ${day}
+            </div>
+        `;
+    }
+
+    miniCalHtml += `</div>`;
+    miniCalendarContainer.innerHTML = miniCalHtml;
+
+    document.getElementById("btn-mini-prev").addEventListener("click", (e) => {
+        e.stopPropagation();
+        adjustMiniCalendarMonth(-1);
+    });
+    document.getElementById("btn-mini-next").addEventListener("click", (e) => {
+        e.stopPropagation();
+        adjustMiniCalendarMonth(1);
+    });
+}
+
+window.changeActiveAgendaDate = function(dateStr) {
+    activeAgendaDate = dateStr;
+    renderAgenda();
+};
+
+window.adjustMiniCalendarMonth = function(monthOffset) {
+    let d = new Date(activeAgendaDate + "T12:00:00");
+    d.setMonth(d.getMonth() + monthOffset);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    activeAgendaDate = `${y}-${m}-${day}`;
+    renderAgenda();
+};
+
+function renderSidebarPatients() {
+    const container = document.getElementById("sidebar-patients-container");
+    if (!container) return;
+
+    const plaza = document.getElementById("agenda-filter-plaza").value;
+    const todayAppts = db.agendamentos.filter(a => a.data === activeAgendaDate && a.praca === plaza && a.status !== "Cancelado");
+
+    if (todayAppts.length === 0) {
+        container.innerHTML = `
+            <div style="font-size: 12px; color: var(--color-slate-comment); text-align: center; padding: 10px 0;">
+                Nenhum paciente agendado para hoje.
+            </div>
+        `;
+        return;
+    }
+
+    const patientIds = [...new Set(todayAppts.map(a => a.paciente_id))];
+
+    let html = "";
+    patientIds.forEach(pid => {
+        const patient = db.pacientes.find(p => p.id === pid);
+        if (!patient) return;
+        
+        const appt = todayAppts.find(a => a.paciente_id === pid);
+
+        html += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 8px; transition: background 0.2s; cursor: pointer;" 
+                 onmouseover="this.style.background='rgba(15,16,18,0.03)'" 
+                 onmouseout="this.style.background='transparent'"
+                 onclick="window.showPatientDetails(${appt.id})">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-future-blue-light); color: var(--color-future-blue); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">
+                        ${patient.nome.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()}
+                    </div>
+                    <div>
+                        <div style="font-weight: 500; font-size: 13px; color: var(--color-midnight-ink);">${patient.nome}</div>
+                        <div style="color: var(--color-slate-comment); font-size: 11px;">${patient.idade} • ${appt.hora}</div>
+                    </div>
+                </div>
+                <div style="font-size: 9px; color: var(--color-future-blue); background: rgba(0, 113, 227, 0.08); padding: 2px 6px; border-radius: 8px; font-weight: 500;">
+                    ${appt.tipo_consulta ? appt.tipo_consulta.split(' ').slice(0,2).join(' ') : 'Inicial'}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
 function renderAgenda() {
     const plaza = document.getElementById("agenda-filter-plaza").value;
     
@@ -1383,6 +1525,9 @@ function renderAgenda() {
         rowHtml += `</div>`;
         timeline.innerHTML += rowHtml;
     });
+
+    renderMiniCalendar();
+    renderSidebarPatients();
 }
 
 // Salva o novo agendamento validando Overbooking em nível de "banco de dados"
