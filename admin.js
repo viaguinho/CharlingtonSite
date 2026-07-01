@@ -617,9 +617,18 @@ function triggerTabRender(tabId) {
 function renderDashboardBI() {
     const plazaFilter = document.getElementById("kpi-filter-plaza").value;
     
-    // Greeting with dynamic user name
+    // Greeting with dynamic user name and timezone-aware greeting
     if (session.activeUser) {
-        document.getElementById("dashboard-user-greeting-title").innerText = "Bom dia, " + session.activeUser.name;
+        const hour = new Date().getHours();
+        let greeting = "Bom dia,";
+        if (hour >= 12 && hour < 18) {
+            greeting = "Boa tarde,";
+        } else if (hour >= 18 || hour < 5) {
+            greeting = "Boa noite,";
+        }
+        const eyebrowEl = document.getElementById("dashboard-user-greeting-eyebrow");
+        if (eyebrowEl) eyebrowEl.innerText = greeting;
+        document.getElementById("dashboard-user-greeting-title").innerText = session.activeUser.name;
     }
 
     // KPI 1: Pacientes Totais
