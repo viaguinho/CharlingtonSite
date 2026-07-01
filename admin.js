@@ -619,7 +619,7 @@ function renderDashboardBI() {
     
     // Greeting with dynamic user name
     if (session.activeUser) {
-        document.getElementById("dashboard-user-greeting-title").innerText = session.activeUser.name;
+        document.getElementById("dashboard-user-greeting-title").innerText = "Bom dia, " + session.activeUser.name;
     }
 
     // KPI 1: Pacientes Totais

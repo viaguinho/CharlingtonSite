@@ -183,15 +183,14 @@
             <!-- ABA 1: DASHBOARD & BI (KPIs) -->
             <!-- ============================================== -->
             <section id="tab-dashboard" class="tab-pane active">
-                <div class="section-title-wrapper" style="margin-bottom: 24px;">
+                <div class="section-title-wrapper" style="margin-bottom: 28px;">
                     <div>
-                        <span class="eyebrow" id="dashboard-user-greeting-eyebrow">Bom dia,</span>
-                        <h2 id="dashboard-user-greeting-title">Carregando...</h2>
+                        <h2 id="dashboard-user-greeting-title" style="font-size: 28px; font-weight: 700; color: #0071e3; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Carregando...</h2>
                     </div>
                     <!-- Filtro por unidade -->
                     <div class="dashboard-filters">
-                        <span class="filter-label">Filtrar Praça:</span>
-                        <select id="kpi-filter-plaza" class="select-clean">
+                        <span class="filter-label" style="font-size: 13px; color: var(--color-text-light);">Filtrar Praça:</span>
+                        <select id="kpi-filter-plaza" class="select-clean" style="border: 1px solid var(--color-border); border-radius: 8px; padding: 6px 12px; font-size: 13px;">
                             <option value="all">Todas as Praças (Consolidado)</option>
                             <option value="Campinas">Campinas/SP</option>
                             <option value="Fortaleza">Fortaleza/CE</option>
@@ -200,42 +199,42 @@
                 </div>
 
                 <!-- CARDS DE KPIS GERENCIAIS -->
-                <div class="dashboard-kpi-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px;">
+                <div class="dashboard-kpi-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 28px;">
                     <!-- Pacientes Totais -->
-                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="kpi-card-new" style="background: #ffffff; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); border: 1px solid rgba(0, 0, 0, 0.02); border-radius: 16px; padding: 24px 20px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';">
                         <div>
-                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Pacientes Totais</span>
-                            <span id="kpi-total-patients" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
-                            <span style="font-size: 11px; color: var(--color-clinic-green); font-weight: 500;">+12% desde o mês passado</span>
+                            <span style="font-size: 11px; color: #8a8a8f; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Pacientes Totais</span>
+                            <span id="kpi-total-patients" style="font-size: 26px; font-weight: 700; color: #1c1c1e; display: block; line-height: 1.2;">0</span>
+                            <span style="font-size: 11px; color: #34c759; font-weight: 500; display: block; margin-top: 6px;">+12% desde o mês passado</span>
                         </div>
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 113, 227, 0.08); display: flex; align-items: center; justify-content: center; color: var(--color-future-blue); font-size: 18px;">👥</div>
+                        <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(0, 113, 227, 0.06); display: flex; align-items: center; justify-content: center; color: #0071e3; font-size: 20px;">👥</div>
                     </div>
                     <!-- Consultas de Hoje -->
-                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="kpi-card-new" style="background: #ffffff; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); border: 1px solid rgba(0, 0, 0, 0.02); border-radius: 16px; padding: 24px 20px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';">
                         <div>
-                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Consultas Hoje</span>
-                            <span id="kpi-today-appts" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
-                            <span style="font-size: 11px; color: var(--color-clinic-yellow); font-weight: 500;" id="kpi-today-pending-sub">0 pendentes</span>
+                            <span style="font-size: 11px; color: #8a8a8f; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Consultas Hoje</span>
+                            <span id="kpi-today-appts" style="font-size: 26px; font-weight: 700; color: #1c1c1e; display: block; line-height: 1.2;">0</span>
+                            <span style="font-size: 11px; color: #ff9500; font-weight: 500; display: block; margin-top: 6px;" id="kpi-today-pending-sub">0 pendentes</span>
                         </div>
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(33, 150, 83, 0.08); display: flex; align-items: center; justify-content: center; color: var(--color-clinic-green); font-size: 18px;">📅</div>
+                        <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(52, 199, 89, 0.06); display: flex; align-items: center; justify-content: center; color: #34c759; font-size: 20px;">📅</div>
                     </div>
                     <!-- Laudos / Anamneses Pendentes -->
-                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="kpi-card-new" style="background: #ffffff; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); border: 1px solid rgba(0, 0, 0, 0.02); border-radius: 16px; padding: 24px 20px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';">
                         <div>
-                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Anamneses Pendentes</span>
-                            <span id="kpi-pending-anamneses" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
-                            <span style="font-size: 11px; color: var(--color-alert-error); font-weight: 500;">2 urgentes</span>
+                            <span style="font-size: 11px; color: #8a8a8f; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Anamneses Pendentes</span>
+                            <span id="kpi-pending-anamneses" style="font-size: 26px; font-weight: 700; color: #1c1c1e; display: block; line-height: 1.2;">0</span>
+                            <span style="font-size: 11px; color: #ff3b30; font-weight: 500; display: block; margin-top: 6px;">2 urgentes</span>
                         </div>
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(234, 78, 61, 0.08); display: flex; align-items: center; justify-content: center; color: var(--color-alert-error); font-size: 18px;">📄</div>
+                        <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(175, 82, 222, 0.06); display: flex; align-items: center; justify-content: center; color: #af52de; font-size: 20px;">📄</div>
                     </div>
                     <!-- Receitas Ativas / Insumos -->
-                    <div class="kpi-card-new" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="kpi-card-new" style="background: #ffffff; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); border: 1px solid rgba(0, 0, 0, 0.02); border-radius: 16px; padding: 24px 20px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';">
                         <div>
-                            <span style="font-size: 12px; color: var(--color-text-light); display: block; margin-bottom: 6px;">Insumos em Alerta</span>
-                            <span id="kpi-active-prescriptions" style="font-size: 24px; font-weight: 600; color: var(--color-midnight-ink); display: block;">0</span>
-                            <span style="font-size: 11px; color: var(--color-future-blue); font-weight: 500;">Estoque crítico</span>
+                            <span style="font-size: 11px; color: #8a8a8f; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Insumos em Alerta</span>
+                            <span id="kpi-active-prescriptions" style="font-size: 26px; font-weight: 700; color: #1c1c1e; display: block; line-height: 1.2;">0</span>
+                            <span style="font-size: 11px; color: #0071e3; font-weight: 500; display: block; margin-top: 6px;">Estoque crítico</span>
                         </div>
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(156, 39, 176, 0.08); display: flex; align-items: center; justify-content: center; color: purple; font-size: 18px;">💊</div>
+                        <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(255, 149, 0, 0.06); display: flex; align-items: center; justify-content: center; color: #ff9500; font-size: 20px;">💊</div>
                     </div>
                 </div>
 
