@@ -580,38 +580,56 @@ header {
 
 /* Responsividade da seção Hero */
 @media (max-width: 768px) {
+  .hero {
+    height: 100vh;
+    min-height: 620px;
+    position: relative;
+    background-color: #ffffff;
+    overflow: hidden;
+  }
+
+  /* Reduz o tamanho da imagem na parte inferior, liberando espaço neutro no topo */
+  .hero-bg {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    height: 48%;
+    object-fit: cover;
+    object-position: center top;
+    z-index: 1;
+  }
+
   .hero::after {
     content: "";
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 40%;
+    height: 35%;
     background: linear-gradient(to top, var(--color-ghost-white) 0%, rgba(242, 242, 244, 0) 100%);
-    z-index: 1;
+    z-index: 2;
     pointer-events: none;
   }
 
-  .hero-bg {
-    object-position: center bottom;
-  }
-
   .hero-container {
-    padding: 100px 24px 60px;
-    padding: 120px 24px 40px;
+    padding: 100px 20px 30px;
     justify-content: flex-start;
     align-items: center;
-    z-index: 2;
+    z-index: 3;
   }
 
   .hero-text-block {
     align-items: center;
     text-align: center;
     width: 100%;
+    margin-top: 10px;
   }
 
   .hero-brand {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
     margin-bottom: 8px;
     letter-spacing: -0.01em;
@@ -619,16 +637,16 @@ header {
   }
 
   .hero-headline {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 350;
-    line-height: 1.2;
+    line-height: 1.25;
     margin: 0 0 6px 0;
-    max-width: 320px;
+    max-width: 300px;
   }
 
   .hero-crm {
     font-size: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     letter-spacing: 0.02em;
   }
 
@@ -645,8 +663,8 @@ header {
   }
 
   .explore-pill {
-    font-size: 13px;
-    padding: 8px 16px;
+    font-size: 12px;
+    padding: 6px 14px;
     white-space: nowrap;
   }
 
@@ -654,7 +672,7 @@ header {
     position: absolute;
     left: 24px;
     bottom: 24px;
-    z-index: 3;
+    z-index: 4;
   }
 }
 
