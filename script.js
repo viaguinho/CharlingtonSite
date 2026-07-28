@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Trajectory Section Tabs / Abas Interativas
     const trajectoryTabs = document.querySelectorAll('.trajectory-tab');
     const trajectorySlides = document.querySelectorAll('.trajectory-slide');
+    const trajectoryTabsContainer = document.querySelector('.trajectory-tabs');
     
     trajectoryTabs.forEach((tab, index) => {
         tab.addEventListener('click', () => {
@@ -142,6 +143,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Ativar novo
             tab.classList.add('active');
             trajectorySlides[index].classList.add('active');
+
+            // Autoscroll para revelar o próximo tópico para o usuário clicar
+            if (trajectoryTabsContainer) {
+                const nextIndex = (index + 1) % trajectoryTabs.length;
+                const nextTab = trajectoryTabs[nextIndex];
+                if (nextTab) {
+                    const containerRect = trajectoryTabsContainer.getBoundingClientRect();
+                    const tabRect = nextTab.getBoundingClientRect();
+                    const scrollOffset = trajectoryTabsContainer.scrollLeft + (tabRect.left - containerRect.left) - (containerRect.width / 2) + (tabRect.width / 2);
+                    
+                    trajectoryTabsContainer.scrollTo({
+                        left: Math.max(0, scrollOffset),
+                        behavior: 'smooth'
+                    });
+                }
+            }
         });
     });
 
