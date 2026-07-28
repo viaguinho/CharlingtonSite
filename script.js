@@ -95,8 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Iniciar slideshow
-    startSlideShow();
+    // Iniciar slideshow se houver slides na página
+    if (slides.length > 0) {
+        startSlideShow();
+    }
 
     // Swipe support for overview section
     const overviewSection = document.querySelector('.overview-section');
