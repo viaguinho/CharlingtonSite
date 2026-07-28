@@ -578,97 +578,63 @@ header {
   }
 }
 
-/* Responsividade da seção Hero (estilo augen.pro) */
+/* Responsividade da seção Hero */
 @media (max-width: 768px) {
-  .hero {
-    height: 100vh;
-    min-height: 620px;
-    position: relative;
-    background-color: #ffffff;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* Gradiente na base da foto na parte inferior */
   .hero::after {
     content: "";
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 38%;
+    height: 40%;
     background: linear-gradient(to top, var(--color-ghost-white) 0%, rgba(242, 242, 244, 0) 100%);
-    z-index: 2;
+    z-index: 1;
     pointer-events: none;
   }
 
-  /* Imagem posicionada na metade inferior do viewport */
   .hero-bg {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 52%;
-    object-fit: cover;
-    object-position: center 15%;
-    z-index: 1;
+    object-position: center bottom;
   }
 
-  /* Conteúdo de texto centralizado na parte superior (estilo augen.pro) */
   .hero-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    padding: 110px 20px 40px;
-    display: flex;
-    flex-direction: column;
+    padding: 100px 24px 60px;
+    padding: 120px 24px 40px;
     justify-content: flex-start;
     align-items: center;
-    z-index: 3;
-    pointer-events: none;
+    z-index: 2;
   }
 
   .hero-text-block {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
     align-items: center;
     text-align: center;
-    pointer-events: auto;
+    width: 100%;
   }
 
   .hero-brand {
     font-size: 15px;
     font-weight: 400;
-    color: var(--color-midnight-ink);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     letter-spacing: -0.01em;
     text-transform: lowercase;
   }
 
   .hero-headline {
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 350;
-    line-height: 1.25;
-    color: var(--color-midnight-ink);
-    margin: 0 0 4px 0;
+    line-height: 1.2;
+    margin: 0 0 6px 0;
     max-width: 320px;
   }
 
   .hero-crm {
-    font-size: 11px;
-    color: var(--color-skyline-gray);
-    margin-bottom: 22px;
+    font-size: 12px;
+    margin-bottom: 24px;
     letter-spacing: 0.02em;
   }
 
-  /* Pílulas na horizontal centralizadas abaixo do título */
   .hero-explore {
-    display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    align-items: center;
     justify-content: center;
     gap: 8px;
     width: 100%;
@@ -679,42 +645,16 @@ header {
   }
 
   .explore-pill {
-    font-size: 12px;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    border: 1px solid rgba(0, 113, 227, 0.35);
-    color: var(--color-future-blue);
-    background: transparent;
+    font-size: 13px;
+    padding: 8px 16px;
     white-space: nowrap;
   }
 
-  .explore-pill.active {
-    background: rgba(0, 113, 227, 0.08);
-    border-color: var(--color-future-blue);
-  }
-
-  /* Botão com seta para baixo no canto inferior esquerdo */
   .scroll-indicator {
     position: absolute;
-    bottom: 24px;
     left: 24px;
-    width: 32px;
-    height: 48px;
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 20px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 4;
-    pointer-events: auto;
-  }
-
-  .arrow-down {
-    font-size: 14px;
-    color: var(--color-midnight-ink);
+    bottom: 24px;
+    z-index: 3;
   }
 }
 
@@ -1167,44 +1107,33 @@ header {
   font-weight: 500;
 }
 
-/* Responsividade da seção Trajetória no Mobile */
+/* Correção de Corte de Texto e Overflow na Trajetória Mobile */
 @media (max-width: 768px) {
   .trajectory-section {
     padding: 60px 0;
-    width: 100%;
-    overflow: hidden;
   }
 
-  .trajectory-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
+  .trajectory-grid,
+  .trajectory-left-pane,
+  .trajectory-right-pane,
+  .trajectory-tabs,
+  .trajectory-slides-container,
+  .trajectory-slide {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-  }
-
-  .trajectory-left-pane {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
+    box-sizing: border-box;
   }
 
   .trajectory-tabs {
     display: flex;
     flex-direction: row;
-    gap: 10px;
+    flex-wrap: nowrap;
     overflow-x: auto;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    padding-bottom: 8px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    padding-bottom: 8px;
+    gap: 12px;
   }
 
   .trajectory-tabs::-webkit-scrollbar {
@@ -1214,86 +1143,48 @@ header {
   .trajectory-tab {
     flex-shrink: 0;
     min-width: auto;
-    padding: 8px 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    white-space: nowrap;
+    padding: 8px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 8px;
   }
-
+  
   .trajectory-tab.active {
     background: rgba(0, 113, 227, 0.15);
     border-color: var(--color-future-blue);
   }
 
-  .trajectory-tab-num {
-    font-size: 11px;
-  }
-
+  .trajectory-tab-num, 
   .trajectory-tab-label {
-    font-size: 13px;
-    white-space: nowrap;
-  }
-
-  .trajectory-right-pane {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
-
-  .trajectory-header {
-    margin-bottom: 24px;
-  }
-
-  .trajectory-slides-container {
-    display: block;
-    position: relative;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
-
-  .trajectory-slide {
-    display: none;
-    opacity: 0;
-    transform: translateY(8px);
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-
-  .trajectory-slide.active {
-    display: block;
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-    visibility: visible;
+    margin: 0;
   }
 
   .trajectory-display-text {
-    font-size: 20px;
+    font-size: 21px;
     line-height: 1.35;
-    margin-bottom: 20px;
-    max-width: 100%;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
   }
 
   .trajectory-list {
-    gap: 14px;
     width: 100%;
   }
 
   .trajectory-list-item {
     font-size: 14px;
-    line-height: 1.55;
-    padding-left: 20px;
+    line-height: 1.5;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    hyphens: auto;
+    padding-left: 20px;
+    max-width: 100%;
   }
 }
 
