@@ -578,64 +578,143 @@ header {
   }
 }
 
-/* Responsividade da seção Hero */
+/* Responsividade da seção Hero (estilo augen.pro) */
 @media (max-width: 768px) {
+  .hero {
+    height: 100vh;
+    min-height: 620px;
+    position: relative;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Gradiente na base da foto na parte inferior */
   .hero::after {
     content: "";
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 40%;
+    height: 38%;
     background: linear-gradient(to top, var(--color-ghost-white) 0%, rgba(242, 242, 244, 0) 100%);
-    z-index: 1;
+    z-index: 2;
     pointer-events: none;
   }
 
+  /* Imagem posicionada na metade inferior do viewport */
   .hero-bg {
-    object-position: center bottom;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 52%;
+    object-fit: cover;
+    object-position: center 15%;
+    z-index: 1;
   }
 
+  /* Conteúdo de texto centralizado na parte superior (estilo augen.pro) */
   .hero-container {
-    padding: 100px 24px 60px;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 110px 20px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
     align-items: center;
+    z-index: 3;
+    pointer-events: none;
   }
 
   .hero-text-block {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     text-align: center;
+    pointer-events: auto;
   }
 
   .hero-brand {
-    font-size: 14px;
-    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--color-midnight-ink);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+    text-transform: lowercase;
   }
 
   .hero-headline {
-    font-size: 36px;
-    line-height: 1.1;
-    margin: 0 0 16px 0;
+    font-size: 26px;
+    font-weight: 350;
+    line-height: 1.25;
+    color: var(--color-midnight-ink);
+    margin: 0 0 4px 0;
+    max-width: 320px;
   }
 
   .hero-crm {
-    font-size: 14px;
-    margin-bottom: 32px;
+    font-size: 11px;
+    color: var(--color-skyline-gray);
+    margin-bottom: 22px;
+    letter-spacing: 0.02em;
   }
 
+  /* Pílulas na horizontal centralizadas abaixo do título */
   .hero-explore {
-    flex-wrap: wrap;
-    gap: 8px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
     justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .explore-label {
+    display: none;
   }
 
   .explore-pill {
     font-size: 12px;
-    padding: 5px 12px;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    border: 1px solid rgba(0, 113, 227, 0.35);
+    color: var(--color-future-blue);
+    background: transparent;
+    white-space: nowrap;
   }
 
+  .explore-pill.active {
+    background: rgba(0, 113, 227, 0.08);
+    border-color: var(--color-future-blue);
+  }
+
+  /* Botão com seta para baixo no canto inferior esquerdo */
   .scroll-indicator {
-    left: 24px;
+    position: absolute;
     bottom: 24px;
+    left: 24px;
+    width: 32px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 4;
+    pointer-events: auto;
+  }
+
+  .arrow-down {
+    font-size: 14px;
+    color: var(--color-midnight-ink);
   }
 }
 
@@ -1086,6 +1165,136 @@ header {
   left: 0;
   color: var(--color-future-blue);
   font-weight: 500;
+}
+
+/* Responsividade da seção Trajetória no Mobile */
+@media (max-width: 768px) {
+  .trajectory-section {
+    padding: 60px 0;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .trajectory-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .trajectory-left-pane {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .trajectory-tabs {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .trajectory-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .trajectory-tab {
+    flex-shrink: 0;
+    min-width: auto;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .trajectory-tab.active {
+    background: rgba(0, 113, 227, 0.15);
+    border-color: var(--color-future-blue);
+  }
+
+  .trajectory-tab-num {
+    font-size: 11px;
+  }
+
+  .trajectory-tab-label {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .trajectory-right-pane {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .trajectory-header {
+    margin-bottom: 24px;
+  }
+
+  .trajectory-slides-container {
+    display: block;
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .trajectory-slide {
+    display: none;
+    opacity: 0;
+    transform: translateY(8px);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .trajectory-slide.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .trajectory-display-text {
+    font-size: 20px;
+    line-height: 1.35;
+    margin-bottom: 20px;
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .trajectory-list {
+    gap: 14px;
+    width: 100%;
+  }
+
+  .trajectory-list-item {
+    font-size: 14px;
+    line-height: 1.55;
+    padding-left: 20px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
 }
 
 /* FAQ Section — Premium Redesign */
