@@ -70,12 +70,15 @@
             line-height: 1.2;
         }
         .blog-meta-col {
-            flex: 1;
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
         .blog-tags {
-            display: flex;
-            gap: 6px;
-            flex-wrap: nowrap;
+            display: flex !important;
+            gap: 6px !important;
+            flex-wrap: nowrap !important;
+            white-space: nowrap !important;
         }
         .blog-tag {
             border: 1.8px solid #0071e3;
@@ -86,6 +89,7 @@
             font-weight: 350;
             letter-spacing: -0.02em;
             background-color: transparent;
+            white-space: nowrap !important;
         }
         .blog-content {
             margin-top: 22px;
