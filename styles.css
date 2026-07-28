@@ -532,6 +532,27 @@ header {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.explore-pill-text {
+  display: inline-flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 1.3em;
+  line-height: 1.3em;
+}
+
+.explore-pill-text span {
+  display: block;
+  height: 1.3em;
+  line-height: 1.3em;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.explore-pill:hover .explore-pill-text span {
+  transform: translateY(-100%);
 }
 
 .explore-pill:hover {
