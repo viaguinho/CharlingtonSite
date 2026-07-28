@@ -676,6 +676,18 @@ header {
     left: 24px;
     bottom: 24px;
     z-index: 4;
+    background-color: #f5f5f7;
+    width: 36px;
+    height: 52px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .scroll-indicator .arrow-down {
+    font-size: 16px;
+    color: #1a1a1a;
   }
 }
 
@@ -865,8 +877,23 @@ header {
   }
 
   .overview-left-col {
-    border-bottom: 1px solid rgba(15, 16, 18, 0.08);
-    padding-bottom: 20px;
+    border-bottom: none;
+    padding-bottom: 0;
+    align-items: center;
+    text-align: center;
+  }
+
+  .overview-subtitle-wrapper {
+    width: 100%;
+  }
+
+  .overview-subtitle {
+    left: 50%;
+    transform: translate(-50%, 6px);
+  }
+
+  .overview-subtitle.active {
+    transform: translate(-50%, 0);
   }
 
   .overview-display-text {
@@ -1053,14 +1080,15 @@ header {
 }
 
 .trajectory-slides-container {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: block;
   position: relative;
 }
 
 .trajectory-slide {
-  grid-area: 1 / 1 / 2 / 2;
-  /* Sobreposição perfeita */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -1071,6 +1099,7 @@ header {
 }
 
 .trajectory-slide.active {
+  position: relative;
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -1166,9 +1195,8 @@ header {
     min-width: auto;
     white-space: nowrap;
     padding: 8px 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    background: transparent;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -1176,8 +1204,7 @@ header {
   }
   
   .trajectory-tab.active {
-    background: rgba(0, 113, 227, 0.15);
-    border-color: var(--color-future-blue);
+    background: transparent;
   }
 
   .trajectory-tab-num, 

@@ -98,6 +98,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // Iniciar slideshow
     startSlideShow();
 
+    // Swipe support for overview section
+    const overviewSection = document.querySelector('.overview-section');
+    if (overviewSection) {
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        overviewSection.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        overviewSection.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleOverviewSwipe();
+        }, {passive: true});
+
+        function handleOverviewSwipe() {
+            const threshold = 50;
+            if (touchStartX - touchEndX > threshold) {
+                // Swipe left
+                let next = (currentSlide + 1) % slides.length;
+                showSlide(next);
+                resetSlideShow();
+            } else if (touchEndX - touchStartX > threshold) {
+                // Swipe right
+                let prev = (currentSlide - 1 + slides.length) % slides.length;
+                showSlide(prev);
+                resetSlideShow();
+            }
+        }
+    }
+
     // Trajectory Section Tabs / Abas Interativas
     const trajectoryTabs = document.querySelectorAll('.trajectory-tab');
     const trajectorySlides = document.querySelectorAll('.trajectory-slide');
