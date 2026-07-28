@@ -644,6 +644,7 @@ header {
     line-height: 1.25;
     margin: 0 auto 6px auto;
     max-width: 300px;
+    text-align: center;
   }
 
   .hero-crm {
