@@ -13,13 +13,13 @@
     
     <!-- Estilo personalizado para integrar o Blog como uma página escura de forma impecável -->
     <style>
-        body {
-            background-color: #0f1012; /* Ink Black */
-            color: #fdfdfd; /* Paper White */
+        html, body {
+            background-color: #0f1012 !important; /* Ink Black */
+            color: #fdfdfd !important; /* Paper White */
         }
         /* Custom overrides para página de blog standalone */
         .updates-hero {
-            padding-top: 160px;
+            padding-top: 250px;
             padding-bottom: 40px;
             text-align: left;
             background-color: #0f1012;
@@ -48,7 +48,7 @@
         
         /* Ajustes baseados no REFERO.md (Dark Inversion Section) */
         .blog-item {
-            border-top: 1.8px solid rgba(253, 253, 253, 0.15); /* Faint paper white line */
+            border-top: 0.5px solid rgba(253, 253, 253, 0.2); /* Faint paper white hairline */
             padding-top: 22px;
             margin-bottom: 69px;
             background-color: transparent;
@@ -129,7 +129,7 @@
         <!-- Updates Hero Introduction -->
         <div class="container updates-hero">
             <div class="blog-grid" style="align-items: flex-end;">
-                <div style="grid-column: 2 / 6;">
+                <div style="grid-column: 1 / 6;">
                     <h1 class="updates-hero-title">Artigos & Insights</h1>
                     <p class="updates-hero-subtitle">Ciência, neurodesenvolvimento infantil e notícias da prática clínica.</p>
                 </div>
@@ -140,8 +140,8 @@
         <section id="blog" class="section section-dark blog-section" style="padding-top: var(--spacing-22);">
             <div class="container">
                 <div class="blog-grid">
-                    <!-- Right column expanded (Col 2 to 6 of the 5-col grid for a broader dedicated standalone layout) -->
-                    <div class="blog-accordion" style="grid-column: 2 / 6;">
+                    <!-- Full width column expanded for dark inversion reference style -->
+                    <div class="blog-accordion" style="grid-column: 1 / 6;">
                         
                         <!-- Post 1 -->
                         <div class="blog-item">
