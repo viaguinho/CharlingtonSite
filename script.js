@@ -144,20 +144,17 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.add('active');
             trajectorySlides[index].classList.add('active');
 
-            // Autoscroll para revelar o próximo tópico para o usuário clicar
+            // Autoscroll para exibir a aba clicada inteira sem cortar palavras
             if (trajectoryTabsContainer) {
-                const nextIndex = (index + 1) % trajectoryTabs.length;
-                const nextTab = trajectoryTabs[nextIndex];
-                if (nextTab) {
-                    const containerRect = trajectoryTabsContainer.getBoundingClientRect();
-                    const tabRect = nextTab.getBoundingClientRect();
-                    const scrollOffset = trajectoryTabsContainer.scrollLeft + (tabRect.left - containerRect.left) - (containerRect.width / 2) + (tabRect.width / 2);
-                    
-                    trajectoryTabsContainer.scrollTo({
-                        left: Math.max(0, scrollOffset),
-                        behavior: 'smooth'
-                    });
-                }
+                const containerRect = trajectoryTabsContainer.getBoundingClientRect();
+                const tabRect = tab.getBoundingClientRect();
+                // Posiciona a aba clicada no início visível da barra (com margem de 16px)
+                const scrollOffset = trajectoryTabsContainer.scrollLeft + (tabRect.left - containerRect.left) - 16;
+                
+                trajectoryTabsContainer.scrollTo({
+                    left: Math.max(0, scrollOffset),
+                    behavior: 'smooth'
+                });
             }
         });
     });

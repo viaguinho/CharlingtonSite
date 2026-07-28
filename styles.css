@@ -1022,18 +1022,34 @@ header {
 }
 
 .trajectory-brand-name {
-  font-size: 13px;
-  color: rgba(242, 242, 244, 0.4);
-  font-weight: var(--font-weight-regular);
+  font-family: var(--font-pp-neue-montreal);
+  font-size: 18px;
+  color: rgba(242, 242, 244, 0.8);
+  font-weight: var(--font-weight-w350);
   display: block;
+  letter-spacing: -0.01em;
 }
 
 .trajectory-brand-sub {
-  font-size: 13px;
-  color: var(--color-future-blue);
-  font-weight: var(--font-weight-regular);
+  font-family: var(--font-pp-neue-montreal);
+  font-size: 38px;
+  color: var(--color-ghost-white);
+  font-weight: var(--font-weight-w350);
   display: block;
-  margin-top: 2px;
+  margin-top: 36px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+@media (max-width: 768px) {
+  .trajectory-brand-name {
+    font-size: 16px;
+  }
+  
+  .trajectory-brand-sub {
+    font-size: 28px;
+    margin-top: 24px;
+  }
 }
 
 .trajectory-slides-container {
