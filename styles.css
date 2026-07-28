@@ -642,7 +642,7 @@ header {
     font-size: 26px;
     font-weight: 350;
     line-height: 1.25;
-    margin: 0 0 6px 0;
+    margin: 0 auto 6px auto;
     max-width: 300px;
   }
 
