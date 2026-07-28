@@ -148,19 +148,22 @@ header {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .logo-circle:hover {
   transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
 }
 
 .logo-img {
@@ -173,14 +176,21 @@ header {
   display: flex;
   align-items: center;
   gap: 36px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
   padding: 15px 40px;
   border-radius: 9999px;
   height: 54px;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nav-capsule:hover {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
 }
 
 .nav-link {
@@ -202,6 +212,33 @@ header {
   opacity: 0.5;
 }
 
+/* Adaptação do menu flutuante sobre seções escuras (Glassmorphism Escuro) */
+.header-on-dark .nav-capsule {
+  background: rgba(15, 16, 18, 0.45);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.header-on-dark .nav-capsule:hover {
+  background: rgba(15, 16, 18, 0.6);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.header-on-dark .logo-circle {
+  background: rgba(15, 16, 18, 0.45);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.header-on-dark .logo-circle:hover {
+  background: rgba(15, 16, 18, 0.6);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.header-on-dark .nav-link {
+  color: var(--color-ghost-white);
+}
+
 /* Responsividade do cabeçalho flutuante */
 @media (max-width: 768px) {
   header {
@@ -216,6 +253,7 @@ header {
   .logo-circle {
     width: 44px;
     height: 44px;
+    flex-shrink: 0;
   }
 
   .logo-img {
@@ -224,13 +262,21 @@ header {
   }
 
   .nav-capsule {
-    padding: 10px 24px;
-    gap: 20px;
+    padding: 10px 16px;
+    gap: 16px;
     height: 44px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .nav-capsule::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-link {
-    font-size: 12px;
+    font-size: 13px;
   }
 }
 
@@ -457,26 +503,27 @@ header {
 /* Responsividade da seção Hero */
 @media (max-width: 768px) {
   .hero-bg {
-    object-position: 30% 22%;
+    object-position: 70% 30%;
   }
 
   .hero-container {
-    padding: 60px 24px;
+    padding: 80px 24px 40px;
   }
 
   .hero-brand {
     font-size: 14px;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   .hero-headline {
-    font-size: 22px;
-    margin: 0 0 6px 0;
+    font-size: 32px;
+    line-height: 1.1;
+    margin: 0 0 10px 0;
   }
 
   .hero-crm {
-    font-size: 12px;
-    margin-bottom: 24px;
+    font-size: 14px;
+    margin-bottom: 32px;
   }
 
   .hero-explore {
@@ -1053,15 +1100,6 @@ header {
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   background-color: transparent;
 }
-
-.faq-item:hover .faq-icon {
-  /* Alteração de borda removida */
-}
-
-.faq-item.active .faq-icon {
-  /* Fundo azul suave removido a pedido do usuário */
-}
-
 .faq-icon::before,
 .faq-icon::after {
   content: "";

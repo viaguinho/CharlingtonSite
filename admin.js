@@ -713,6 +713,7 @@ function renderDashboardBI() {
 
     // 3. Patient Statistics Chart
     renderPatientStatisticsChart(plazaFilter);
+    renderAppointmentDurationChart(plazaFilter);
 }
 
 function renderPatientStatisticsChart(plaza) {
@@ -733,55 +734,33 @@ function renderPatientStatisticsChart(plaza) {
     const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"];
     
     let svgHtml = `
-    <svg viewBox="0 0 600 220" style="width: 100%; height: 100%; font-family: inherit;">
-        <defs>
-            <linearGradient id="barBlue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#0071e3" />
-                <stop offset="100%" stop-color="#0071e3" stop-opacity="0.6" />
-            </linearGradient>
-            <linearGradient id="barGreen" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#34c759" />
-                <stop offset="100%" stop-color="#34c759" stop-opacity="0.6" />
-            </linearGradient>
-        </defs>
-        <!-- Gridlines -->
-        <line x1="40" y1="180" x2="560" y2="180" stroke="var(--color-border)" stroke-opacity="0.5" />
-        <line x1="40" y1="130" x2="560" y2="130" stroke="var(--color-border)" stroke-opacity="0.3" />
-        <line x1="40" y1="80" x2="560" y2="80" stroke="var(--color-border)" stroke-opacity="0.3" />
-        <line x1="40" y1="30" x2="560" y2="30" stroke="var(--color-border)" stroke-opacity="0.3" />
-        
-        <!-- Y-Axis Labels -->
-        <text x="30" y="184" font-size="9" text-anchor="end" fill="#8f8f8f">0</text>
-        <text x="30" y="134" font-size="9" text-anchor="end" fill="#8f8f8f">50</text>
-        <text x="30" y="84" font-size="9" text-anchor="end" fill="#8f8f8f">100</text>
-        <text x="30" y="34" font-size="9" text-anchor="end" fill="#8f8f8f">150</text>
-        
-        <!-- Legend -->
-        <g transform="translate(350, 10)">
-            <rect x="0" y="0" width="10" height="10" fill="#0071e3" rx="2" />
-            <text x="15" y="9" font-size="9" fill="#5f5f5f">Novos Pacientes</text>
-            <rect x="110" y="0" width="10" height="10" fill="#34c759" rx="2" />
-            <text x="125" y="9" font-size="9" fill="#5f5f5f">Retornos / Seguimentos</text>
-        </g>
+    <svg viewBox="0 0 600 200" preserveAspectRatio="xMinYMid meet" style="width: 100%; height: 100%; font-family: inherit;">
+        <!-- Horizontal Cartesian Grid (de ponta a ponta, alinhado) -->
+        <line x1="0" y1="160" x2="600" y2="160" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="120" x2="600" y2="120" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="80" x2="600" y2="80" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="40" x2="600" y2="40" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="10" x2="600" y2="10" stroke="#f1f5f9" stroke-width="1" />
 
-        <!-- Bars rendering -->
+        <!-- Bars & Labels (Distribuídos uniformemente) -->
         ${months.map((m, i) => {
-            const xCenter = 70 + i * 82;
+            const xCenter = 50 + i * 100;
+            // Escala para max 150 pacientes (150px de altura max no grid)
             const hNovos = (novos[i] / 150) * 150;
             const hRetornos = (retornos[i] / 150) * 150;
-            const yNovos = 180 - hNovos;
-            const yRetornos = 180 - hRetornos;
+            const yNovos = 160 - hNovos;
+            const yRetornos = 160 - hRetornos;
             return `
-                <!-- Novos (Blue) -->
-                <rect x="${xCenter - 14}" y="${yNovos}" width="12" height="${hNovos}" fill="url(#barBlue)" rx="3" />
-                <text x="${xCenter - 8}" y="${yNovos - 4}" font-size="8" text-anchor="middle" font-weight="600" fill="#0071e3">${novos[i]}</text>
+                <!-- Novos (chart-1: #2563eb) -->
+                <rect x="${xCenter - 14}" y="${yNovos}" width="11" height="${hNovos}" fill="#2563eb" rx="3" />
+                <text x="${xCenter - 8}" y="${yNovos - 4}" font-size="9" text-anchor="middle" font-weight="600" fill="#1e40af">${novos[i]}</text>
 
-                <!-- Retornos (Green) -->
-                <rect x="${xCenter + 2}" y="${yRetornos}" width="12" height="${hRetornos}" fill="url(#barGreen)" rx="3" />
-                <text x="${xCenter + 8}" y="${yRetornos - 4}" font-size="8" text-anchor="middle" font-weight="600" fill="#34c759">${retornos[i]}</text>
+                <!-- Retornos (chart-2: #60a5fa) -->
+                <rect x="${xCenter + 2}" y="${yRetornos}" width="11" height="${hRetornos}" fill="#60a5fa" rx="3" />
+                <text x="${xCenter + 8}" y="${yRetornos - 4}" font-size="9" text-anchor="middle" font-weight="600" fill="#1d4ed8">${retornos[i]}</text>
                 
-                <!-- Month Label -->
-                <text x="${xCenter}" y="198" font-size="10" text-anchor="middle" fill="#8f8f8f">${m}</text>
+                <!-- X-Axis Labels (no lines, tickMargin=10) -->
+                <text x="${xCenter}" y="180" font-size="11" text-anchor="middle" fill="#64748b" font-weight="400">${m}</text>
             `;
         }).join('')}
     </svg>
@@ -789,6 +768,57 @@ function renderPatientStatisticsChart(plaza) {
     container.innerHTML = svgHtml;
 }
 
+function renderAppointmentDurationChart(plaza) {
+    const container = document.getElementById("dashboard-appointment-duration-chart");
+    if (!container) return;
+    
+    let novos = [60, 58, 62, 60, 65, 59];
+    let retornos = [35, 38, 35, 40, 37, 36];
+    
+    if (plaza === "Campinas") {
+        novos = [58, 55, 60, 58, 62, 57];
+        retornos = [33, 35, 33, 38, 35, 34];
+    } else if (plaza === "Fortaleza") {
+        novos = [62, 60, 65, 62, 68, 61];
+        retornos = [37, 40, 37, 42, 39, 38];
+    }
+
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"];
+    
+    let svgHtml = `
+    <svg viewBox="0 0 600 200" preserveAspectRatio="xMinYMid meet" style="width: 100%; height: 100%; font-family: inherit;">
+        <!-- Horizontal Cartesian Grid (de ponta a ponta, alinhado) -->
+        <line x1="0" y1="160" x2="600" y2="160" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="120" x2="600" y2="120" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="80" x2="600" y2="80" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="40" x2="600" y2="40" stroke="#f1f5f9" stroke-width="1" />
+        <line x1="0" y1="10" x2="600" y2="10" stroke="#f1f5f9" stroke-width="1" />
+
+        <!-- Bars & Labels (Distribuídos uniformemente) -->
+        ${months.map((m, i) => {
+            const xCenter = 50 + i * 100;
+            // Escala para max 90 minutos (150px de altura max no grid)
+            const hNovos = (novos[i] / 90) * 150;
+            const hRetornos = (retornos[i] / 90) * 150;
+            const yNovos = 160 - hNovos;
+            const yRetornos = 160 - hRetornos;
+            return `
+                <!-- Casos Novos (chart-1: #2563eb) -->
+                <rect x="${xCenter - 14}" y="${yNovos}" width="11" height="${hNovos}" fill="#2563eb" rx="3" />
+                <text x="${xCenter - 8}" y="${yNovos - 4}" font-size="9" text-anchor="middle" font-weight="600" fill="#1e40af">${novos[i]}m</text>
+
+                <!-- Retornos (chart-2: #60a5fa) -->
+                <rect x="${xCenter + 2}" y="${yRetornos}" width="11" height="${hRetornos}" fill="#60a5fa" rx="3" />
+                <text x="${xCenter + 8}" y="${yRetornos - 4}" font-size="9" text-anchor="middle" font-weight="600" fill="#1d4ed8">${retornos[i]}m</text>
+                
+                <!-- X-Axis Labels (no lines, tickMargin=10) -->
+                <text x="${xCenter}" y="180" font-size="11" text-anchor="middle" fill="#64748b" font-weight="400">${m}</text>
+            `;
+        }).join('')}
+    </svg>
+    `;
+    container.innerHTML = svgHtml;
+}
 
 // Vincula o evento de recarga do dashboard ao mudar o filtro de praça
 document.getElementById("kpi-filter-plaza").addEventListener("change", () => {
@@ -802,6 +832,9 @@ document.getElementById("kpi-filter-plaza").addEventListener("change", () => {
 let activeAgendaDate = "2026-05-25";
 let showCancelledAppointments = false;
 let activeAgendaSubTab = "subtab-agenda-view";
+let cameFromBookingModal = false;
+let cellClickHr = null;
+let cellClickDate = null;
 
 function initAgendaBindings() {
     // Alternância de sub-abas da agenda
@@ -901,6 +934,35 @@ function initAgendaBindings() {
         modalBooking.classList.add("hidden");
     });
 
+    const btnQuickAddPatient = document.getElementById("btn-quick-add-patient");
+    if (btnQuickAddPatient) {
+        btnQuickAddPatient.addEventListener("click", () => {
+            modalBooking.classList.add("hidden");
+            cameFromBookingModal = true;
+            cellClickHr = document.getElementById("booking-time").value;
+            cellClickDate = document.getElementById("booking-date").value;
+            
+            const patientModal = document.getElementById("patient-modal");
+            patientModal.classList.remove("hidden");
+            
+            // Auto-selecionar praça com base no booking-plaza
+            const bookingPlaza = document.getElementById("booking-plaza").value;
+            const plazaSelect = document.getElementById("patient-new-plaza");
+            if (session.activeRole === 'sec-fortaleza') {
+                plazaSelect.value = "Fortaleza";
+                plazaSelect.disabled = true;
+            } else if (session.activeRole === 'sec-campinas') {
+                plazaSelect.value = "Campinas";
+                plazaSelect.disabled = true;
+            } else {
+                plazaSelect.value = bookingPlaza;
+                plazaSelect.disabled = false;
+            }
+        });
+    }
+
+
+
     // Form submit agendamento
     document.getElementById("booking-form").addEventListener("submit", (e) => {
         e.preventDefault();
@@ -949,6 +1011,7 @@ function adjustAgendaDate(daysOffset) {
     renderAgenda();
 }
 
+window.openBookingModal = openBookingModal;
 function openBookingModal(defaultTime = "08:00", patientId = null, defaultDate = null) {
     const modal = document.getElementById("booking-modal");
     if (!modal) return;
@@ -1512,6 +1575,13 @@ function initPatientBindings() {
         modal.querySelector(".modal-header h3").innerText = "Cadastrar Novo Paciente (Criança)";
         modal.querySelector("button[type='submit']").innerText = "Registrar e Cadastrar Ficha";
         editingPatientId = null;
+
+        if (cameFromBookingModal) {
+            openBookingModal(cellClickHr || "08:00", null, cellClickDate || activeAgendaDate);
+            cameFromBookingModal = false;
+            cellClickHr = null;
+            cellClickDate = null;
+        }
     };
     document.getElementById("btn-close-patient-modal").addEventListener("click", closePatientModal);
     document.getElementById("btn-cancel-patient-modal").addEventListener("click", closePatientModal);
@@ -1603,7 +1673,19 @@ function initPatientBindings() {
                 });
 
                 saveDB();
-                closePatientModal();
+
+                if (cameFromBookingModal) {
+                    openBookingModal(cellClickHr || "08:00", pId, cellClickDate || activeAgendaDate);
+                    cameFromBookingModal = false;
+                    cellClickHr = null;
+                    cellClickDate = null;
+                    
+                    document.getElementById("patient-modal").classList.add("hidden");
+                    document.getElementById("patient-form").reset();
+                    editingPatientId = null;
+                } else {
+                    closePatientModal();
+                }
 
                 // Limpar formulário de responsáveis adicionais
                 if (document.getElementById("patient-new-parent2-name")) document.getElementById("patient-new-parent2-name").value = "";

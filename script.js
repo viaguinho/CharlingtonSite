@@ -141,4 +141,48 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Detectar quando o menu está sobre seções escuras
+    const header = document.querySelector('header');
+    const darkSections = document.querySelectorAll('.section-dark, .trajectory-section, .testimonial-slider-section, .blog-section, footer');
+    
+    if (header && darkSections.length > 0) {
+        const observerOptions = {
+            root: null,
+            rootMargin: '-30px 0px -90% 0px', // Monitora a linha do menu (30px do topo)
+            threshold: 0
+        };
+        
+        const observer = new IntersectionObserver(() => {
+            checkMenuTheme();
+        }, observerOptions);
+        
+        darkSections.forEach(section => observer.observe(section));
+        
+        function checkMenuTheme() {
+            let isOnDark = false;
+            const headerRect = header.getBoundingClientRect();
+            // Ponto central de colisão vertical do header (em pixels do viewport)
+            const headerCenterY = headerRect.top + headerRect.height / 2;
+            
+            darkSections.forEach(section => {
+                const rect = section.getBoundingClientRect();
+                // Se o centro vertical do menu estiver dentro da seção
+                if (headerCenterY >= rect.top && headerCenterY <= rect.bottom) {
+                    isOnDark = true;
+                }
+            });
+            
+            if (isOnDark) {
+                header.classList.add('header-on-dark');
+            } else {
+                header.classList.remove('header-on-dark');
+            }
+        }
+        
+        // Listeners auxiliares para garantir precisão e tempo de resposta instantâneo
+        window.addEventListener('scroll', checkMenuTheme, { passive: true });
+        window.addEventListener('resize', checkMenuTheme);
+        checkMenuTheme();
+    }
 });
