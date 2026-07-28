@@ -932,55 +932,12 @@ header {
   }
 }
 
-/* Bloco Esquerdo: Logo e Abas unificados */
+/* Bloco Esquerdo: Cabeçalho e Abas unificados */
 .trajectory-left-pane {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 36px;
-}
-
-@media (min-width: 992px) {
-  .trajectory-left-pane {
-    flex-direction: row;
-    align-items: center;
-    /* Centraliza verticalmente o logo em relação à lista de abas */
-    justify-content: space-between;
-    /* Empurra o logo para a extrema esquerda e as abas para a direita do bloco */
-    width: 100%;
-    gap: 0;
-    /* Espaço distribuído dinamicamente pelo space-between */
-  }
-}
-
-.trajectory-badge {
-  width: 46px;
-  height: 46px;
-  background: rgba(242, 242, 244, 0.94);
-  /* Cor gelo oficial do site com leve translucidez */
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 6px;
-  /* Quadrado com cantos levemente arredondados para sofisticação */
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  /* Margem interna generosa para a logo respirar */
-  box-sizing: border-box;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 0.3s ease,
-    box-shadow 0.3s ease;
-}
-
-.trajectory-badge:hover {
-  transform: scale(1.08);
-  /* Feedback tátil de flutuação */
-  background-color: #ffffff;
-  /* Fica totalmente nítido no hover ativo */
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
 }
 
 .trajectory-badge-logo {
