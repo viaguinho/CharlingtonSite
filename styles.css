@@ -854,16 +854,33 @@ header {
   border: 1px solid var(--color-future-blue);
   border-radius: 9px;
   color: var(--color-future-blue);
-  transition: transform 0.2s ease;
-}
-
-.overview-link:hover .overview-link-icon {
-  transform: translateX(2px);
+  position: relative;
+  overflow: hidden;
 }
 
 .overview-link-icon svg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: 10px;
   height: 10px;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.overview-arrow-original {
+  transform: translate(-50%, -50%);
+}
+
+.overview-arrow-duplicate {
+  transform: translate(calc(-50% - 20px), -50%);
+}
+
+.overview-link:hover .overview-arrow-original {
+  transform: translate(calc(-50% + 20px), -50%);
+}
+
+.overview-link:hover .overview-arrow-duplicate {
+  transform: translate(-50%, -50%);
 }
 
 .overview-indicators {
