@@ -337,18 +337,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Slow down Peixes videos
+    // Slow down Peixes videos (ultra slow motion for calm, serene background)
+    const TARGET_SPEED = 0.08;
     const fishVideos = document.querySelectorAll('.comunidade-video, .comunidade-modal-video');
     fishVideos.forEach(video => {
-        if (video.src && video.src.includes('Peixes.mp4')) {
-            video.playbackRate = 0.35;
-            video.addEventListener('loadedmetadata', () => {
-                video.playbackRate = 0.35;
-            });
-            video.addEventListener('play', () => {
-                video.playbackRate = 0.35;
-            });
-        }
+        const applySpeed = () => {
+            const src = (video.src || video.currentSrc || '').toLowerCase();
+            if (src.includes('peixes') || video.closest('#trigger-comunidade-modal') || video.classList.contains('comunidade-modal-video')) {
+                video.playbackRate = TARGET_SPEED;
+            }
+        };
+
+        applySpeed();
+        ['loadedmetadata', 'loadeddata', 'play', 'playing', 'timeupdate', 'seeked'].forEach(evt => {
+            video.addEventListener(evt, applySpeed);
+        });
     });
 
 });
