@@ -2800,6 +2800,21 @@ footer {
     top: 20px;
     right: 20px;
   }
+  .comunidade-modal-pills {
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .comunidade-modal-pills::-webkit-scrollbar {
+    display: none;
+  }
+  .comunidade-tagpill {
+    font-size: 9px;
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
 }
 
 /* Liquid Glass Lens Effect */
