@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Slow down Peixes videos (ultra slow motion for calm, serene background)
-    const TARGET_SPEED = 0.08;
+    const TARGET_SPEED = 0.35;
     const fishVideos = document.querySelectorAll('.comunidade-video, .comunidade-modal-video');
     fishVideos.forEach(video => {
         const applySpeed = () => {

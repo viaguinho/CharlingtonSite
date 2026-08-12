@@ -1601,8 +1601,8 @@ header {
 
 .comunidade-card-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   margin-top: auto;
   gap: 16px;
   width: 100%;
@@ -1630,7 +1630,6 @@ header {
   color: var(--color-slate-comment);
   transition: color 0.2s ease;
   white-space: nowrap;
-  margin-left: auto;
 }
 
 .comunidade-card-btn-arrow {
@@ -1716,9 +1715,8 @@ header {
 
   .comunidade-card-footer {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: flex-end;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 12px;
     margin-top: auto;
     width: 100%;
@@ -1739,9 +1737,7 @@ header {
   }
 
   .comunidade-card-btn {
-    margin-left: auto;
-    flex-shrink: 0;
-    align-self: flex-end;
+    align-self: flex-start;
   }
 }
 
@@ -2782,8 +2778,16 @@ footer {
   .comunidade-modal-header-content {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 12px;
     margin-top: auto;
+    width: 100%;
+  }
+  .comunidade-modal-title {
+    font-size: 42px;
+  }
+  .comunidade-modal-subtitle {
+    align-self: flex-end;
+    text-align: right;
   }
   .comunidade-modal-body,
   .comunidade-modal-footer {
