@@ -131,7 +131,7 @@
             }
         }
 
-        .augen-split-grid:has(.augen-split-item:hover) .augen-split-item:not(:hover) {
+        .augen-split-grid:has(.augen-split-item:hover, .augen-split-item:focus-within, .augen-split-item:active) .augen-split-item:not(:hover):not(:focus-within):not(:active) {
             filter: blur(4px);
             opacity: 0.6;
             transition: filter 0.4s ease, opacity 0.4s ease;
@@ -175,8 +175,7 @@
             letter-spacing: -0.02em;
             margin-bottom: 24px;
             max-width: 320px;
-            text-align: justify;
-            text-justify: inter-word;
+            text-align: left;
         }
         .augen-ghost-link {
             font-size: 14px;
@@ -392,7 +391,7 @@
               <div class="container augen-split-grid">
                   
                   <!-- Item 1: Comunidade -->
-                  <div class="augen-split-item">
+                  <div class="augen-split-item" tabindex="0">
                       <div class="augen-split-number">1.0</div>
                       <div class="augen-split-content">
                           <h2 class="augen-headline-split" id="truefocus-topic-1">Impulsionado por pessoas.</h2>
@@ -415,7 +414,7 @@
                   </div>
 
                   <!-- Item 2: Contato -->
-                  <div class="augen-split-item">
+                  <div class="augen-split-item" tabindex="0">
                       <div class="augen-split-number">2.0</div>
                       <div class="augen-split-content">
                           <h2 class="augen-headline-split" id="truefocus-topic-2">Entre em contato.</h2>
