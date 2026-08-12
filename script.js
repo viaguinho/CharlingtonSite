@@ -255,4 +255,100 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // Modal Comunidade Logic
+    const triggerModal = document.getElementById('trigger-comunidade-modal');
+    const overlayModal = document.getElementById('modal-comunidade-overlay');
+    const dialogModal = document.getElementById('modal-comunidade-dialog');
+    const btnCloseModal = document.getElementById('btn-close-comunidade-modal');
+    const btnBackModal = document.getElementById('btn-back-comunidade-modal');
+
+    if (triggerModal && overlayModal && dialogModal) {
+        // Obter os elementos focáveis
+        const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+        let firstFocusableElement;
+        let lastFocusableElement;
+
+        const openModal = (e) => {
+            if (e) e.preventDefault();
+            overlayModal.classList.remove('force-hidden');
+            document.body.style.overflow = 'hidden'; // Lock scroll
+
+            // Configurar Focus Trap
+            const focusableContent = dialogModal.querySelectorAll(focusableElements);
+            if (focusableContent.length > 0) {
+                firstFocusableElement = focusableContent[0];
+                lastFocusableElement = focusableContent[focusableContent.length - 1];
+                firstFocusableElement.focus();
+            }
+        };
+
+        const closeModal = (e) => {
+            if (e) e.preventDefault();
+            overlayModal.classList.add('force-hidden');
+            document.body.style.overflow = ''; // Restore scroll
+            triggerModal.focus(); // Retorna foco ao botão de origem
+        };
+
+        triggerModal.addEventListener('click', openModal);
+        if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
+        if (btnBackModal) btnBackModal.addEventListener('click', closeModal);
+
+        // Interatividade e Spotlight de Cursor nos Cards do Modal
+        const modalBlocks = dialogModal.querySelectorAll('.comunidade-modal-block');
+        modalBlocks.forEach(block => {
+            block.addEventListener('mousemove', (e) => {
+                const rect = block.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                block.style.setProperty('--mouse-x', `${x}px`);
+                block.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // Fechar ao clicar no overlay
+        overlayModal.addEventListener('click', (e) => {
+            if (e.target === overlayModal) {
+                closeModal();
+            }
+        });
+
+        // Eventos de teclado
+        document.addEventListener('keydown', (e) => {
+            // Se modal aberto e press Esc
+            if (e.key === 'Escape' && !overlayModal.classList.contains('force-hidden')) {
+                closeModal();
+            }
+
+            // Tab Trap
+            if (e.key === 'Tab' && !overlayModal.classList.contains('force-hidden')) {
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === firstFocusableElement) {
+                        lastFocusableElement.focus();
+                        e.preventDefault();
+                    }
+                } else { // Tab
+                    if (document.activeElement === lastFocusableElement) {
+                        firstFocusableElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+        });
+    }
+
+    // Slow down Peixes videos
+    const fishVideos = document.querySelectorAll('.comunidade-video, .comunidade-modal-video');
+    fishVideos.forEach(video => {
+        if (video.src && video.src.includes('Peixes.mp4')) {
+            video.playbackRate = 0.35;
+            video.addEventListener('loadedmetadata', () => {
+                video.playbackRate = 0.35;
+            });
+            video.addEventListener('play', () => {
+                video.playbackRate = 0.35;
+            });
+        }
+    });
+
 });
