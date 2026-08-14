@@ -528,7 +528,7 @@ const RippleDistortion = ({
     u.composite.uTint.value = hexToRGB(tint);
   }, [rings, strength, swirl, dispersion, glint, tintAmount, grayscale, highlightColor, tint]);
 
-  return <div ref={mountRef} className={\`ripple-distortion \${className}\`.trim()} style={style} />;
+  return <div ref={mountRef} className={`ripple-distortion ${className}`.trim()} style={style} />;
 };
 
 export default RippleDistortion;
