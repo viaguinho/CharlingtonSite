@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import Ripple from './components/canvasui/Ripple';
 import RippleDistortion from './components/ui/RippleDistortion';
 
-function CombinedRipples() {
+function CombinedRipples({ videoSrc }: { videoSrc: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
 
@@ -19,7 +19,7 @@ function CombinedRipples() {
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <video 
           ref={videoRef}
-          src="assets/Peixes.mp4" 
+          src={videoSrc} 
           autoPlay 
           loop 
           muted 
@@ -56,22 +56,31 @@ function CombinedRipples() {
   );
 }
 
-const communityMediaContainers = document.querySelectorAll('.comunidade-card .comunidade-media');
+const initRippleCard = () => {
+  const communityMediaContainers = document.querySelectorAll('.comunidade-card .comunidade-media');
 
-communityMediaContainers.forEach(container => {
-  const video = container.querySelector('video') as HTMLVideoElement;
-  if (video && video.src.includes('Peixes.mp4')) {
-    
-    // Clear the container
-    container.innerHTML = '';
-    
-    // Ensure container has relative position to contain the absolute wrapper
-    (container as HTMLElement).style.position = 'relative';
+  communityMediaContainers.forEach(container => {
+    const video = container.querySelector('video') as HTMLVideoElement;
+    if (video && video.src.toLowerCase().includes('peixes')) {
+      const actualSrc = video.src;
+      
+      // Clear the container
+      container.innerHTML = '';
+      
+      // Ensure container has relative position to contain the absolute wrapper
+      (container as HTMLElement).style.position = 'relative';
 
-    createRoot(container).render(
-      <StrictMode>
-        <CombinedRipples />
-      </StrictMode>
-    );
-  }
-});
+      createRoot(container).render(
+        <StrictMode>
+          <CombinedRipples videoSrc={actualSrc} />
+        </StrictMode>
+      );
+    }
+  });
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initRippleCard);
+} else {
+  initRippleCard();
+}
