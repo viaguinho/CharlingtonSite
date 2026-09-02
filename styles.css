@@ -1523,6 +1523,8 @@ header {
 .comunidade-card:hover {
   transform: translateY(-6px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.04);
+  text-decoration: none !important;
+  outline: none !important;
 }
 
 .comunidade-media {
@@ -1655,6 +1657,8 @@ header {
 .comunidade-card-dark:hover {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
   border-color: rgba(255, 255, 255, 0.2);
+  text-decoration: none !important;
+  outline: none !important;
 }
 
 .comunidade-card-dark .comunidade-card-eyebrow {
