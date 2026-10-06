@@ -1,3 +1,14 @@
 node_modules/
 .DS_Store
 .agents/
+
+# Segredos locais
+.env.local
+.env
+
+# Design-loop: perfil do navegador headless (base de verificação local),
+# imagens de referência de terceiros e capturas. Nada disso é produto.
+.claude/design-loop/profile/
+.claude/design-loop/refs/
+.claude/design-loop/shots/
+.env.local.parked

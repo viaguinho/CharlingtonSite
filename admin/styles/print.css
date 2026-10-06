@@ -1,0 +1,126 @@
+/* ==========================================================================
+   IMPRESSÃO — documentos clínicos em papel timbrado
+   ==========================================================================
+   Quando o navegador imprime, toda a interface desaparece e sobra apenas a
+   folha A4. `print-color-adjust: exact` é obrigatório: sem ele o navegador
+   descarta a imagem de fundo do timbrado "para economizar tinta" e o
+   documento sai em branco.
+   ========================================================================== */
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html, body {
+    height: auto;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Tudo some por padrão. */
+  .rail, .topbar, .page-header, .greeting, .toasts, .overlay__backdrop,
+  .modal__header, .modal__footer, .sheet__header, .doc-editor,
+  .doc-preview__warning, .chart__data-toggle, .skip-link,
+  .record__nav, .context, .breadcrumb, .card__tools {
+    display: none !important;
+  }
+
+  .shell, .shell__main, .shell__content, .shell__container {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+  .shell::before { display: none !important; }
+
+  /* O modal vira a página. */
+  .overlay {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+  .modal, .sheet {
+    position: static !important;
+    max-width: none !important;
+    max-height: none !important;
+    height: auto !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    animation: none !important;
+  }
+  .modal__body, .sheet__body {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .doc-split { display: block !important; margin: 0 !important; }
+  .doc-preview, .doc-preview__scroll, .doc-view__paper {
+    display: block !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  /* ——— A folha, em tamanho real ——— */
+  .sheet-a4 {
+    width: 210mm !important;
+    height: 297mm !important;
+    max-width: none !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always;
+    break-after: page;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .sheet-a4:last-child { page-break-after: auto; break-after: auto; }
+
+  .sheet-a4__letterhead {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* As medidas internas escalam de pixels de tela para milímetros de papel.
+     A proporção é a mesma da pré-visualização: 460px de largura equivalem a
+     210mm, portanto cada medida cresce por volta de 4,5×. */
+  .sheet-a4__inner {
+    padding: 63mm 20mm 50mm 27mm !important;
+  }
+
+  .sheet-a4__patient { font-size: 10pt !important; padding: 3mm 3.5mm !important; margin-bottom: 4mm !important; }
+  .sheet-a4__guardian { font-size: 9pt !important; margin-bottom: 5mm !important; }
+  .sheet-a4__title { font-size: 13pt !important; margin-bottom: 4mm !important; }
+  .sheet-a4__subtitle { font-size: 8pt !important; }
+  .sheet-a4__content { font-size: 11pt !important; line-height: 1.7 !important; }
+  .sheet-a4__items { font-size: 11pt !important; gap: 4mm !important; }
+  .sheet-a4__items li { font-size: 11pt !important; padding-left: 7mm !important; }
+  .sheet-a4__item-qty { font-size: 9.5pt !important; }
+  .sheet-a4__buyer-title { font-size: 7.5pt !important; }
+  .sheet-a4__buyer-lines { font-size: 8.5pt !important; gap: 2mm !important; }
+  .sheet-a4__signature { padding-top: 5mm !important; }
+  .sheet-a4__rule { width: 60mm !important; }
+  .sheet-a4__signature strong { font-size: 11pt !important; }
+  .sheet-a4__crm { font-size: 8.5pt !important; }
+  .sheet-a4__seal { font-size: 7.5pt !important; }
+  .sheet-a4__verify { font-size: 7pt !important; }
+  .sheet-a4__placeholder { display: none !important; }
+
+  /* Links não precisam mostrar a URL: o QR e o selo já carregam a
+     verificação, e a URL crua polui o documento oficial. */
+  a[href]::after { content: none !important; }
+}
+
+/* Modo de impressão acionado por botão: esconde a interface antes de chamar
+   window.print(), para que o diálogo do navegador já mostre a folha limpa. */
+body.is-printing .rail,
+body.is-printing .topbar,
+body.is-printing .page-header {
+  visibility: hidden;
+}

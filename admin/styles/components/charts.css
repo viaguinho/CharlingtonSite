@@ -1,0 +1,762 @@
+/* ==========================================================================
+   GRÁFICOS — traço fino, cor contida, estado vazio honesto
+   ========================================================================== */
+
+.chart { position: relative; margin: 0; }
+
+.chart-empty { display: flex; align-items: center; justify-content: center; }
+
+.chart__note {
+  margin-top: var(--s-2);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+
+.chart__data-toggle {
+  /* É um controle, não uma nota: corpo de 13 px, em tinta e sublinhado.
+     O azul só aparece sob o cursor. */
+  margin-top: var(--s-3);
+  min-height: var(--s-6);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-900);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-a20);
+  text-underline-offset: 3px;
+}
+.chart__data-toggle:hover { color: var(--blue-600); text-decoration-color: currentColor; }
+
+.chart-data-table {
+  margin-top: var(--s-3);
+  font-size: var(--t-caption);
+  border-top: 1px solid var(--ink-a06);
+}
+.chart-data-table th, .chart-data-table td {
+  padding: var(--s-1) var(--s-2);
+  text-align: left;
+  font-weight: var(--w-regular);
+  color: var(--ink-500);
+  border-bottom: 1px solid var(--ink-a04);
+}
+.chart-data-table td.num, .chart-data-table th.num { text-align: right; color: var(--ink-900); }
+
+.chart__legend {
+  display: flex;
+  gap: var(--s-4);
+  margin-bottom: var(--s-3);
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+}
+.legend-item { display: inline-flex; align-items: center; gap: var(--s-2); }
+.legend-line { width: 16px; height: 0; border-top: 2px solid var(--data-strong); }
+.legend-line--dashed { border-top-style: dashed; border-top-color: var(--data-soft); }
+.legend-line--strong   { border-top-color: var(--data-strong); }
+.legend-line--negative { border-top-color: var(--data-negative); }
+.legend-line--mid      { border-top-color: var(--data-mid); }
+
+.legend-dot { width: 8px; height: 8px; border-radius: var(--r-circle); display: inline-block; flex: none; }
+/* A primeira fatia é a série principal (--data-strong), não azul. */
+.legend-dot--accent { background: var(--data-accent); }
+.legend-dot--slice-1 { background: var(--data-strong); }
+.legend-dot--strong { background: var(--data-strong); }
+.legend-dot--mid,     .legend-dot--slice-2 { background: var(--data-mid); }
+.legend-dot--slice-3 { background: var(--data-soft); }
+/* A legenda é a marca em miniatura: segmento neutro é cheio, a legenda também. */
+.legend-dot--soft,    .legend-dot--slice-4,
+.legend-dot--neutral { background: var(--data-soft); }
+.legend-dot--success { background: var(--data-positive); }
+.legend-dot--warning { background: var(--data-caution); }
+.legend-dot--danger  { background: var(--data-negative); }
+
+.legend-swatch { width: 10px; height: 10px; border-radius: var(--r-xs); display: inline-block; flex: none; }
+.legend-swatch--strong { background: var(--data-strong); }
+.legend-swatch--soft   { background: var(--data-soft); }
+
+/* ————————————————————————— Área de plotagem ————————————————————————— */
+
+/* Eixo à esquerda com três marcas, grade tracejada leve, e a linha do zero
+   um pouco mais forte. As marcas são posicionadas pelo valor, não por
+   distribuição flex, para caírem exatamente na altura que representam. */
+.plot {
+  display: grid;
+  grid-template-columns: var(--axis-w) minmax(0, 1fr);
+  column-gap: var(--s-2);
+  height: var(--plot-h);
+  padding-top: var(--s-2);
+}
+
+.plot__axis { position: relative; }
+.plot__axis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro);
+  line-height: var(--lh-micro);
+  color: var(--ink-400);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.plot__area { position: relative; min-width: 0; }
+
+.plot__grid {
+  position: absolute;
+  left: 0; right: 0;
+  height: 0;
+  border-top: 1px dashed var(--data-grid);
+  pointer-events: none;
+}
+.plot__grid--zero { border-top: 1px solid var(--ink-a20); }
+
+.plot__x {
+  display: flex;
+  margin-top: var(--s-2);
+  margin-left: calc(var(--axis-w, 32px) + var(--s-2));
+  height: var(--s-4);
+}
+.plot > .plot__x { margin-left: 0; }
+.plot__x-label {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+.plot__x-label:last-child { justify-content: flex-end; }
+/* O último rótulo alinha à borda da área: centrado, "17/09" passava 2 px do
+   recuo do card. */
+.plot__x-label > span {
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro);
+  line-height: var(--lh-micro);
+  color: var(--ink-400);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ————————————————————————————— Barras ————————————————————————————— */
+
+.bars { position: absolute; inset: 0; display: flex; align-items: stretch; }
+
+.bars__col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  background: none;
+  cursor: default;
+  border-radius: var(--r-xs) var(--r-xs) 0 0;
+}
+/* Foco de gráfico no mesmo azul do foco global e da barra sob o cursor. */
+.bars__col:focus-visible { outline: 2px solid var(--data-accent); outline-offset: 2px; }
+
+/* A barra nasce por `scaleY`: o valor define a altura final uma única vez e
+   a entrada anima só o transform, sem recalcular o layout dos irmãos. */
+.bars__fill {
+  position: relative;
+  width: 100%;
+  min-height: 2px;
+  transform-origin: bottom;
+  background: var(--data-mid);
+  border-radius: var(--r-xs) var(--r-xs) 0 0;
+  transition: background-color var(--dur-2) var(--ease);
+  animation: bar-rise var(--dur-4) var(--ease) backwards;
+}
+.bars__col.is-active .bars__fill { background: var(--data-accent); }
+/* Período inicial incompleto: a série de fundo, mais clara (--data-soft). */
+.bars__col.is-partial-start:not(.is-active) .bars__fill { background: var(--data-soft); }
+/* Sob o cursor ou com foco, TODA barra fica em --data-accent — inclusive a
+   listrada do período em curso. */
+.bars__col.is-active .bars__fill,
+.bars__col:focus-visible .bars__fill { background: var(--data-accent); }
+.chart__note .chart__note-swatch.chart__note-swatch--partial { background: var(--data-soft); background-image: none; }
+/* Período em curso: listras neutras (--data-mid com --data-strong, ambas
+   ≥ 3:1). Em azul, a barra de "hoje" gastava uma das três manchas de acento
+   por tela para dizer uma coisa que não é destaque, é estado. A listra basta,
+   e a nota abaixo diz o que ela significa. */
+.bars__col.is-current .bars__fill,
+.chart__note-swatch {
+  background-color: var(--data-mid);
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(0, 0, 0, 0.1) 4px 8px);
+}
+/* A amostra é a própria marca: mesma listra, largura suficiente para dois
+   períodos da listra aparecerem. */
+.chart__note .chart__note-swatch {
+  display: inline-block;
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(0, 0, 0, 0.1) 4px 8px);
+  width: 16px; height: 12px;
+  vertical-align: -2px;
+  margin-right: var(--s-1);
+  /* Mesma forma da barra: cantos arredondados só em cima. */
+  border-radius: var(--r-xs) var(--r-xs) 0 0;
+}
+.chart__note .chart__note-swatch.chart__note-swatch--line {
+  background: none; border-top: 2px solid var(--data-strong); height: 0; vertical-align: middle; opacity: 0.4; border-radius: 0;
+}
+
+/* Valor escrito acima do pico e da barra corrente (REF 1: "654"). */
+.bars__annotation {
+  position: absolute;
+  bottom: calc(100% + var(--s-1));
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro);
+  font-weight: var(--w-regular);
+  color: var(--ink-400);
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Pico e período corrente: o valor que o gráfico quer que se leia primeiro. */
+.bars__annotation.is-focus { font-weight: var(--w-semibold); color: var(--ink-950); }
+
+.chart__summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.chart__summary strong {
+  font-size: var(--t-title);
+  line-height: var(--lh-title);
+  letter-spacing: var(--ls-title);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+}
+.chart__summary strong.is-loss { color: var(--signal-red-ink); }
+.chart__summary span {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+/* Zero é zero: sem o toco de 2px, que parecia um valor pequeno. */
+.bars__fill.is-zero { min-height: 0; }
+/* Exceção: o período EM CURSO com zero precisa aparecer como em curso — sem
+   isso a listra existia no Ano e sumia no Mês, para a mesma regra. A marca é
+   um talo baixo e listrado, que ninguém lê como valor. */
+.bars__col.is-current .bars__fill.is-zero { min-height: 3px; }
+
+@keyframes bar-rise { from { transform: scaleY(0); } }
+
+/* Pílula acima da barra ativa — assinatura da REF 1, agora com a data. */
+.bars__tip {
+  position: absolute;
+  bottom: calc(100% + var(--s-2));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--ink-900);
+  color: var(--surface-raised);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  font-weight: var(--w-semibold);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  animation: tip-in var(--dur-2) var(--ease);
+}
+.bars__tip > span { font-weight: var(--w-regular); color: var(--ink-100); }
+@keyframes tip-in { from { opacity: 0; } }
+
+/* ————————————————————————— Caixa divergente ————————————————————————— */
+
+.flow__col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  cursor: default;
+  border-radius: var(--r-xs);
+}
+.flow__col.is-active { background: var(--blue-a08); }
+.flow__col:focus-visible { outline: 2px solid var(--data-accent); outline-offset: 2px; }
+
+.flow__up, .flow__down {
+  position: absolute;
+  left: 0; right: 0;
+  animation: bar-rise var(--dur-4) var(--ease) backwards;
+}
+.flow__up   { background: var(--data-mid);  border-radius: var(--r-xs) var(--r-xs) 0 0; transform-origin: bottom; }
+.flow__down { background: var(--data-soft); border-radius: 0 0 var(--r-xs) var(--r-xs); transform-origin: top; }
+.flow__col.is-active .flow__up { background: var(--data-accent); }
+
+.flow__tip {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, calc(-1 * var(--s-2)));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--ink-900);
+  color: var(--ink-100);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro);
+  line-height: var(--lh-small);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+.flow__tip strong { align-self: flex-start; color: var(--surface-raised); font-weight: var(--w-semibold); }
+.flow__tip-total { color: var(--surface-raised); font-weight: var(--w-semibold); }
+
+/* ————————————————————————— Linha e área ————————————————————————— */
+
+.line-wrap { position: relative; width: 100%; }
+
+.line-svg { width: 100%; height: 100%; overflow: visible; }
+
+.grid-line { stroke: var(--ink-a06); stroke-width: 1; stroke-dasharray: 2 4; }
+
+.line-cursor-band { fill: var(--blue-a08); }
+
+.line-path {
+  fill: none;
+  stroke: var(--data-strong);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 0;
+  animation: draw var(--dur-4) var(--ease) backwards;
+}
+@keyframes draw { from { stroke-dashoffset: 2000; } }
+
+.line-path--forecast {
+  stroke: var(--data-soft);
+  stroke-dasharray: 4 4;
+  animation: none;
+}
+
+.line-dot {
+  fill: var(--surface);
+  stroke: var(--data-strong);
+  stroke-width: 1.5;
+  transition: r var(--dur-1) var(--ease);
+}
+
+.line-hit { position: absolute; inset: 0; display: flex; }
+.line-hit__zone { flex: 1; height: 100%; background: none; cursor: crosshair; }
+
+.line-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--ink-a08);
+  box-shadow: var(--e-3);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-400);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+.line-tip strong { font-size: var(--t-body); color: var(--ink-950); font-weight: var(--w-medium); }
+.line-tip em { font-style: normal; color: var(--signal-green-ink); font-weight: var(--w-medium); }
+
+.line-axis { position: relative; height: 16px; margin-top: var(--s-1); }
+.line-axis span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-400);
+  white-space: nowrap;
+}
+
+/* ————————————————————————————— Sparkline ————————————————————————————— */
+
+.sparkline path { stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sparkline--accent path  { stroke: var(--blue-500); }
+.sparkline--neutral path { stroke: var(--data-soft); }
+.sparkline--success path { stroke: var(--data-positive); }
+.sparkline--danger path  { stroke: var(--data-negative); }
+
+.sparkline--empty {
+  display: block;
+  border-bottom: 1px dashed var(--ink-a12);
+}
+
+/* ————————————————————————————— Tick bars ————————————————————————————— */
+
+.tickbars-wrap { display: flex; flex-direction: column; gap: var(--s-1); width: 100%; }
+
+.tickbars { display: flex; align-items: flex-end; gap: var(--s-1); width: 100%; }
+
+.tickbars__tick {
+  flex: 1;
+  height: 100%;
+  min-width: 1px;
+  background: var(--ink-a08);
+  border-radius: var(--r-pill);
+  transition: background var(--dur-2) var(--ease);
+}
+/* Azul é cursor e foco, não preenchimento de dado: a marca cheia é --data-mid. */
+.tickbars--accent  .tickbars__tick.is-on { background: var(--data-mid); }
+.tickbars--success .tickbars__tick.is-on { background: var(--data-positive); }
+.tickbars--warning .tickbars__tick.is-on { background: var(--data-caution); }
+.tickbars--danger  .tickbars__tick.is-on { background: var(--data-negative); }
+
+.tickbars__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-300);
+}
+
+/* ————————————————————————————— Medidor ————————————————————————————— */
+
+.gauge { position: relative; }
+.gauge svg { overflow: visible; }
+
+.gauge__track {
+  fill: none;
+  stroke: var(--ink-a08);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.gauge__arc {
+  fill: none;
+  stroke: var(--data-strong);  /* série principal; azul fica para cursor e foco */
+  stroke-width: 9;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-4) var(--ease);
+}
+
+.gauge__center {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.gauge__value {
+  font-size: var(--t-title);
+  font-weight: var(--w-light);
+  letter-spacing: var(--ls-title);
+  color: var(--ink-950);
+  display: flex;
+  align-items: baseline;
+}
+.gauge__suffix { font-size: var(--t-body); color: var(--ink-400); }
+.gauge__label { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-400); }
+
+/* ————————————————————————————— Transferidor ————————————————————————————— */
+
+.protractor__hatch-line { stroke: var(--data-soft); stroke-width: 1; }
+.protractor__wedge { fill: none; stroke: var(--blue-500); stroke-width: 1.2; }
+.protractor__base { stroke: var(--ink-a12); stroke-width: 1; }
+.protractor__goal { stroke: var(--ink-400); stroke-width: 1; stroke-dasharray: 2 2; }
+
+/* ————————————————————————————— Régua ————————————————————————————— */
+
+.ruler { position: relative; padding-top: 26px; width: 100%; }
+
+.ruler--empty {
+  padding: var(--s-3) 0;
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+
+.ruler__ticks { display: flex; align-items: flex-end; gap: var(--s-1); height: 26px; }
+
+.ruler__tick {
+  flex: 1;
+  height: 60%;
+  min-width: 1px;
+  background: var(--ink-a08);
+  border-radius: .5px;
+}
+.ruler__tick.is-marker { height: 100%; background: var(--blue-500); }
+.ruler--success .ruler__tick.is-marker { background: var(--data-positive); }
+.ruler--warning .ruler__tick.is-marker { background: var(--data-caution); }
+.ruler--danger  .ruler__tick.is-marker { background: var(--data-negative); }
+
+.ruler__tip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--blue-050);
+  color: var(--blue-600);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  font-weight: var(--w-medium);
+  white-space: nowrap;
+}
+
+.ruler__bands { position: relative; height: 16px; margin-top: var(--s-1); }
+.ruler__bands span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-300);
+  white-space: nowrap;
+}
+
+/* ————————————————————————— Barra de proporção ————————————————————————— */
+
+.ratio-bar-wrap { display: flex; flex-direction: column; gap: var(--s-3); width: 100%; }
+
+.ratio-bar {
+  display: flex;
+  gap: var(--data-gap);
+  width: 100%;
+  height: 12px;
+}
+.ratio-bar--empty { height: 12px; border-radius: var(--r-pill); background: var(--data-track); }
+
+.ratio-bar__seg { flex-basis: 0; min-width: 4px; }
+.ratio-bar__seg:first-child { border-radius: var(--r-pill) 0 0 var(--r-pill); }
+.ratio-bar__seg:last-child  { border-radius: 0 var(--r-pill) var(--r-pill) 0; }
+.ratio-bar__seg:only-child  { border-radius: var(--r-pill); }
+.ratio-bar__seg--accent  { background: var(--data-accent); }
+.ratio-bar__seg--strong  { background: var(--data-strong); }
+.ratio-bar__seg--mid     { background: var(--data-mid); }
+.ratio-bar__seg--soft,
+.ratio-bar__seg--neutral { background: var(--data-soft); }
+.ratio-bar__seg--success { background: var(--data-positive); }
+.ratio-bar__seg--warning { background: var(--data-caution); }
+.ratio-bar__seg--danger  { background: var(--data-negative); }
+
+.ratio-bar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  font-size: var(--t-body);
+  color: var(--ink-400);
+}
+.ratio-bar__legend li { display: inline-flex; align-items: center; gap: var(--s-2); }
+/* Legenda da barra de proporção = o segmento em miniatura: mesma altura
+   (12 px) e a mesma ponta arredondada. */
+.ratio-bar__legend .legend-dot { width: 16px; height: 12px; border-radius: var(--r-pill); }
+.ratio-bar__legend strong { color: var(--ink-900); font-weight: var(--w-medium); }
+.ratio-bar__count { color: var(--ink-400); }
+
+/* ————————————————————————————— Rosca ————————————————————————————— */
+
+.donut-chart {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.donut { position: relative; flex: none; }
+.donut__seg { fill: none; stroke-linecap: butt; }
+.donut__seg--1 { stroke: var(--data-strong); }
+.donut__seg--2 { stroke: var(--data-mid); }
+.donut__seg--3 { stroke: var(--data-soft); }
+.donut__seg--4 { stroke: var(--data-soft); }
+
+.donut__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.donut__center strong {
+  font-size: var(--t-title);
+  font-weight: var(--w-light);
+  letter-spacing: var(--ls-title);
+  line-height: var(--lh-title);
+  color: var(--ink-950);
+}
+.donut__center span { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-400); }
+
+.donut-legend {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: var(--s-2);
+  row-gap: var(--s-2);
+  min-width: 180px;
+  font-size: var(--t-body);
+}
+.donut-legend li { display: contents; }
+.donut-legend__label { color: var(--ink-500); }
+.donut-legend__value { color: var(--ink-900); font-weight: var(--w-medium); text-align: right; }
+.donut-legend__pct { color: var(--ink-400); text-align: right; min-width: 3ch; }
+
+/* ————————————————————————————— Grade de calor ————————————————————————————— */
+
+.heatgrid-wrap { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.heatgrid {
+  display: grid;
+  grid-template-columns: var(--s-12) repeat(var(--cols), minmax(0, 1fr));
+  gap: var(--s-1);
+}
+.heatgrid__row { display: contents; }
+
+.heatgrid__col-label, .heatgrid__row-label {
+  display: flex;
+  align-items: center;
+  font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro);
+  color: var(--ink-400);
+  font-variant-numeric: tabular-nums;
+}
+.heatgrid__col-label { justify-content: center; padding-bottom: var(--s-1); }
+.heatgrid__row-label { justify-content: flex-end; padding-right: var(--s-2); }
+
+.heatgrid__cell {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  border-radius: var(--r-xs);
+  /* A célula é só o lugar: o mesmo contorno com ou sem agendamento. Quem
+     carrega o dado é o ponto (tamanho) e o número. Um fundo de trilho a mais
+     nas células ocupadas era dado desenhado a 1,13:1. */
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ink-a06);
+  color: var(--ink-900);
+  /* O número é a informação da célula: corpo, não micro. */
+  font-size: var(--t-body); line-height: var(--lh-body);
+  font-weight: var(--w-medium);
+}
+
+/* Diâmetro por degrau, na escala de 4: 4, 8, 12, 16 e 20 px. */
+.heat-dot {
+  display: inline-block;
+  flex: none;
+  border-radius: var(--r-circle);
+  background: var(--data-mid);
+}
+.heat-dot--1 { width: 4px;  height: 4px; }
+.heat-dot--2 { width: 8px;  height: 8px; }
+.heat-dot--3 { width: 12px; height: 12px; }
+.heat-dot--4 { width: 16px; height: 16px; }
+.heat-dot--5 { width: 20px; height: 20px; } /* degrau é tamanho, não cor: strong é da linha principal */
+
+.heatgrid__legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-4);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+/* O número da legenda tem a aparência do número da célula (13/500). */
+.heatgrid__legend-item { display: inline-flex; align-items: center; gap: var(--s-1); color: var(--ink-900); font-weight: var(--w-medium); }
+
+/* ————————————————— Progresso sólido + hachura (REF 3) ————————————————— */
+
+.hatch-progress { width: 100%; }
+.hatch-progress svg { display: block; overflow: visible; }
+.hatch-progress__line { stroke: var(--ink-a12); stroke-width: 1.5; }
+/* O preenchimento ocupa a largura toda e é revelado por `scaleX` a partir da
+   esquerda — no SVG, animar o atributo `width` reavalia a geometria do
+   elemento; `transform` não. */
+.hatch-progress__fill {
+  fill: var(--data-strong);
+  transform-origin: left;
+  transition: transform var(--dur-4) var(--ease);
+}
+.hatch-progress__goal { fill: var(--data-strong); }
+
+/* ————————————————————————————— Escala de pontos ————————————————————————— */
+
+.dot-scale { display: inline-flex; gap: var(--s-1); align-items: center; }
+.dot-scale__dot { border-radius: var(--r-circle); background: var(--ink-a12); }
+.dot-scale--accent  .dot-scale__dot.is-on { background: var(--blue-500); }
+.dot-scale--success .dot-scale__dot.is-on { background: var(--data-positive); }
+.dot-scale--warning .dot-scale__dot.is-on { background: var(--data-caution); }
+.dot-scale--danger  .dot-scale__dot.is-on { background: var(--data-negative); }
+
+/* ————————————————————— Comparação acumulada ————————————————————— */
+
+.compare__svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.compare__line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.compare__line--strong   { stroke: var(--data-strong); }
+.compare__line--negative { stroke: var(--data-negative); }
+.compare__line--mid      { stroke: var(--data-mid); }
+.compare__line--soft     { stroke: var(--data-soft); }
+.compare__line.is-dashed { stroke-dasharray: 8 4; }
+.compare__cursor { stroke: var(--ink-a20); stroke-width: 1; }
+/* Trecho do período antes do primeiro registro: fundo de trilho, sem linha. */
+.compare__void {
+  position: absolute; left: 0; bottom: 0; height: 100%;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: var(--s-3);
+  border-right: 1px dashed var(--ink-a20);
+  font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro);
+  color: var(--ink-400);
+  pointer-events: none;
+}
+.legend-stroke { flex: none; overflow: visible; }
+
+/* Os valores finais moram numa margem à direita da área de plotagem: a
+   linha termina antes deles, e nenhum rótulo cobre dado. */
+.plot--ends { padding-right: var(--s-20); }
+.plot--ends + .plot__x { margin-right: var(--s-20); }
+.compare__end {
+  position: absolute;
+  left: calc(100% + var(--s-2));
+  display: flex;
+  flex-direction: column;
+  /* Centrado no PONTO que anota: ancorado pela base, o bloco de duas linhas
+     subia inteiro e o valor acabava assentado na linha-guia de cima. */
+  transform: translateY(50%);
+  /* Rótulo direto da série: nome em corpo, valor em corpo forte. */
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+  white-space: nowrap;
+  pointer-events: none;
+  /* Fundo do card atrás do rótulo: a linha passa por baixo sem riscar o valor. */
+}
+.compare__end.is-below { transform: translateY(calc(100% - var(--s-1))); }
+.compare__end strong { font-size: var(--t-body); line-height: var(--lh-body); font-weight: var(--w-semibold); }
+.compare__end--strong strong   { color: var(--ink-950); }
+.compare__end--negative strong { color: var(--signal-red-ink); }
+.compare__end--mid strong      { color: var(--ink-950); }
+
+/* Período em curso: traço curto interrompido, o par da barra listrada. */
+.compare__line.is-current { opacity: 0.4; }
+
+.compare__hit { position: absolute; inset: 0; display: flex; }
+.compare__zone { flex: 1; height: 100%; padding: 0; background: none; cursor: crosshair; }
+
+.compare__tip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--ink-900);
+  color: var(--ink-100);
+  font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+.compare__tip strong { color: var(--surface-raised); font-weight: var(--w-semibold); }
+
+.plot__x--line { position: relative; display: block; }
+.plot__x-point {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro);
+  color: var(--ink-400);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.plot__x-point:last-child { transform: translateX(-100%); }

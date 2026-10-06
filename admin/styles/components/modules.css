@@ -1,0 +1,814 @@
+/* ==========================================================================
+   AGENDA, COMUNICAÇÃO, FINANCEIRO, OPERAÇÕES, AUDITORIA E CONFIGURAÇÕES
+   ========================================================================== */
+
+/* ═══════════════════════════ Agenda ═══════════════════════════ */
+
+.agenda-nav { display: inline-flex; align-items: center; gap: var(--s-2); }
+.agenda-nav__label {
+  min-width: 190px;
+  padding: 0 var(--s-3);
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  text-align: center;
+  border-radius: var(--r-sm);
+  height: var(--s-8);
+}
+.agenda-nav__label:hover { background: var(--ink-a04); }
+
+.day-grid {
+  display: grid;
+  grid-template-columns: var(--s-16) repeat(var(--columns), minmax(0, 1fr));
+  border-top: 1px solid var(--ink-a06);
+}
+
+.day-grid__corner { border-bottom: 1px solid var(--ink-a08); }
+
+.day-grid__room {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--ink-a08);
+  border-left: 1px solid var(--ink-a06);
+  font-size: var(--t-caption);
+  font-weight: var(--w-medium);
+  color: var(--ink-500);
+}
+.day-grid__room svg { color: var(--ink-300); }
+
+/* A coluna de atendimentos sem sala física é uma exceção, não um consultório:
+   o tracejado a separa das salas reais sem lhe dar menos peso de leitura. */
+.day-grid__room--unallocated {
+  border-left-style: dashed;
+  border-left-color: var(--ink-a12);
+}
+
+.day-grid__hour {
+  padding: var(--s-3) var(--s-3) 0 0;
+  text-align: right;
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-400); /* rótulo de eixo: a mesma tinta dos eixos dos gráficos */
+  border-bottom: 1px solid var(--ink-a04);
+}
+
+.day-grid__cell {
+  /* Linha de hora com altura fixa na grade de 24 (72 px): antes 62 vazia e 66
+     com consulta. O horário das 09:30 desce para a metade de baixo. */
+  height: 72px;
+  padding: var(--s-1);
+  border-left: 1px solid var(--ink-a06);
+  border-bottom: 1px solid var(--ink-a04);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  position: relative;
+}
+
+.day-grid__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-xs);
+  color: transparent;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.day-grid__empty:hover { background: var(--blue-050); color: var(--blue-600); }
+
+.slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--ink-a08);
+  border-left: 2px solid var(--ink-a12);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+}
+.slot:hover { background: var(--ink-a08); }
+/* Na grade do dia a linha da hora tem sempre 72 px: o horário das 09:30 é
+   desenhado meia linha abaixo, sobre a metade de cima da hora seguinte (a
+   consulta dura 40 min e ocupa esse intervalo de fato). */
+.day-grid__cell .slot { position: absolute; left: var(--s-1); right: var(--s-1); z-index: 1; overflow: hidden; }
+/* Confirmado é estado, não destaque: tinta forte, texto diz o status. */
+/* Cancelada: a mesma aparência da Semana — traço apagado, nome riscado. */
+.slot--muted { background: transparent; border-left-color: var(--ink-a12); }
+.slot--muted .slot__name { color: var(--ink-400); text-decoration: line-through; }
+/* Confirmado é "ainda vai acontecer": contorno, como a etiqueta da Lista.
+   Concluído fica preenchido. Os dois eram idênticos no grid. */
+.slot--info    { background: transparent; border: 1px solid var(--ink-a12); border-left: 2px solid var(--ink-a12); }
+.slot--success { background: var(--signal-green-bg); border-left-color: var(--signal-green-ink); }
+.slot--warning { background: var(--signal-amber-bg); border-left-color: var(--signal-amber-ink); }
+.slot--danger  { background: var(--signal-red-bg); border-left-color: var(--signal-red-ink); }
+
+.slot__time { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); flex: none; }
+.slot__name {
+  font-size: var(--t-caption);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  flex: 1;
+  min-width: 0;
+  /* O nome identifica a criança: quebra, nunca corta. */
+  overflow-wrap: anywhere;
+}
+.slot__type { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); display: none; }
+/* Bloco curto: uma linha só, alinhada à esquerda como a de cima. */
+.slot.is-compact { align-items: center; flex-wrap: nowrap; gap: var(--s-2); padding: 0 var(--s-2); }
+.slot.is-compact .slot__name { font-size: var(--t-body); }
+.slot__flag { color: var(--signal-amber-ink); flex: none; }
+
+@media (min-width: 1200px) { .slot__type { display: block; flex-basis: 100%; padding-left: calc(var(--s-8) + var(--s-2)); } }
+
+/* ————————————————————————— Semana ————————————————————————— */
+
+.week-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+.week-day { border-left: 1px solid var(--ink-a06); min-height: 320px; }
+.week-day:first-child { border-left: 0; }
+/* Hoje se marca pelo número no cabeçalho, não por fundo: o cinza somado ao
+   verde de "Concluído" baixava o texto de 13 px para 4,40:1. */
+.week-day.is-today { background: transparent; }
+.week-day.is-today .week-day__head { background: var(--ink-a04); }
+
+.week-day__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  width: 100%;
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--ink-a06);
+}
+.week-day__head:hover { background: var(--ink-a04); }
+.week-day__weekday {
+  font-size: var(--t-micro); line-height: var(--lh-micro);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.week-day__num { font-size: var(--t-title); font-weight: var(--w-light); color: var(--ink-950); }
+/* Hoje é estado, não interação: peso e sublinhado neutros, sem azul. */
+.week-day.is-today .week-day__num {
+  font-weight: var(--w-medium);
+  text-decoration: underline 2px var(--ink-600);
+  text-underline-offset: 4px;
+}
+.week-day__count {
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  padding: 0 var(--s-1);
+  border-radius: var(--r-pill);
+  background: var(--ink-a08);
+  color: var(--ink-500);
+}
+
+.week-day__list { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2); }
+.week-day__empty { text-align: center; color: var(--ink-400); font-size: var(--t-body); padding: var(--s-3) 0; }
+
+.week-slot {
+  /* O mesmo bloco de consulta da vista Dia: fundo do tom, horário em corpo
+     --ink-400, nome em corpo 500. Uma aparência por conceito. */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  padding: var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--ink-a08);
+  border-left: 2px solid var(--ink-a12);
+  text-align: left;
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+.week-slot .week-slot__type { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); }
+.week-slot span:nth-child(2) {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  /* Quebra em vez de cortar: "Gabriela Nunes Fer…" perdia justamente o
+     sobrenome que distingue duas crianças com o mesmo primeiro nome. */
+  overflow-wrap: anywhere;
+}
+.week-slot:hover { background: var(--ink-a08); }
+/* Cancelado: marca em --ink-a12, fundo neutro, nome riscado. */
+.week-slot--muted { border-left-color: var(--ink-a12); background: transparent; }
+.week-slot--muted span { color: var(--ink-400); }
+.week-slot--muted span:nth-child(2) { color: var(--ink-400); text-decoration: line-through; }
+.week-slot--info    { background: transparent; border: 1px solid var(--ink-a12); border-left: 2px solid var(--ink-a12); }
+.week-slot--success { background: var(--signal-green-bg); border-left-color: var(--signal-green-ink); }
+.week-slot--warning { background: var(--signal-amber-bg); border-left-color: var(--signal-amber-ink); }
+.week-slot--danger  { background: var(--signal-red-bg); border-left-color: var(--signal-red-ink); }
+/* Registro que falta (atrasado sem chegada, sem desfecho) é o mesmo vermelho de
+   "Faltou", mas tracejado: a falta aconteceu; aqui falta registrar o que houve. */
+/* Registro pendente é o que a tela manda resolver: trilho vermelho cheio.
+   Tracejado o deixava mais fraco que os estados de repouso ao redor. */
+.slot.is-pending-record,
+.week-slot.is-pending-record { border-left-style: solid; }
+
+@media (max-width: 1024px) {
+  .week-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .day-grid { grid-template-columns: var(--s-12) repeat(var(--columns), minmax(120px, 1fr)); overflow-x: auto; }
+}
+
+/* ————————————————————————— Lista ————————————————————————— */
+
+.appointment-list { display: flex; flex-direction: column; gap: var(--s-1); }
+.appointment-list button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  /* Mesmo recuo do título do card (20 px). */
+  padding: var(--s-3) var(--s-5);
+  border-radius: 0;
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+}
+.appointment-list button:hover { background: var(--ink-a04); }
+/* Título de grupo: separa o que está por vir do que já passou. */
+.appointment-list__group {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  min-height: var(--s-12);
+  padding: 0 var(--s-5) var(--s-2);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  border-bottom: 1px solid var(--ink-a06);
+}
+.appointment-list__group:first-child { min-height: var(--s-8); }
+.appointment-list__group .num { font-weight: var(--w-regular); color: var(--ink-400); }
+.appointment-list__date { display: flex; flex-direction: column; width: 72px; flex: none; }
+.appointment-list__date strong { font-size: var(--t-small); color: var(--ink-900); font-weight: var(--w-medium); }
+.appointment-list__date span { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); }
+.appointment-list__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.appointment-list__text strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.appointment-list__text span { font-size: var(--t-caption); color: var(--ink-400); }
+
+/* ————————————————————————— Detalhe ————————————————————————— */
+
+.appointment-detail { display: flex; flex-direction: column; gap: var(--s-5); }
+.appointment-detail__status { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.appointment-detail__flow { display: flex; flex-direction: column; gap: var(--s-3); }
+.appointment-detail__actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.appointment-detail__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3) var(--s-4);
+  margin: 0;
+}
+.appointment-detail__facts div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.appointment-detail__facts dt {
+  font-size: var(--t-micro); letter-spacing: var(--ls-eyebrow); line-height: var(--lh-micro);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.appointment-detail__facts dd {
+  margin: 0;
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-900);
+  overflow-wrap: anywhere;
+}
+
+.appointment-detail__sensory {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--blue-050);
+  color: var(--blue-700);
+}
+.appointment-detail__sensory svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.appointment-detail__sensory strong { font-size: var(--t-small); display: block; margin-bottom: 2px; }
+.appointment-detail__sensory p { font-size: var(--t-caption); line-height: 1.5; }
+
+.appointment-detail__notes { font-size: var(--t-body); color: var(--ink-600); line-height: 1.6; margin-top: var(--s-2); }
+
+.booking-form, .entry-form { display: flex; flex-direction: column; gap: var(--s-4); }
+
+/* ═══════════════════════════ Comunicação ═══════════════════════════ */
+
+.comm { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: var(--gutter); align-items: start; }
+
+@media (max-width: 1024px) { .comm { grid-template-columns: 1fr; } }
+
+.thread-list { display: flex; flex-direction: column; gap: 0; }
+.thread-list button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+}
+.thread-list button:hover { background: var(--ink-a04); }
+.thread-list button.is-active { background: var(--blue-050); }
+.thread-list__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.thread-list__text strong {
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.thread-list__text span {
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.thread-list__time { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-300); flex: none; }
+
+.thread { display: flex; flex-direction: column; gap: var(--s-3); }
+.bubble { display: flex; }
+.bubble--out { justify-content: flex-end; }
+
+.bubble__body {
+  max-width: 78%;
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--ink-a04);
+}
+.bubble--out .bubble__body { background: var(--blue-050); }
+.bubble__body p { font-size: var(--t-body); color: var(--ink-900); line-height: 1.5; }
+.bubble__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-top: var(--s-2);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-400);
+}
+
+.automations { display: flex; flex-direction: column; gap: var(--s-1); }
+.automations li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--ink-a06);
+}
+.automations__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  flex: none;
+  border-radius: var(--r-xs);
+  background: var(--blue-050);
+  color: var(--blue-600);
+}
+.automations__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.automations__text strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.automations__text span { font-size: var(--t-caption); color: var(--ink-400); }
+
+.msg-templates { display: flex; flex-direction: column; gap: var(--s-3); }
+.msg-templates li { padding: var(--s-4); border: 1px solid var(--ink-a06); border-radius: var(--r-md); }
+.msg-templates__head { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); }
+.msg-templates__head strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); flex: 1; }
+.msg-templates__head svg { color: var(--ink-400); }
+.msg-templates__body {
+  font-size: var(--t-small);
+  color: var(--ink-500);
+  line-height: var(--lh-body);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--ink-a04);
+}
+
+/* ═══════════════════════════ Financeiro ═══════════════════════════ */
+
+.category-bars { display: flex; flex-direction: column; }
+.category-bars li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--row-min);
+  padding-block: var(--s-1);
+}
+.category-bars li + li { border-top: 1px solid var(--ink-a04); }
+.category-bars__label {
+  width: 40%;
+  flex: none;
+  font-size: var(--t-small);
+  line-height: var(--lh-small);
+  color: var(--ink-500);
+  /* Quebra, não corta: "Distúrbios da atividade e da atenção" é o diagnóstico,
+     "Distúrbios da atividade e da…" não é nada. */
+  overflow-wrap: anywhere;
+}
+.category-bars__label strong { color: var(--ink-900); font-weight: var(--w-medium); }
+.category-bars__track {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--data-track);
+  overflow: hidden;
+}
+/* Cresce por `scaleX`, não por `width`: roda no compositor. Sólido, sem
+   degradê — ao escalar, o degradê faria a cor codificar o comprimento. */
+.category-bars__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--data-mid);
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left;
+  transition: transform var(--dur-4) var(--ease);
+}
+.category-bars__fill--top    { background: var(--data-strong); }
+.category-bars__fill--danger { background: var(--data-negative); }
+.category-bars__fill--accent { background: var(--data-accent); }
+.category-bars__value {
+  flex: none;
+  /* Largura fixa: as trilhas terminam todas no mesmo x, qualquer que seja o
+     tamanho do valor. */
+  width: var(--value-w, 104px);
+  font-size: var(--t-small);
+  line-height: var(--lh-small);
+  color: var(--ink-900);
+  text-align: right;
+}
+.category-bars__detail { color: var(--ink-400); }
+
+/* Empilhado: rótulo inteiro na primeira linha, trilha e valor na segunda.
+   Toda linha tem a mesma altura, por mais longo que seja o nome do CID. */
+.category-bars--stacked li { flex-wrap: wrap; row-gap: var(--s-1); padding-block: var(--s-2); }
+.category-bars--stacked .category-bars__label { width: 100%; }
+
+.overdue { display: flex; flex-direction: column; gap: var(--s-2); }
+.overdue li { display: flex; align-items: center; gap: var(--s-3); }
+.overdue__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.overdue__text strong { font-size: var(--t-small); color: var(--ink-900); font-weight: var(--w-medium); }
+/* Datas em tinta: o card inteiro já é "Em atraso" — pintar cada linha de
+   vermelho transformava o alerta em textura. */
+.overdue__text span { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); }
+
+.transfers { display: flex; flex-direction: column; gap: var(--s-2); }
+.transfers li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-sm);
+}
+.transfers__name { flex: 1; font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.transfers__base { font-size: var(--t-small); color: var(--ink-400); }
+
+/* ═══════════════════════════ Operações ═══════════════════════════ */
+
+.supply-level { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); }
+.supply-level__qty { font-size: var(--t-body); color: var(--ink-500); }
+.supply-level__qty strong { color: var(--ink-900); font-weight: var(--w-semibold); }
+
+/* Mesmo ritmo do resto do painel: margem interna do card e vão de 16px. Sem
+   a margem, os cartões encostavam na borda e o nome quebrava em "Consultório / 1". */
+.rooms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--gutter);
+  padding: 0 var(--s-5) var(--s-5);
+}
+.room-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-md);
+}
+.room-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  flex: none;
+  border-radius: var(--r-sm);
+  background: var(--ink-a06);
+  color: var(--ink-600);
+}
+.room-card__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.room-card__text strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); white-space: nowrap; }
+.room-card__text span { white-space: nowrap; }
+.room-card__text span { font-size: var(--t-caption); color: var(--ink-400); }
+
+.team { display: flex; flex-direction: column; gap: var(--s-1); }
+.team li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+}
+.team li:hover { background: var(--ink-a04); }
+.team__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.team__text strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.team__text span {
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+  overflow-wrap: anywhere;
+}
+.team__plazas { display: flex; gap: var(--s-1); }
+
+/* ═══════════════════════════ Auditoria ═══════════════════════════ */
+
+.audit-action { display: inline-flex; align-items: center; gap: var(--s-2); }
+.audit-action__risk { color: var(--signal-amber-ink); flex: none; }
+
+.audit-hash {
+  /* Uma família só na interface: Inter com numerais tabulares. */
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-300);
+}
+
+.integrity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-md);
+}
+.integrity.is-valid { background: var(--signal-green-bg); color: var(--signal-green-ink); }
+.integrity.is-broken { background: var(--signal-red-bg); color: var(--signal-red-ink); }
+.integrity svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.integrity strong { font-size: var(--t-body); display: block; margin-bottom: 2px; }
+.integrity p { font-size: var(--t-small); line-height: var(--lh-body); }
+
+/* ═══════════════════════════ Configurações ═══════════════════════════ */
+
+.security-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-md);
+  background: var(--blue-050);
+  border: 1px solid var(--blue-100);
+  color: var(--blue-700);
+}
+.security-banner svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.security-banner strong { font-size: var(--t-body); display: block; margin-bottom: var(--s-1); }
+.security-banner p { font-size: var(--t-small); line-height: 1.6; }
+
+.integration__desc { font-size: var(--t-small); color: var(--ink-500); line-height: 1.5; margin-bottom: var(--s-3); }
+.integration__env { display: flex; flex-direction: column; gap: var(--s-2); }
+.integration__env li { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.integration__env code {
+  /* Uma família só na interface: Inter com numerais tabulares. */
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-500);
+}
+.integration__bff {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+}
+.integration__bff code {
+  /* Uma família só na interface: Inter com numerais tabulares. */
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-xs);
+  background: var(--ink-a06);
+}
+
+.letterheads { display: flex; gap: var(--s-4); flex-wrap: wrap; }
+.letterhead-slot { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); }
+.letterhead-slot__label { font-size: var(--t-caption); color: var(--ink-400); }
+.letterhead-slot__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  aspect-ratio: 1 / 1.41;
+  border: 1.5px dashed var(--ink-a12);
+  border-radius: var(--r-sm);
+  color: var(--ink-200);
+}
+
+.matrix th[scope='row'] {
+  text-align: left;
+  font-weight: var(--w-regular);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--ink-a04);
+}
+.matrix__full  { color: var(--signal-green-ink); }
+.matrix__write { color: var(--blue-600); }
+.matrix__read  { color: var(--ink-400); }
+.matrix__none  { color: var(--ink-200); }
+
+.inventory { display: flex; flex-direction: column; gap: var(--s-2); }
+.inventory li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--ink-a04);
+}
+.inventory li:last-child { border-bottom: 0; }
+.inventory__label { flex: 1; font-size: var(--t-small); color: var(--ink-600); }
+.inventory__count { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-950); min-width: 48px; text-align: right; }
+
+.rights { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
+.right-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-md);
+}
+.right-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: var(--r-xs);
+  background: var(--blue-050);
+  color: var(--blue-600);
+}
+.right-card strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.right-card p { font-size: var(--t-caption); color: var(--ink-400); line-height: 1.5; }
+
+/* ═══════════════════════════ Boot ═══════════════════════════ */
+
+.boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--s-4);
+  height: 100%;
+  color: var(--ink-400);
+}
+/* O spinner inicial vive só em boot.css (tinta, --dur-spin). */
+.boot--noscript { padding: var(--s-16); text-align: center; }
+
+/* ═══════════════ Fronteira de erro ═══════════════ */
+
+.error-boundary__actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.error-boundary__detail {
+  margin: 0 var(--s-6) var(--s-6);
+  border-top: 1px solid var(--ink-a06);
+  padding-top: var(--s-4);
+}
+
+.error-boundary__detail > summary {
+  font-size: var(--t-micro);
+  letter-spacing: 0;
+  color: var(--ink-400);
+  cursor: pointer;
+  user-select: none;
+}
+
+.error-boundary__detail > summary:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
+.error-boundary__detail pre {
+  margin: var(--s-3) 0 0;
+  padding: var(--s-3);
+  max-height: 220px;
+  overflow: auto;
+  background: var(--surface-sunken);
+  border-radius: var(--r-md);
+  /* Uma família só na interface: Inter com numerais tabulares. */
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-micro);
+  line-height: 1.5;
+  color: var(--ink-500);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ═══════════════ Financeiro — leitura do período ═══════════════ */
+
+.finance-verdict {
+  margin-top: var(--s-5);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--ink-500);
+}
+.finance-verdict strong { color: var(--ink-900); font-weight: var(--w-semibold); }
+.finance-verdict .finance-verdict__loss { color: var(--signal-red-ink); }
+
+.flow-pair { display: flex; flex-direction: column; gap: var(--s-5); }
+.split-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4) var(--gutter); align-items: start; }
+@media (max-width: 900px) { .split-columns { grid-template-columns: minmax(0, 1fr); } }
+.flow-pair__label {
+  margin-bottom: var(--s-1);
+  font-size: var(--t-small);
+  line-height: var(--lh-small);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+}
+.overdue li { min-height: var(--row-min); }
+.overdue__more {
+  margin-top: var(--s-3);
+  font-size: var(--t-small);
+  line-height: var(--lh-small);
+  color: var(--ink-400);
+}
+
+/* Bloco secundário dentro de um card: hairline e respiro, para o card não
+   virar dois cards empilhados. */
+.card-subsection {
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--ink-a06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.day-grid__room-note {
+  margin-left: var(--s-1);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  font-weight: var(--w-regular);
+  color: var(--signal-amber-ink);
+}
+/* Sala em manutenção: um bloco tracejado da primeira à última hora, com o
+   motivo no topo. Indisponível, não carregando (sem listrado: o listrado é
+   do período em curso). */
+.day-grid__cell--blocked { height: auto; }
+.day-grid__blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  height: 100%;
+  padding: var(--s-5) var(--s-4);
+  border-radius: var(--r-xs);
+  border: 1px dashed var(--ink-a12);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+  text-align: center;
+  text-wrap: pretty;
+}
+.day-grid__blocked strong { font-weight: var(--w-medium); color: var(--ink-900); }
+
+.next-days { display: flex; flex-direction: column; }
+/* No card flush a lista precisa do recuo que o corpo do card não tem. */
+.card--flush .card-subsection { margin-inline: var(--s-5); margin-bottom: var(--s-5); }
+.next-days li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: var(--row-min);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--ink-500);
+}
+.next-days li + li { border-top: 1px solid var(--ink-a04); }
+.next-days span::first-letter { text-transform: uppercase; }
+.next-days strong { color: var(--ink-900); font-weight: var(--w-medium); }
+
+.supply-level__ok { font-size: var(--t-caption); line-height: var(--lh-caption); color: var(--ink-400); }
+
+/* Taxa por categoria sem barra: rótulo, percentual e base. Só o item apontado
+   leva a cor de falta (ponto e texto). */
+.rate-list { display: flex; flex-direction: column; }
+.rate-list li {
+  display: grid;
+  grid-template-columns: 1fr auto var(--s-20);
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--row-min);
+  font-size: var(--t-body); line-height: var(--lh-body);
+}
+.rate-list li + li { border-top: 1px solid var(--ink-a04); }
+.rate-list__label { color: var(--ink-900); display: inline-flex; align-items: center; gap: var(--s-2); }
+.rate-list strong { font-weight: var(--w-medium); color: var(--ink-900); text-align: right; }
+.rate-list__base { color: var(--ink-400); text-align: right; }
+.rate-list li.is-flagged .rate-list__label::before {
+  content: ''; width: 8px; height: 8px; border-radius: var(--r-circle); background: var(--signal-red-ink);
+}
+.rate-list li.is-flagged strong { color: var(--signal-red-ink); }

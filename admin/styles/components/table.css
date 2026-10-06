@@ -1,0 +1,246 @@
+/* ==========================================================================
+   TABELAS E ABAS
+   ========================================================================== */
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--r-md);
+}
+
+.table { width: 100%; border-collapse: collapse; }
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--s-2) var(--s-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--ink-a08);
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  font-weight: var(--w-semibold);
+  color: var(--ink-400);
+  white-space: nowrap;
+}
+
+.table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+.table__sort:hover { color: var(--ink-900); }
+/* Coluna à direita: o ícone vem antes do rótulo, e "VALOR" termina onde os
+   valores terminam (antes sobrava o espaço do ícone oculto). */
+th.num .table__sort { flex-direction: row-reverse; }
+.table__sort .is-idle { opacity: 0; transition: opacity var(--dur-1) var(--ease); }
+.table__sort:hover .is-idle { opacity: .4; }
+.table__sort .is-active { color: var(--blue-600); }
+
+.table tbody tr { height: 72px; } /* 3 × 24: toda linha na linha-base, com uma ou duas etiquetas */
+.table tbody td {
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--ink-a04);
+  font-size: var(--t-body);
+  color: var(--ink-900);
+  vertical-align: middle;
+}
+
+/* Uma densidade só em todo o painel (antes havia duas, 38/72 e 30/56 px). A
+   primeira e a última coluna ficam no recuo do card (20 px), alinhadas ao
+   título e às abas acima delas. */
+.table thead th:first-child, .table tbody td:first-child { padding-left: var(--s-5); }
+.table thead th:last-child,  .table tbody td:last-child  { padding-right: var(--s-5); }
+
+/* Hover muda apenas o fundo: uma lista de 300 pacientes não pode tremer. */
+.table tbody tr { transition: background var(--dur-1) var(--ease); }
+.table tbody tr.is-clickable { cursor: pointer; }
+.table tbody tr.is-clickable:hover { background: var(--ink-a04); }
+.table tbody tr.is-selected { background: var(--blue-050); }
+.table tbody tr.is-selected td { color: var(--ink-900); }
+.table tbody tr:last-child td { border-bottom: 0; }
+
+.table tbody tr:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: -2px;
+}
+
+.table__primary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.table__primary-text { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.table__primary-text strong {
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.table__primary-text span { font-size: var(--t-caption); color: var(--ink-400); }
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--ink-a06);
+}
+.table-toolbar > .spacer { flex: 1; }
+
+@media (max-width: 900px) { .hide-below-900 { display: none; } }
+@media (max-width: 1200px) { .hide-below-1200 { display: none; } }
+
+/* ═══════════════════════════════ Abas ═══════════════════════════════ */
+
+.tabs { display: inline-flex; align-items: center; gap: var(--s-1); min-width: 0; }
+
+.tabs__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+  transition: background var(--dur-2) var(--ease),
+              color var(--dur-2) var(--ease),
+              border-color var(--dur-2) var(--ease);
+}
+.tabs__item:disabled { opacity: .4; cursor: not-allowed; }
+.tabs__count {
+  min-width: 16px;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-pill);
+  background: var(--ink-a06);
+  color: var(--ink-400);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro);
+  font-weight: var(--w-medium);
+  line-height: var(--lh-micro);
+  display: inline-flex; align-items: center; justify-content: center;
+  height: var(--s-4);
+}
+.tabs__item.is-active .tabs__count { background: var(--ink-a12); color: var(--ink-900); }
+.tabs--pill .tabs__item.is-active .tabs__count,
+.tabs--segment .tabs__item.is-active .tabs__count { background: var(--ink-600); color: var(--tab-active-ink); }
+
+/* —— Pílula: navegação de nível de tela (REF 3) —— */
+
+.tabs--pill,
+
+/* Pílula e segmento são o mesmo componente visual: trilho, raio e estado
+   ativo idênticos. A diferença é só o papel (navegar entre seções × mudar o
+   modo de ver), que o contexto já diz. */
+.tabs--pill .tabs__item {
+  height: 28px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-xs);
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+}
+/* `:not(.is-active)`: sem ele, a regra de hover (mais específica) repintava o
+   rótulo da aba recém-clicada de preto sobre o fundo preto, enquanto o cursor
+   ainda estava em cima dela. */
+.tabs--pill .tabs__item:not(.is-active):hover:not(:disabled) { color: var(--ink-900); }
+.tabs--pill .tabs__item.is-active {
+  background: var(--tab-active-bg);
+  color: var(--tab-active-ink);
+  font-weight: var(--w-medium);
+}
+
+/* —— Sublinhado: troca de recorte dentro do conteúdo (REF 2) —— */
+
+.tabs--underline { gap: var(--s-4); }
+.tabs--underline .tabs__item {
+  position: relative;
+  height: 30px;
+  padding: 0;
+  font-size: var(--t-small);
+  color: var(--ink-400);
+}
+.tabs--underline .tabs__item::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 2px;
+  height: 1.5px;
+  background: var(--ink-900);
+  transform: scaleX(0);
+  transition: transform var(--dur-2) var(--ease);
+}
+.tabs--underline .tabs__item:not(.is-active):hover:not(:disabled) { color: var(--ink-900); }
+.tabs--underline .tabs__item.is-active { color: var(--ink-950); font-weight: var(--w-medium); }
+.tabs--underline .tabs__item.is-active::after { transform: scaleX(1); }
+
+/* —— Segmento: alternância de modo de visualização —— */
+
+.tabs--segment {
+  padding: var(--s-1);
+  background: var(--surface);
+  border: 1px solid var(--ink-a08);
+  border-radius: var(--r-sm);
+}
+.tabs--segment .tabs__item {
+  height: 28px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-xs);
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+}
+/* Ativo em tinta, não em azul: o modo de visualização é navegação, não dado,
+   e o azul da tela fica reservado ao que aponta para o dado. */
+.tabs--segment .tabs__item.is-active { background: var(--tab-active-bg); color: var(--tab-active-ink); font-weight: var(--w-medium); }
+
+/* ═══════════════════════ Índice numerado (REF 3) ═══════════════════════ */
+
+.index-list ol { display: flex; flex-direction: column; gap: 0; }
+
+.index-list button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--row-min);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-xs);
+  text-align: left;
+  color: var(--ink-400);
+  font-size: var(--t-small);
+  line-height: var(--lh-small);
+  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.index-list button:hover { background: var(--ink-a04); color: var(--ink-900); }
+.index-list button.is-active { color: var(--ink-950); font-weight: var(--w-medium); }
+.index-list button.is-active .index-list__num { color: var(--ink-950); }
+
+.index-list__num { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-300); flex: none; width: var(--s-5); padding-top: var(--s-1); }
+/* Duas linhas em vez de reticências: "Marcos do desenvolvimento" cortado em
+   "Marcos do desenvo…" não diz nada a quem está procurando a seção. */
+.index-list__label { flex: 1; min-width: 0; }
+.index-list__count { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-400); }
+/* Pendência escrita (ex.: "9 a emitir"): linha própria, família âmbar. */
+.index-list__pending {
+  flex-basis: 100%;
+  padding-left: calc(var(--s-5) + var(--s-3));
+  font-size: var(--t-body); line-height: var(--lh-body);
+  font-weight: var(--w-medium);
+}
+.index-list__pending--warning { color: var(--signal-amber-ink); }
+
+/* —— Seletor de período com o intervalo por extenso —— */
+/* Largura fixa: a legenda muda de tamanho com o período e empurrava as abas
+   — clicar no controle fazia o próprio controle andar. */
+.period-tabs { display: inline-flex; flex-direction: column; gap: var(--s-1); width: calc(var(--s-20) * 5); }
+.period-tabs__caption {
+  /* Unidade e intervalo do recorte: qualifica todos os números da tela. */
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,18 @@
+/* Ordem importa: tokens → base → layout → componentes → impressão. */
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+
+@import './components/primitives.css';
+@import './components/card.css';
+@import './components/forms.css';
+@import './components/table.css';
+@import './components/charts.css';
+@import './components/overlays.css';
+@import './components/auth.css';
+@import './components/setup.css';
+@import './components/patients.css';
+@import './components/documents.css';
+@import './components/modules.css';
+
+@import './print.css';

@@ -1,0 +1,362 @@
+/* ==========================================================================
+   AUTENTICAÇÃO — login, MFA, bloqueio
+   ========================================================================== */
+
+.auth {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(360px, 42%) 1fr;
+  min-height: 100vh;
+  background: transparent;
+  overflow: hidden;
+}
+
+.auth--locked { grid-template-columns: 1fr; }
+
+/* Fundo animado que cobre 100% da viewport */
+.auth__bg {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none;
+  z-index: 0 !important;
+}
+
+/* ————————————————————————— Coluna da marca —————————————————————————
+   Versão contemplativa sobre o gradiente compartilhado (REF 5).        */
+
+.auth__brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s-12);
+  padding: var(--s-10);
+  background: transparent;
+  border-right: none;
+  z-index: 1;
+}
+
+.auth__brand > * {
+  position: relative;
+  z-index: 2;
+}
+
+.auth__brand-top { display: flex; align-items: center; gap: var(--s-3); }
+.auth__brand-top img { width: 40px; height: 40px; object-fit: contain; }
+.auth__brand-top div { display: flex; flex-direction: column; }
+.auth__brand-top strong {
+  font-size: var(--t-base);
+  font-weight: var(--w-medium);
+  letter-spacing: -.015em;
+  color: var(--ink-900);
+}
+.auth__brand-top span { font-size: var(--t-caption); color: var(--ink-400); }
+
+.auth__brand-body { display: flex; flex-direction: column; gap: var(--s-6); }
+
+.auth__claim {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  color: var(--ink-950);
+  max-width: 22ch;
+  text-wrap: balance;
+}
+
+.auth__plazas { display: flex; flex-direction: column; gap: var(--s-2); }
+.auth__plazas li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: var(--t-small);
+  color: var(--ink-500);
+}
+.auth__dot { width: 5px; height: 5px; border-radius: var(--r-circle); background: var(--blue-500); }
+
+.auth__brand-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  max-width: 44ch;
+  color: var(--ink-400);
+}
+.auth__brand-foot svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.auth__brand-foot p { font-size: var(--t-caption); line-height: var(--lh-body); }
+
+/* ————————————————————————— Coluna do formulário ————————————————————————— */
+
+.auth__panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-10) var(--s-6);
+  background: transparent;
+  z-index: 1;
+}
+
+/* Card de Login Glassmorphic */
+.auth__form-wrap {
+  width: 100%;
+  max-width: 400px;
+  padding: 2.25rem 2rem;
+  background: rgba(255, 255, 255, 0.50);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.auth__form-wrap:hover {
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+.auth__form-wrap--center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-4);
+}
+
+.auth__head { display: flex; flex-direction: column; gap: var(--s-2); margin-bottom: var(--s-8); }
+.auth__head h1 {
+  font-size: var(--t-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--ls-h2);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+}
+.auth__head p { font-size: var(--t-small); color: var(--ink-400); line-height: 1.5; }
+
+.auth__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-start;
+}
+.auth__back:hover { color: var(--blue-600); }
+
+.auth__fields { display: flex; flex-direction: column; gap: var(--s-5); margin-bottom: var(--s-6); }
+
+.auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.auth__field-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font);
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  font-weight: var(--w-semibold);
+  color: var(--ink-400);
+  transition: color var(--dur-2) var(--ease);
+}
+
+.auth__field-icon {
+  flex-shrink: 0;
+  color: var(--ink-400);
+  transition: color var(--dur-2) var(--ease);
+}
+
+.auth__field:focus-within .auth__field-label {
+  color: var(--blue-600);
+}
+
+.auth__field:focus-within .auth__field-icon {
+  color: var(--blue-600);
+}
+
+.auth__field-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth__field-input {
+  display: block;
+  width: 100%;
+  height: 38px;
+  padding: 0.25rem 0;
+  font-family: var(--font);
+  font-size: var(--t-body);
+  color: var(--ink-950);
+  background-color: transparent !important;
+  background: transparent !important;
+  border: 0;
+  border-bottom: 1.5px solid var(--ink-a12);
+  appearance: none;
+  outline: none;
+  transition: border-color var(--dur-2) var(--ease);
+}
+
+.auth__field-input--password {
+  padding-right: 2rem;
+}
+
+.auth__field-input:focus {
+  border-bottom-color: var(--blue-500);
+}
+
+/* Neutraliza completamente o fundo azul do autofill do Chrome/Safari/Edge */
+.auth__field-input:-webkit-autofill,
+.auth__field-input:-webkit-autofill:hover,
+.auth__field-input:-webkit-autofill:focus,
+.auth__field-input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ink-950) !important;
+  caret-color: var(--ink-950) !important;
+  transition: background-color 5000000s ease-in-out 0s, color 5000000s ease-in-out 0s !important;
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: 0 0 0px 1000px transparent inset !important;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+}
+
+.auth__password-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  padding: 0.25rem;
+  color: var(--ink-400);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--dur-2) var(--ease);
+}
+
+.auth__password-toggle:hover {
+  color: var(--ink-600);
+}
+
+.auth__error-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: #dc2626;
+  margin-top: -0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Submit Button com Microinteração de Seta */
+.auth__submit-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.2);
+  transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+}
+
+.auth__submit-btn:hover:not(:disabled) {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px -5px rgba(15, 23, 42, 0.25);
+}
+
+.auth__submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.auth__submit-arrow {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth__submit-btn:hover:not(:disabled) .auth__submit-arrow {
+  transform: translateX(4px);
+}
+
+.auth__submit { width: 100%; }
+
+/* Código OTP: dígitos largos, espaçados, monoespaçados por tabular-nums. */
+.auth__code .input {
+  height: 52px;
+  font-size: var(--t-title);
+  letter-spacing: .38em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding-right: 0;
+  text-indent: .38em;
+}
+
+.auth__mode {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--ink-a06);
+  font-size: var(--t-caption);
+  line-height: 1.5;
+  color: var(--ink-400);
+}
+.auth__mode svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+
+.auth__lock-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px; height: 52px;
+  border-radius: var(--r-circle);
+  background: var(--blue-050);
+  color: var(--blue-600);
+}
+
+.auth__form-wrap--center h1 {
+  font-size: var(--t-title);
+  font-weight: var(--w-light);
+  letter-spacing: var(--ls-title);
+  color: var(--ink-950);
+}
+
+.auth__locked-text {
+  font-size: var(--t-small);
+  color: var(--ink-400);
+  line-height: var(--lh-body);
+  max-width: 34ch;
+}
+
+@media (max-width: 900px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth__brand {
+    border-right: 0;
+    border-bottom: 1px solid var(--ink-a06);
+    padding: var(--s-6);
+    gap: var(--s-6);
+  }
+  .auth__brand-body, .auth__brand-foot { display: none; }
+  .auth__panel { padding: var(--s-8) var(--s-4); align-items: flex-start; }
+}

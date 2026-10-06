@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-09-15T23:55:40.633Z",
+        "reason": "DesignCharlington.md especifica Inter nominalmente como substituta da PP Neue Montreal, e o site publico ja a usa; o painel precisa ser reconhecivel como a mesma marca. Trocar a face quebraria a consistencia com index.html, que este projeto esta proibido de alterar."
+      }
+    ]
+  }
+}

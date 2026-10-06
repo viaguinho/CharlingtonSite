@@ -1,0 +1,251 @@
+/* ==========================================================================
+   FLOATING DOCK — Aceternity UI Estilos
+   Design refinado inspirado no modelo minimalista de botões circulares
+   flutuantes: sem fundo no container, sem linha azul, e com contraste
+   claro para inativos e escuro para o ativo.
+   ========================================================================== */
+
+.floating-dock-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Container desktop da doca flutuante — totalmente transparente, sem caixas */
+.floating-dock-desktop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  user-select: none;
+}
+
+/* Modo vertical padrão (colapsado / dock pura centralizada) */
+.floating-dock-desktop.is-vertical {
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+/* Modo vertical expandido (quando a barra lateral é expandida) */
+.floating-dock-desktop.is-vertical.is-expanded {
+  width: 100%;
+  border-radius: 20px;
+  padding: 8px;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(15, 16, 18, 0.08);
+}
+
+/* Item da doca — botão circular minimalista */
+.floating-dock-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ececed;
+  border: none;
+  color: #27272a;
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none;
+  transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* No modo expandido */
+.floating-dock-desktop.is-vertical.is-expanded .floating-dock-item {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+/* Estado de hover */
+.floating-dock-item:hover {
+  background: #ffffff;
+  color: #09090b;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.floating-dock-desktop.is-vertical.is-expanded .floating-dock-item:hover {
+  background: rgba(0, 113, 227, 0.08);
+  border-color: rgba(0, 113, 227, 0.15);
+  box-shadow: none;
+}
+
+.floating-dock-item:focus-visible {
+  box-shadow: 0 0 0 2px #0f1012, 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Item ativo no dock — aquele tom de azul clássico da clínica com ícone branco puro */
+.floating-dock-item.is-active {
+  background: #0071e3;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 16px rgba(0, 113, 227, 0.35);
+}
+
+.floating-dock-item.is-active:hover {
+  background: #005bb8;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 113, 227, 0.45);
+}
+
+.floating-dock-desktop.is-vertical.is-expanded .floating-dock-item.is-active {
+  background: #0071e3;
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.floating-dock-desktop.is-vertical.is-expanded .floating-dock-item.is-active:hover {
+  background: #005bb8;
+}
+
+/* Link interno de navegação */
+.floating-dock-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  border-radius: inherit;
+}
+
+.floating-dock-desktop.is-vertical.is-expanded .floating-dock-link {
+  justify-content: flex-start;
+  padding: 0 14px;
+  gap: 12px;
+}
+
+/* Ícone central */
+.floating-dock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  pointer-events: none;
+}
+
+.floating-dock-icon svg,
+.floating-dock-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Rótulo de texto visível apenas quando expandido */
+.floating-dock-label-text {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+}
+
+/* Tooltip flutuante */
+.floating-dock-tooltip {
+  position: absolute;
+  z-index: 99999;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  background: #18181b;
+  color: #fdfdfd;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Tooltip vertical (à direita do item) */
+.floating-dock-tooltip.is-vertical {
+  left: calc(100% + 14px);
+  top: 50%;
+}
+
+.floating-dock-tooltip.is-vertical::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -4px;
+  transform: translateY(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: #18181b;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Tooltip horizontal (acima do item) */
+.floating-dock-tooltip.is-horizontal {
+  bottom: calc(100% + 10px);
+  left: 50%;
+}
+
+.floating-dock-tooltip.is-horizontal::before {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: #18181b;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Versão mobile */
+.floating-dock-mobile {
+  position: relative;
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .floating-dock-mobile {
+    display: none;
+  }
+}
+
+.floating-dock-mobile-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #ececed;
+  border: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  color: #18181b;
+  cursor: pointer;
+}
+
+.floating-dock-mobile-menu {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

@@ -1,0 +1,193 @@
+/* ==========================================================================
+   TOKENS — Painel de Gestão Clínica · Dr. Charlington M. Cavalcante
+   Única fonte de verdade para cor, tipografia, espaço, raio, sombra e tempo.
+   Nenhum hexadecimal pode existir fora deste arquivo.
+   Derivado de DesignCharlington.md · adaptado para densidade de painel.
+   ========================================================================== */
+
+:root {
+  /* ——————————————————————————————— Tinta ——————————————————————————————— */
+  --ink-900: #0f1012;   /* Midnight Ink — texto principal */
+  --ink-950: #020201;   /* Deep Graphite — títulos de maior impacto */
+  --ink-600: #3d3e41;
+  --ink-500: #55565a;   /* rótulo de linha em lista de categorias */
+
+  /* Contraste medido sobre o canvas #f2f2f4, que é o pior caso do painel:
+     o Skyline Gray da marca (#868788) rende 3,22:1 e o Slate Comment
+     (#8f8f8f) rende 2,89:1. No site público isso passa, porque lá o texto
+     secundário tem 27px e o mínimo é 3:1. Num painel a 12px o mínimo é
+     4,5:1, e ambos reprovam. Os tokens de TEXTO foram escurecidos até o
+     limite do AA; os originais da marca continuam disponíveis abaixo, para
+     ícone e texto grande, onde 3:1 basta. */
+  --ink-400: #6b6c6f;   /* texto secundário — 4,70:1 no canvas */
+  --ink-300: #6e6e6e;   /* legendas e notas de rodapé — 4,56:1 no canvas */
+  --ink-200: #a9aaad;   /* placeholder e traço de gráfico — só não-texto */
+  --ink-100: #dcdde0;
+
+  /* Cinzas originais do DesignCharlington. Uso restrito a ícone decorativo
+     e texto igual ou maior que 18px, onde o mínimo é 3:1. */
+  --brand-skyline: #868788;
+  --brand-slate: #8f8f8f;
+
+  --ink-a04: rgba(15, 16, 18, .04);
+  --ink-a06: rgba(15, 16, 18, .06);
+  --ink-a08: rgba(15, 16, 18, .08);
+  --ink-a12: rgba(15, 16, 18, .12);
+  --ink-a20: rgba(15, 16, 18, .20);
+  --ink-a60: rgba(15, 16, 18, .60);
+
+  /* ————————————————————————————— Superfícies ————————————————————————————— */
+  --canvas: #f2f2f4;          /* Ghost White — fundo do aplicativo */
+  --surface: #fdfdfd;         /* Canvas — cards */
+  --surface-raised: #ffffff;  /* modais, popovers, dropdowns */
+  --surface-sunken: #ececed;  /* poços, campos, trilhos */
+  --surface-tinted: #e8f2fd;  /* item ativo do menu lateral (navegação global) */
+  /* Aba ativa — pílula e segmento compartilham o mesmo estado. O sublinhado
+     (período) é outra gramática: recorte, não navegação. */
+  --tab-active-bg: var(--ink-900);
+  --tab-active-ink: var(--surface);
+
+  /* ———————————————————— Azul — única cor saturada do sistema ———————————————— */
+  --blue-050: #e8f2fd;
+  --blue-100: #cfe4fb;
+  --blue-200: #9fc9f7;
+  --blue-300: #5ba4f0;
+  /* Future Blue. Como TEXTO sobre o canvas rende 4,20:1 e reprova o AA —
+     por isso texto e ícone informativo usam `--blue-600` (5,89:1). O 500 fica
+     para preenchimento, borda e traço de gráfico, onde o mínimo é 3:1. */
+  --blue-500: #0071e3;
+  --blue-600: #005bb8;
+  --blue-700: #00458c;
+
+  --blue-a08: rgba(0, 113, 227, .08);
+  --blue-a16: rgba(0, 113, 227, .16);
+  --blue-a24: rgba(0, 113, 227, .24);
+
+  /* ——————————— Sinais — uso exclusivamente semântico, nunca decorativo ——————— */
+  --signal-green: #27c462;
+  --signal-green-bg: rgba(39, 196, 98, .10);
+  --signal-green-ink: #12793a;  /* 4,91:1 no pior fundo (canvas); era #158c41, 3,87:1 */
+
+  --signal-amber: #f1b31c;
+  --signal-amber-bg: rgba(241, 179, 28, .12);
+  --signal-amber-ink: #855f00;  /* 4,83:1 no banner âmbar; era #9a6f04, 3,78:1 */
+
+  --signal-red: #ea4e3d;
+  --signal-red-bg: rgba(234, 78, 61, .10);
+  --signal-red-ink: #b32f20;
+
+  /* ——————————————————————— Dado — marcas de gráfico ———————————————————————
+     Dado não usa a tinta do trilho. `--ink-a06` rendia 1,13:1 contra o card:
+     a barra e o trilho tinham o mesmo peso e o gráfico não mostrava nada.
+     Toda marca que carrega informação tem 3:1 ou mais sobre `--surface`
+     (medido), e categorias vizinhas se separam por posição, por um vão de
+     2px e por legenda — nunca só pela cor. O azul em dado fica só para a
+     barra sob o cursor e o foco (papéis abaixo). */
+  /* Papéis do azul em dado: a barra sob o cursor e o foco. Não é "a maior
+     fatia" (o líder único de um ranking leva --data-strong) nem o período
+     corrente (listrado neutro, --data-mid com --data-strong). */
+  --data-accent: var(--blue-500);  /* 4,62:1 */
+  --data-strong: #3d3e41;          /* 10,51:1 — linha principal e líder único de ranking */
+  --data-mid: #6b6c6f;             /* 5,16:1 — série principal em barra, proporção e área (massa) */
+  --data-soft: #858689;            /* 3,58:1 — série de fundo (a linha secundária, como "Pago"), período inicial incompleto e marca de cancelado; a mais clara permitida */
+  --data-positive: #1a8f48;        /* 4,07:1 — só com significado */
+  --data-negative: #d9432f;        /* 4,31:1 — só com significado */
+  --data-caution: #b98300;         /* 3,27:1 — só com significado */
+  --data-track: var(--ink-a06);    /* trilho: nunca é dado */
+  --data-grid: var(--ink-a08);     /* linha de grade */
+  --data-gap: 2px;                 /* vão entre segmentos vizinhos */
+
+  /* ————————————————————————————— Tipografia ————————————————————————————— */
+  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', Roboto, sans-serif;
+
+
+  --w-light: 300;
+  --w-regular: 400;
+  --w-medium: 500;
+  --w-semibold: 600;
+
+  /* Quatro tamanhos de texto por tela, no máximo — e a escala só tem cinco.
+     A rodada 2 mediu 10, 12, 13 e 14px convivendo: quatro corpos dentro de
+     4px, que gastavam a cota inteira sem criar hierarquia. Agora há um único
+     corpo (13px); o que era secundário se distingue por cor e peso, não por
+     um pixel a menos. `small`, `caption` e `base` ficam como apelidos para não
+     espalhar a mudança por cada folha de estilo.
+       micro 10 · corpo 13 · título 20 (título de página, número secundário da faixa de KPIs e iniciais do avatar grande)
+       identidade do paciente no prontuário 27 · número dominante 48
+     O título de página fica em 20: ele orienta, não informa, e em 27 era o
+     maior elemento da dobra acima do número que responde à tela. */
+  /* micro: só apoio — eixo e rótulo de valor sobre barra, contagem de
+     filtro, sobrelinha. Nunca a informação principal de um bloco, e nunca o
+     que qualifica um número (nota sob KPI, nota de gráfico, data de item de
+     lista): isso é corpo, em --ink-400. */
+  --t-micro: 10px;       --lh-micro: 1.3;      --ls-micro: .01em;
+  --ls-eyebrow: .06em;   /* texto curto em caixa alta: sobrelinha e cabeçalho de tabela */
+  --t-body: 13px;        --lh-body: 1.5;
+  --t-small: var(--t-body);    --lh-small: 1.45;
+  --t-caption: var(--t-body);  --lh-caption: 1.45;  --ls-caption: 0em;
+  --t-base: var(--t-body);     --lh-base: 1.5;
+  --t-title: 20px;       --lh-title: 1.25;     --ls-title: -.02em;
+  --t-h2: 27px;          --lh-h2: 1.2;         --ls-h2: -.02em;
+  --t-metric-lg: 48px;   --lh-metric-lg: 1;    --ls-metric-lg: -.035em;
+
+  /* ——————————————————————————— Espaço (base 4) ——————————————————————————— */
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;  --s-5: 20px;
+  --s-6: 24px;  --s-7: 28px;  --s-8: 32px;  --s-10: 40px; --s-12: 48px;
+  --s-16: 64px; --s-20: 80px;
+
+  /* ————————————————————————————————— Raio ————————————————————————————————— */
+  --r-xs: 6px;  --r-sm: 10px; --r-md: 14px; --r-lg: 20px;
+  --r-xl: 26px; --r-pill: 999px; --r-circle: 50%;
+
+  /* ——————————— Elevação — planaridade primeiro: borda antes de sombra ——————— */
+  --e-0: none;
+  --e-1: 0 1px 2px rgba(15, 16, 18, .04);
+  --e-2: 0 4px 16px rgba(15, 16, 18, .05);
+  --e-3: 0 12px 32px rgba(15, 16, 18, .07);
+  --e-4: 0 24px 56px rgba(15, 16, 18, .10);
+
+  /* ————————————————————————————————— Vidro ———————————————————————————————— */
+  --glass: rgba(253, 253, 253, .72);
+  --glass-border: rgba(255, 255, 255, .55);
+  --blur: blur(20px);
+  --blur-strong: blur(28px);
+
+  /* ———————————————————————————————— Movimento ——————————————————————————————— */
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 480ms;
+  /* Laços contínuos (giro, brilho do esqueleto) não são transição: têm tempo
+     próprio, mas continuam declarados aqui, não soltos nas folhas. */
+  --dur-spin: 720ms;
+  --dur-shimmer: 1440ms;
+  --dur-pulse: 1920ms;
+  --stagger: 40ms;       /* passo da entrada escalonada dos cards */
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+
+  /* ————————————————————————————————— Layout ————————————————————————————————— */
+  --row-min: 44px;   /* alvo mínimo de linha de lista */
+  --rail: 76px;
+  --rail-open: 248px;
+  --topbar: 64px;
+  --content-max: 1440px;
+  --gutter: 24px;
+  --bento-row: 180px;
+
+  /* ————————————————————————————————— Camadas ———————————————————————————————— */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-rail: 200;
+  --z-topbar: 210;
+  --z-drawer: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-toast: 600;
+}
+
+/* O painel é uma ferramenta clínica de uso diurno em consultório e assume
+   o tema claro deliberadamente. O esquema é declarado para que o navegador
+   não aplique inversões automáticas sobre formulários e controles. */
+:root { color-scheme: light; }

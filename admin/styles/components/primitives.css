@@ -1,0 +1,275 @@
+/* ==========================================================================
+   PRIMITIVOS — botões, chips, avatares, sinalizadores
+   ========================================================================== */
+
+/* ————————————————————————————————— Botões ————————————————————————————————— */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  border-radius: var(--r-pill);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease),
+              border-color var(--dur-2) var(--ease),
+              color var(--dur-2) var(--ease),
+              transform var(--dur-1) var(--ease),
+              box-shadow var(--dur-2) var(--ease);
+}
+
+.btn--sm { height: 30px; padding: 0 var(--s-3); font-size: var(--t-small); }
+.btn--md { height: 38px; padding: 0 var(--s-5); font-size: var(--t-body); }
+.btn--lg { height: 46px; padding: 0 var(--s-6); font-size: var(--t-base); }
+
+.btn--primary {
+  background: var(--ink-900);
+  color: var(--surface);
+  border: 1px solid var(--ink-900);
+}
+.btn--primary:hover:not(:disabled) { background: var(--ink-950); transform: translateY(-1px); box-shadow: var(--e-2); }
+.btn--primary:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+
+.btn--secondary {
+  background: var(--surface);
+  color: var(--ink-900);
+  border: 1px solid var(--ink-a12);
+}
+.btn--secondary:hover:not(:disabled) { border-color: var(--ink-a20); background: var(--surface-raised); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--ink-600);
+  border: 1px solid transparent;
+}
+.btn--ghost:hover:not(:disabled) { background: var(--ink-a04); color: var(--ink-900); }
+
+.btn--accent {
+  background: var(--blue-500);
+  color: var(--surface-raised);
+  border: 1px solid var(--blue-500);
+}
+.btn--accent:hover:not(:disabled) { background: var(--blue-600); border-color: var(--blue-600); transform: translateY(-1px); }
+
+.btn--danger {
+  background: var(--surface);
+  color: var(--signal-red-ink);
+  border: 1px solid var(--signal-red-bg);
+}
+.btn--danger:hover:not(:disabled) { background: var(--signal-red); border-color: var(--signal-red); color: var(--surface-raised); }
+
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn.is-loading { pointer-events: none; }
+.btn__spinner {
+  width: 14px; height: 14px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--r-circle);
+  opacity: .7;
+  animation: spin var(--dur-spin) linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-group { display: inline-flex; gap: var(--s-2); }
+
+/* ——————————————————————————— Botões de ícone ——————————————————————————— */
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--ink-500);
+  border: 1px solid transparent;
+  transition: background var(--dur-2) var(--ease),
+              color var(--dur-2) var(--ease),
+              border-color var(--dur-2) var(--ease);
+}
+
+.icon-btn--sm { width: 28px; height: 28px; }
+.icon-btn--md { width: 34px; height: 34px; }
+.icon-btn--lg { width: 40px; height: 40px; }
+
+.icon-btn--square { border-radius: var(--r-sm); }
+.icon-btn--circle { border-radius: var(--r-circle); }
+
+.icon-btn--ghost:hover { background: var(--ink-a06); color: var(--ink-900); }
+
+.icon-btn--surface {
+  background: var(--surface);
+  border-color: var(--ink-a08);
+}
+.icon-btn--surface:hover { background: var(--surface-raised); border-color: var(--ink-a12); color: var(--ink-900); }
+
+.icon-btn--solid { background: var(--ink-900); color: var(--surface); }
+.icon-btn--solid:hover { background: var(--ink-950); }
+
+.icon-btn--accent { background: var(--blue-050); color: var(--blue-600); }
+.icon-btn--accent:hover { background: var(--blue-100); }
+
+.icon-btn:disabled { opacity: .4; pointer-events: none; }
+
+/* ————————————————————————————————— Chips ————————————————————————————————— */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 22px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-xs);
+  font-size: var(--t-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+/* O ícone é parte do estado: nunca encolhe numa célula estreita. */
+.chip > .icon { flex: none; }
+
+.chip--neutral { background: var(--ink-a08); color: var(--ink-700); }
+.chip--muted   { background: var(--ink-a02); color: var(--ink-400); }
+/* Informativo não é destaque: tinta neutra. O azul fica com o período corrente
+   e o foco — antes "Confirmado" e "G40.9" gastavam o acento da tela. */
+.chip--info    { background: transparent; border: 1px solid var(--ink-a12); color: var(--ink-900); padding: 0 calc(var(--s-2) - 1px); }
+.chip--success { background: var(--signal-green-bg); color: var(--signal-green-ink); }
+.chip--warning { background: var(--signal-amber-bg); color: var(--signal-amber-ink); }
+.chip--danger  { background: var(--signal-red-bg); color: var(--signal-red-ink); }
+.chip--solid   { background: var(--ink-900); color: var(--surface); }
+/* Código (CID-10): fundo leve, sem borda — não se confunde com um estado. */
+.chip--code    { background: var(--ink-a04); border: none; color: var(--ink-900); font-variant-numeric: tabular-nums; }
+/* Chip com frase longa (cabeçalho do prontuário): quebra em vez de vazar. */
+.chip--wrap    { height: auto; min-height: 22px; white-space: normal; padding-block: var(--s-1); align-items: flex-start; }
+.chip--wrap > .icon { margin-top: calc((1lh - 12px) / 2); }
+
+/* ———————————————————————————————— Badge ———————————————————————————————— */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--s-5);
+  height: var(--s-5);
+  padding: 0 var(--s-1);
+  border-radius: var(--r-pill);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro);
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.badge--danger  { background: var(--signal-red-ink); color: var(--surface-raised); }
+.badge--info    { background: var(--blue-600); color: var(--surface-raised); }
+/* Contagem em aba é informação neutra, não alerta. */
+.badge--neutral { background: var(--ink-a08); color: var(--ink-500); }
+
+/* ———————————————————————————————— Delta ———————————————————————————————— */
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+  height: 20px;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-xs);
+  /* O selo qualifica o número: corpo, não micro. */
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.delta--success { background: var(--signal-green-bg); color: var(--signal-green-ink); }
+.delta--danger  { background: var(--signal-red-bg); color: var(--signal-red-ink); }
+.delta--neutral { background: var(--ink-a06); color: var(--ink-400); }
+
+/* ————————————————————————————— Status dot ————————————————————————————— */
+
+.status-dot-wrap { display: inline-flex; align-items: center; gap: var(--s-2); }
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: var(--r-circle);
+  flex: none;
+}
+.status-dot--neutral { background: var(--ink-a12); }
+.status-dot--muted   { background: transparent; box-shadow: inset 0 0 0 2px var(--ink-a12); }
+.status-dot--info    { background: var(--ink-a12); }
+.status-dot--success { background: var(--ink-a12); }
+.status-dot--warning { background: var(--signal-amber-ink); }
+.status-dot--danger  { background: var(--signal-red-ink); }
+
+.status-dot__label { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-900); }
+
+.status-dot.is-pulsing { animation: dot-pulse var(--dur-pulse) var(--ease-in-out) infinite; }
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50%      { box-shadow: 0 0 0 4px transparent; opacity: .65; }
+}
+
+/* ———————————————————————————————— Avatar ———————————————————————————————— */
+
+.avatar {
+  border-radius: var(--r-circle);
+  object-fit: cover;
+  flex: none;
+  background: var(--surface-sunken);
+}
+
+.avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--w-medium);
+  line-height: var(--lh-title);
+  /* Iniciais em 20 px andam com --ls-title, como todo 20 px do painel. */
+  letter-spacing: var(--ls-title);
+  user-select: none;
+}
+.avatar--blue  { background: var(--blue-050); color: var(--blue-600); }
+.avatar--ink   { background: var(--ink-a08); color: var(--ink-600); }
+
+.avatar-stack { display: inline-flex; align-items: center; }
+.avatar-stack__item { display: inline-flex; margin-left: -8px; position: relative; }
+.avatar-stack__item:first-child { margin-left: 0; }
+.avatar-stack__item .avatar { border: 2px solid var(--surface); }
+
+.avatar-stack__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8px;
+  border-radius: var(--r-circle);
+  border: 2px solid var(--surface);
+  background: var(--ink-900);
+  color: var(--surface);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ————————————————————————————— Divisores ————————————————————————————— */
+
+.divider { display: block; height: 1px; background: var(--ink-a06); width: 100%; }
+.divider--v { width: 1px; height: auto; align-self: stretch; }
+
+/* ————————————————————————— Rótulo de seção ————————————————————————— */
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--ink-a04);
+  color: var(--ink-500);
+  font-size: var(--t-caption);
+  font-weight: var(--w-medium);
+}
+
+/* Várias situações da mesma criança: chips lado a lado, quebrando linha. */
+.situation-chips { display: inline-flex; flex-wrap: wrap; gap: var(--s-1); }

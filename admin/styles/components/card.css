@@ -1,0 +1,362 @@
+/* ==========================================================================
+   CARDS, MÉTRICAS E ESTADOS DE CONTEÚDO
+   ========================================================================== */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+  box-shadow: var(--e-1);
+  transition: box-shadow var(--dur-2) var(--ease),
+              transform var(--dur-2) var(--ease),
+              border-color var(--dur-2) var(--ease);
+}
+
+.card--tinted {
+  background: var(--blue-050);
+  border-color: var(--blue-100);
+}
+
+.card--outline {
+  background: transparent;
+  box-shadow: none;
+}
+
+.card--flush { padding: 0; overflow: hidden; }
+.card--flush > .card__header { padding: var(--s-5) var(--s-5) var(--s-4); }
+.card--flush > .card__footer { padding: var(--s-3) var(--s-5); }
+
+.card--raised { background: var(--surface-raised); box-shadow: var(--e-2); }
+
+.card.is-interactive { cursor: pointer; }
+.card.is-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--e-3);
+  border-color: var(--ink-a08);
+}
+.card.is-interactive:active { transform: translateY(0); }
+
+/* ———————————————————————————— Cabeçalho ———————————————————————————— */
+
+.card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.card__heading { min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+
+.card__title {
+  font-size: var(--t-body);
+  line-height: var(--lh-small);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  color: var(--ink-900);
+}
+
+.card__subtitle {
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+}
+
+.card__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+  /* Sem esmaecer em repouso: a 55% de opacidade os filtros liam 2,2:1. */
+}
+
+.card__body { flex: 1; min-height: 0; min-width: 0; }
+
+.card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--ink-a06);
+}
+
+/* ————————————————————————————— Métrica ————————————————————————————— */
+
+.metric { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+
+.metric__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  justify-content: space-between;
+}
+
+/* Rótulo longo quebra em duas linhas; cortar com reticências esconderia
+   justamente a palavra que distingue "documentos a assinar" de "documentos". */
+.metric__label {
+  font-size: var(--t-caption);
+  line-height: var(--lh-small);
+  color: var(--ink-400);
+  font-weight: var(--w-regular);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.9em;
+}
+
+.metric__value-row { display: flex; align-items: baseline; gap: var(--s-2) var(--s-1); flex-wrap: wrap; }
+.metric__value-row > .delta { align-self: center; }
+/* Sem valor: o traço tem a mesma tinta em KPI, tabela e prontuário. */
+.metric__value.metric__value--empty { color: var(--ink-400); }
+.metric__value {
+  font-size: var(--t-title);
+  line-height: var(--lh-title);
+  letter-spacing: var(--ls-title);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+
+/* A unidade acompanha o número em corpo menor — assinatura das REF 1 e 3. */
+.metric__unit {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-regular);
+  letter-spacing: 0;
+  color: var(--ink-400);
+}
+.metric__unit--prefix { margin-right: var(--s-1); }
+.metric__suffix {
+  margin-left: var(--s-1);
+  line-height: var(--lh-body);
+  font-size: var(--t-body);
+  font-weight: var(--w-regular);
+  color: var(--ink-400);
+  letter-spacing: 0;
+}
+
+.metric__denominator {
+  margin-left: var(--s-1);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-regular);
+  color: var(--ink-300);
+  letter-spacing: 0;
+}
+
+.metric--lg .metric__value {
+  font-size: var(--t-metric-lg);
+  line-height: var(--lh-metric-lg);
+  letter-spacing: var(--ls-metric-lg);
+}
+
+/* Uma métrica domina a tela; as demais a sustentam. Cinco números do mesmo
+   tamanho não são hierarquia — são uma lista. */
+.metric.is-featured .metric__value { color: var(--ink-950); }
+/* O rótulo tem uma aparência só na faixa; o destaque é do número. */
+
+.metric__target {
+  /* Corpo, não micro: "a mais antiga de 16/09", "R$ 15.590 em 01–17/08" é o
+     que qualifica o número — em 10 px ele não se lia em 3 segundos. */
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+  margin-top: var(--s-1);
+  /* Sem palavra solta na última linha ("3 / por acontecer"). */
+  text-wrap: pretty;
+}
+.metric--sm .metric__value { font-size: var(--t-title); }
+
+.metric-strip .metric:not(.is-featured) .metric__value { font-size: var(--t-title); }
+
+.metric--accent .metric__value { color: var(--blue-600); }
+/* Resultado negativo lê como perda, não como destaque: o azul é a cor de
+   "olhe aqui", e pintar um prejuízo de azul o apresentava como boa notícia. */
+.metric--danger .metric__value,
+.metric.is-featured.metric--danger .metric__value { color: var(--signal-red-ink); }
+.metric--warning .metric__value,
+.metric.is-featured.metric--warning .metric__value { color: var(--signal-amber-ink); }
+
+/* ——————————————— Faixa de métricas com hairlines (REF 1) ——————————————— */
+
+/* Flex, não grid: a faixa recebe um número variável de métricas e a primeira
+   precisa ser mais larga que as demais. `repeat(auto-fit, minmax(0,1fr))` é
+   inválido — a faixa colapsava em pilha vertical. */
+.metric-strip {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+  overflow: hidden;
+}
+
+.metric-strip > * { flex: 1 1 0; }
+.metric-strip > .is-featured,
+.metric-strip:not(:has(> .is-featured)) > *:first-child { flex: 1.7 1 0; }
+
+.metric-strip > * {
+  padding: var(--s-5) var(--s-5);
+  border-left: 1px solid var(--ink-a06);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* Topo, não centro: com a nota de rodapé opcional, centralizar subia o
+     número das métricas que a têm e desalinhava a linha de valores. */
+  justify-content: flex-start;
+}
+.metric-strip > *:first-child { border-left: 0; }
+
+@media (max-width: 1080px) {
+  .metric-strip { flex-wrap: wrap; }
+  .metric-strip > *, .metric-strip > *:first-child { flex: 1 1 50%; }
+  .metric-strip > *:nth-child(odd) { border-left: 0; }
+  .metric-strip > *:nth-child(n + 3) { border-top: 1px solid var(--ink-a06); }
+}
+
+/* ————————————————— Mini-card de métrica (REF 3) ————————————————— */
+
+.mini-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-md);
+}
+
+.mini-metric__label {
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+}
+
+.mini-metric__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.mini-metric__value {
+  font-size: var(--t-title);
+  line-height: var(--lh-title);
+  letter-spacing: var(--ls-title);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+.mini-metric__suffix { font-size: var(--t-body); color: var(--ink-400); }
+.mini-metric__denominator { font-size: var(--t-body); color: var(--ink-300); }
+
+.mini-metric__visual { flex: none; }
+
+.mini-metric__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+}
+.mini-metric__footnote { color: var(--ink-300); }
+.mini-metric__trend { font-weight: var(--w-medium); }
+.mini-metric__trend--success { color: var(--signal-green-ink); }
+.mini-metric__trend--warning { color: var(--signal-amber-ink); }
+.mini-metric__trend--danger  { color: var(--signal-red-ink); }
+.mini-metric__trend--neutral { color: var(--ink-400); }
+
+/* ————————————————————————— Estado vazio ————————————————————————— */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-12) var(--s-6);
+  text-align: center;
+  min-height: 180px;
+}
+
+.empty--compact { padding: var(--s-6) var(--s-4); min-height: 120px; gap: var(--s-2); }
+
+.empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: var(--r-circle);
+  background: var(--ink-a04);
+  color: var(--ink-300);
+}
+.empty--compact .empty__icon { width: 36px; height: 36px; }
+
+.empty__title {
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+}
+
+.empty__description {
+  font-size: var(--t-small);
+  color: var(--ink-400);
+  max-width: 34ch;
+  line-height: var(--lh-body);
+}
+
+.empty__action { margin-top: var(--s-1); }
+.empty__actions { display: flex; gap: var(--s-2); flex-wrap: wrap; justify-content: center; }
+
+/* ————————————————————————————— Skeleton ————————————————————————————— */
+
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, var(--ink-a04) 0%, var(--ink-a08) 50%, var(--ink-a04) 100%);
+  background-size: 200% 100%;
+  animation: shimmer var(--dur-shimmer) linear infinite;
+}
+
+/* Esqueleto do tamanho de um card: mesma superfície, borda e elevação do card
+   que ele vira. Antes o lugar do card era mais ESCURO que o canvas e clareava
+   ao carregar — a mesma peça com duas aparências invertidas. */
+.skeleton--card {
+  background-color: var(--surface);
+  background-image: linear-gradient(90deg, transparent 0%, var(--ink-a06) 50%, transparent 100%);
+  border: 1px solid var(--ink-a06);
+  box-shadow: var(--e-1);
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Link de texto: ação em linha, em tinta e sublinhado, no corpo de 13 px
+   (o mesmo tratamento de "Ver dados"). O azul fica para foco e cursor:
+   link não é significado clínico nem financeiro. */
+.link-button {
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-900);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-a20);
+  text-underline-offset: 3px;
+  min-height: var(--s-6);
+}
+.link-button:hover { color: var(--blue-600); text-decoration-color: currentColor; }
+
+/* Estado vazio dentro de um KPI: ícone, frase e ação, no corpo de 13 px. */
+.metric__action { margin-top: var(--s-2); }
+.metric__empty { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); }
+.metric__empty .link-button { min-height: 0; }

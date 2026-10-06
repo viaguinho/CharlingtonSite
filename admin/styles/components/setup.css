@@ -1,0 +1,133 @@
+/* ==========================================================================
+   ASSISTENTE DE CONFIGURAÇÃO INICIAL
+   ========================================================================== */
+
+.setup {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+.setup__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-10);
+  padding: var(--s-8) var(--s-6);
+  background: var(--surface);
+  border-right: 1px solid var(--ink-a06);
+}
+
+.setup__brand { display: flex; align-items: center; gap: var(--s-3); }
+.setup__brand img { width: 34px; height: 34px; object-fit: contain; }
+.setup__brand span {
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  letter-spacing: -.015em;
+  color: var(--ink-900);
+}
+
+.setup__steps { display: flex; flex-direction: column; gap: var(--s-1); flex: 1; }
+
+.setup__steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  color: var(--ink-300);
+  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+
+.setup__step-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  flex: none;
+  border-radius: var(--r-circle);
+  border: 1px solid var(--ink-a12);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-300);
+}
+
+.setup__steps li.is-current { background: var(--blue-050); color: var(--blue-600); font-weight: var(--w-medium); }
+.setup__steps li.is-current .setup__step-mark { border-color: var(--blue-500); color: var(--blue-600); }
+
+.setup__steps li.is-done { color: var(--ink-500); }
+.setup__steps li.is-done .setup__step-mark {
+  background: var(--signal-green-ink);
+  border-color: var(--signal-green-ink);
+  color: var(--surface-raised);
+}
+
+.setup__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--ink-a06);
+  font-size: var(--t-caption);
+  line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+.setup__note svg { flex: none; margin-top: calc((1lh - 1em) / 2); color: var(--blue-600); }
+
+/* ————————————————————————————— Conteúdo ————————————————————————————— */
+
+.setup__main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-10) var(--s-6);
+  overflow-y: auto;
+}
+
+.setup__content {
+  width: 100%;
+  max-width: 460px;
+  animation: route-in var(--dur-3) var(--ease);
+}
+
+.setup__head { display: flex; flex-direction: column; gap: var(--s-2); margin-bottom: var(--s-8); }
+.setup__head h1 {
+  font-size: var(--t-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--ls-h2);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+  text-wrap: balance;
+}
+.setup__head p { font-size: var(--t-small); color: var(--ink-400); line-height: var(--lh-body); max-width: 46ch; }
+
+.setup__fields { display: flex; flex-direction: column; gap: var(--s-5); margin-bottom: var(--s-8); }
+
+.setup__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.setup__done { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); }
+.setup__done-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px; height: 56px;
+  margin-bottom: var(--s-4);
+  border-radius: var(--r-circle);
+  background: var(--signal-green-bg);
+  color: var(--signal-green-ink);
+  animation: pop-mark var(--dur-4) var(--ease);
+}
+@keyframes pop-mark { from { transform: scale(.6); opacity: 0; } }
+
+@media (max-width: 900px) {
+  .setup { grid-template-columns: 1fr; }
+  .setup__side { flex-direction: row; align-items: center; gap: var(--s-5); padding: var(--s-4); border-right: 0; border-bottom: 1px solid var(--ink-a06); }
+  .setup__steps { flex-direction: row; overflow-x: auto; }
+  .setup__step-label, .setup__note { display: none; }
+  .setup__main { align-items: flex-start; padding: var(--s-6) var(--s-4); }
+}

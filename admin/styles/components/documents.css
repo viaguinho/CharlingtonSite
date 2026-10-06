@@ -1,0 +1,440 @@
+/* ==========================================================================
+   DOCUMENTOS CLÍNICOS — editor split-pane e folha timbrada A4
+   ========================================================================== */
+
+.doc-split {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 0;
+  height: 100%;
+  margin: calc(var(--s-5) * -1);
+}
+
+.doc-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  overflow-y: auto;
+  border-right: 1px solid var(--ink-a06);
+}
+
+.doc-preview {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.doc-preview__scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-5);
+  overflow-y: auto;
+}
+
+.doc-preview__warning {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-5);
+  background: var(--signal-amber-bg);
+  color: var(--signal-amber-ink);
+  font-size: var(--t-caption);
+  border-top: 1px solid var(--ink-a06);
+}
+
+@media (max-width: 1100px) {
+  .doc-split { grid-template-columns: 1fr; }
+  .doc-editor { border-right: 0; border-bottom: 1px solid var(--ink-a06); }
+}
+
+/* ————————————————————— Itens da prescrição ————————————————————— */
+
+.doc-items { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.doc-items__head { display: flex; flex-direction: column; gap: var(--s-1); }
+.doc-items__hint { font-size: var(--t-caption); color: var(--ink-400); line-height: 1.5; }
+
+.doc-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.doc-item__index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  flex: none;
+  margin-top: var(--s-6);   /* alinha o índice ao topo do primeiro campo */
+  border-radius: var(--r-circle);
+  background: var(--blue-050);
+  color: var(--blue-600);
+  font-size: var(--t-caption);
+  font-weight: var(--w-medium);
+}
+
+.doc-item__fields { display: flex; flex-direction: column; gap: var(--s-3); flex: 1; min-width: 0; }
+
+.doc-variables { font-size: var(--t-caption); }
+.doc-variables summary { cursor: pointer; color: var(--ink-400); user-select: none; }
+.doc-variables summary:hover { color: var(--blue-600); }
+
+.doc-variables__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s-1);
+  margin-top: var(--s-3);
+}
+.doc-variables__list button {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--s-2);
+  border-radius: var(--r-xs);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+}
+.doc-variables__list button:hover { background: var(--blue-050); }
+.doc-variables__list code {
+  /* Uma família só na interface: Inter com numerais tabulares. */
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--blue-600);
+}
+.doc-variables__list span { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-400); }
+
+.doc-signature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--ink-a08);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.doc-footer-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-right: auto;
+  font-size: var(--t-caption);
+  color: var(--ink-400);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOLHA A4 TIMBRADA
+   Geometria herdada e calibrada contra a impressão real. Ver o comentário em
+   LetterheadPreview.jsx antes de mexer em qualquer medida daqui.
+
+   EXCEÇÃO DECLARADA À GRADE DE 4. As medidas deste bloco (7px, 10px, 3px,
+   140px 45px 110px 60px…) não são decisões de layout de interface: são a
+   posição do conteúdo dentro de uma folha de papel física, conferida contra
+   o timbrado impresso da clínica. Arredondá-las para a grade deslocaria o
+   texto sobre o cabeçalho ou o rodapé já impressos. A regra R3 do projeto
+   manda preservar este template — por isso ele fica fora da varredura.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.sheet-a4 {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 1 / 1.41;
+  background: var(--surface);
+  border: 1px solid var(--ink-a12);
+  box-shadow: var(--e-2);
+  overflow: hidden;
+  flex: none;
+}
+
+.sheet-a4__letterhead {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sheet-a4__inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* Margens do timbrado: o cabeçalho e o rodapé já vêm impressos no papel. */
+  padding: 140px 45px 110px 60px;
+  font-family: var(--font);
+  box-sizing: border-box;
+}
+
+.sheet-a4__copy {
+  position: absolute;
+  top: -8px;
+  right: 0;
+  font-size: 7px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-300);
+}
+
+.sheet-a4__patient {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 8px;
+  margin-bottom: 8px;
+  border-left: 2px solid var(--blue-500);
+  border-radius: 0 3px 3px 0;
+  background: var(--ink-a04);
+  font-size: 8px;
+  color: var(--ink-900);
+}
+.sheet-a4__patient strong { font-weight: var(--w-semibold); }
+
+.sheet-a4__guardian {
+  font-size: 7.5px;
+  color: var(--ink-500);
+  margin-bottom: 10px;
+}
+
+.sheet-a4__main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.sheet-a4__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--ink-a08);
+  font-size: 10.5px;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0;
+  color: var(--blue-600);
+}
+.sheet-a4__number { font-size: 7px; font-weight: var(--w-regular); color: var(--ink-400); }
+
+.sheet-a4__subtitle {
+  font-size: 6.5px;
+  color: var(--ink-400);
+  margin-bottom: 8px;
+  margin-top: -4px;
+}
+
+.sheet-a4__content {
+  font-size: 8.5px;
+  line-height: 1.65;
+  color: var(--ink-950);
+  white-space: pre-line;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.sheet-a4__items { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; counter-reset: rx; }
+.sheet-a4__items li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 14px;
+  position: relative;
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+.sheet-a4__items li::before {
+  counter-increment: rx;
+  content: counter(rx) '.';
+  position: absolute;
+  left: 0;
+  font-weight: var(--w-semibold);
+  color: var(--ink-950);
+}
+.sheet-a4__item-name { font-weight: var(--w-semibold); color: var(--ink-950); }
+.sheet-a4__item-dose { color: var(--ink-600); }
+.sheet-a4__item-qty { font-size: 7.5px; color: var(--ink-400); }
+
+.sheet-a4__placeholder {
+  font-size: 8px;
+  color: var(--ink-300);
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.sheet-a4__buyer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--ink-a20);
+}
+.sheet-a4__buyer-title {
+  display: block;
+  font-size: 6px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-weight: var(--w-semibold);
+  color: var(--ink-400);
+  margin: 4px 0 2px;
+}
+.sheet-a4__buyer-lines { display: flex; flex-direction: column; gap: 3px; font-size: 6.5px; color: var(--ink-500); }
+
+.sheet-a4__signature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 10px;
+  margin-top: auto;
+  border-top: 1px solid var(--ink-a08);
+  text-align: center;
+}
+.sheet-a4__rule { display: block; width: 140px; border-top: 1px solid var(--ink-900); margin-bottom: 3px; }
+.sheet-a4__signature strong { font-size: 8.5px; color: var(--ink-950); font-weight: var(--w-semibold); }
+.sheet-a4__crm { font-size: 6.5px; color: var(--ink-400); }
+
+.sheet-a4__seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--blue-050);
+  color: var(--blue-600);
+  font-size: 6px;
+  font-weight: var(--w-semibold);
+}
+.sheet-a4__seal--pending { background: var(--ink-a06); color: var(--ink-400); }
+.sheet-a4__verify { font-size: 5.5px; color: var(--ink-300); margin-top: var(--s-1); word-break: break-all; }
+
+/* ————————————————————— Visualização de documento ————————————————————— */
+
+.doc-view { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.doc-view__meta { display: flex; gap: var(--s-8); }
+.doc-view__meta > div { display: flex; flex-direction: column; gap: var(--s-1); }
+.doc-view__meta p { font-size: var(--t-body); color: var(--ink-900); }
+
+.doc-view__signature {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--signal-green-bg);
+  color: var(--signal-green-ink);
+}
+.doc-view__signature svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.doc-view__signature div { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.doc-view__signature strong { font-size: var(--t-body); font-weight: var(--w-medium); }
+.doc-view__signature span { font-size: var(--t-caption); word-break: break-all; }
+.doc-view__signature a { font-size: var(--t-caption); color: var(--blue-600); }
+
+.doc-view__hash {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
+  color: var(--ink-300);
+}
+.doc-view__hash code { font-family: var(--font); font-variant-numeric: tabular-nums; word-break: break-all; }
+
+.doc-view__paper { display: flex; justify-content: center; padding: var(--s-4); background: var(--surface-sunken); border-radius: var(--r-md); }
+
+/* ————————————————————— Fila de assinatura ————————————————————— */
+
+.sign-queue { display: flex; flex-direction: column; gap: var(--s-1); }
+.sign-queue li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--ink-a06);
+}
+.sign-queue li:hover { background: var(--ink-a04); }
+.sign-queue__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  flex: none;
+  border-radius: var(--r-xs);
+  background: var(--signal-amber-bg);
+  color: var(--signal-amber-ink);
+}
+.sign-queue__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.sign-queue__text strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.sign-queue__text span { font-size: var(--t-caption); color: var(--ink-400); }
+
+/* ————————————————————— Modelos ————————————————————— */
+
+.templates { display: flex; flex-direction: column; gap: var(--s-5); }
+.templates__group {
+  font-size: var(--t-micro); line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: var(--w-semibold);
+  color: var(--ink-300);
+  margin-bottom: var(--s-2);
+}
+.templates ul { display: flex; flex-direction: column; gap: var(--s-1); }
+
+.template {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--ink-a06);
+}
+.template:hover { background: var(--ink-a04); }
+.template__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  flex: none;
+  border-radius: var(--r-xs);
+  background: var(--blue-050);
+  color: var(--blue-600);
+}
+.template__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.template__text strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.template__text span { font-size: var(--t-caption); color: var(--ink-400); }
+
+.template-form { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.legacy-list { display: flex; flex-direction: column; gap: var(--s-4); margin-top: var(--s-4); }
+.legacy-list > li {
+  padding: var(--s-4);
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-md);
+}
+.legacy-list__items { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); padding-left: var(--s-8); }
+.legacy-list__items li { display: flex; flex-direction: column; gap: 0; }
+.legacy-list__items strong { font-size: var(--t-small); color: var(--ink-900); font-weight: var(--w-medium); }
+.legacy-list__items span { font-size: var(--t-caption); color: var(--ink-400); }
+
+.doc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  flex: none;
+  border-radius: var(--r-xs);
+  background: var(--ink-a04);
+  color: var(--ink-500);
+}
