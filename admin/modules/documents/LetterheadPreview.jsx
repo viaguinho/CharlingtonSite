@@ -1,4 +1,7 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import letterheadCampinas from '../../../assets/Papel - Campinas.jpg';
+import { QRCodeSvg } from '../../components/QRCode.jsx';
+import { loadCustomLetterhead } from './customLetterhead.js';
 
 /**
  * Folha A4 timbrada — o preview imutável do documento.
@@ -21,6 +24,24 @@ import letterheadCampinas from '../../../assets/Papel - Campinas.jpg';
  * inline), o timbrado passou a ser selecionável por unidade, e o bloco de
  * assinatura ganhou número sequencial e QR de verificação.
  */
+
+const SHEET_PX = 460;
+
+/* A folha é sempre desenhada com 460 px (as fontes dela têm a proporção da impressão) e, em tela
+   estreita, reduzida inteira: encolher só a largura fazia o texto refluir e cair sobre a assinatura. */
+function useSheetScale() {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    const apply = () => node.style.setProperty('--sheet-scale', String(Math.min(1, node.clientWidth / SHEET_PX)));
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
 
 export const LETTERHEADS = {
   campinas: { src: letterheadCampinas, label: 'Campinas / SP' },
@@ -48,9 +69,19 @@ export function LetterheadPreview({
   copyLabel,
   buyerBlock,
 }) {
-  const src = letterheadSrc ?? LETTERHEADS[plaza]?.src ?? letterheadCampinas;
+  const [custom, setCustom] = useState(null);
+  useEffect(() => {
+    if (letterheadSrc) return undefined;
+    let live = true;
+    loadCustomLetterhead(plaza).then((value) => { if (live) setCustom(value); });
+    return () => { live = false; };
+  }, [plaza, letterheadSrc]);
+  const src = letterheadSrc ?? custom ?? LETTERHEADS[plaza]?.src ?? letterheadCampinas;
+  const fitRef = useSheetScale();
 
   return (
+    <div className="sheet-fit" ref={fitRef}>
+    <div className="sheet-fit__scaler">
     <div className="sheet-a4" role="document" aria-label="Pré-visualização do documento">
       <img className="sheet-a4__letterhead" src={src} alt="" aria-hidden="true" />
 
@@ -124,7 +155,7 @@ export function LetterheadPreview({
         {/* ——— Assinatura ——— */}
         <div className="sheet-a4__signature">
           <span className="sheet-a4__rule" aria-hidden="true" />
-          <strong>{doctorName || 'Dr. Charlington M. Cavalcante'}</strong>
+          <strong>{doctorName || 'Profissional não identificado'}</strong>
           {doctorCRM ? <span className="sheet-a4__crm">Neurologia infantil · CRM {doctorCRM}</span> : null}
 
           {signature ? (
@@ -133,9 +164,16 @@ export function LetterheadPreview({
                 Assinado digitalmente via {signature.provedor} · {signature.id}
               </span>
               {verificationUrl ? (
-                <span className="sheet-a4__verify">
-                  Verifique em {verificationUrl}
-                </span>
+                <div className="sheet-a4__verify-row">
+                  <QRCodeSvg
+                    value={verificationUrl}
+                    className="sheet-a4__qr"
+                    label="QR code para verificar a autenticidade do documento"
+                  />
+                  <span className="sheet-a4__verify">
+                    Verifique a autenticidade em<br />{verificationUrl}
+                  </span>
+                </div>
               ) : null}
             </>
           ) : (
@@ -145,6 +183,8 @@ export function LetterheadPreview({
           )}
         </div>
       </div>
+    </div>
+    </div>
     </div>
   );
 }

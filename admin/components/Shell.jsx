@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import Icon from './Icon.jsx';
 import { IconButton, Avatar, Badge, Chip } from './primitives.jsx';
@@ -6,6 +6,10 @@ import { useSession } from '../core/session.jsx';
 import { PLAZA_LABELS, ROLE_LABELS } from '../core/rbac.js';
 import { dateLong } from '../core/format.js';
 import { FloatingDock } from '@/components/ui/floating-dock';
+import * as repo from '../data/repository.js';
+
+// Aviso de dados de demonstração: só no build de desenvolvimento, em modo local.
+const DemoBadge = import.meta.env.DEV ? lazy(() => import('../dev/DemoBadge.jsx')) : null;
 
 const RAIL_KEY = 'charlington.rail.expanded';
 
@@ -114,6 +118,8 @@ function Topbar({ breadcrumb, onSearch, pending = 0 }) {
             <kbd>⌘K</kbd>
           </button>
 
+          {DemoBadge && !repo.isServerMode() ? <Suspense fallback={null}><DemoBadge /></Suspense> : null}
+
           {plazas.length > 1 ? (
             <div className="plaza-switch">
               <button
@@ -146,8 +152,13 @@ function Topbar({ breadcrumb, onSearch, pending = 0 }) {
               ) : null}
             </div>
           ) : plaza ? (
-            <Chip tone="neutral">{PLAZA_LABELS[plaza]}</Chip>
+            <Chip tone="plaza">{PLAZA_LABELS[plaza]}</Chip>
           ) : null}
+
+          <Link to="/mensagens" className="topbar__messages" title="Mensagens Internas" tabIndex={-1}>
+            <IconButton name="message-circle" label="Mensagens Internas" shape="circle" variant="surface" />
+            <Badge count={2} />
+          </Link>
 
           <span className="topbar__bell">
             <IconButton name="bell" label="Notificações" shape="circle" variant="surface" />
@@ -244,7 +255,7 @@ export function GreetingHeader({ children }) {
       <div className="greeting__text">
         {/* A data é corpo, não sobrelinha: não usa a classe .eyebrow. */}
         <span className="greeting__date">{dateLong(new Date())}</span>
-        <h1 className="page-title">{greeting}{firstName ? `, ${firstName}` : ''}.</h1>
+        <h1 className="page-title">{greeting}{firstName ? <>, <span className="greeting__name">{firstName}</span></> : ''}.</h1>
       </div>
       {children}
     </div>

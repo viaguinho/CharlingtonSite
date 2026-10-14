@@ -102,7 +102,8 @@
   position: absolute;
   left: 0; right: 0;
   height: 0;
-  border-top: 1px dashed var(--data-grid);
+  /* Grade contínua: o tracejado é do período em curso, e de mais nada. */
+  border-top: 1px solid var(--data-grid);
   pointer-events: none;
 }
 .plot__grid--zero { border-top: 1px solid var(--ink-a20); }
@@ -177,13 +178,13 @@
 .bars__col.is-current .bars__fill,
 .chart__note-swatch {
   background-color: var(--data-mid);
-  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(0, 0, 0, 0.1) 4px 8px);
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--ink-a12) 4px 8px);
 }
 /* A amostra é a própria marca: mesma listra, largura suficiente para dois
    períodos da listra aparecerem. */
 .chart__note .chart__note-swatch {
   display: inline-block;
-  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(0, 0, 0, 0.1) 4px 8px);
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--ink-a12) 4px 8px);
   width: 16px; height: 12px;
   vertical-align: -2px;
   margin-right: var(--s-1);
@@ -191,7 +192,7 @@
   border-radius: var(--r-xs) var(--r-xs) 0 0;
 }
 .chart__note .chart__note-swatch.chart__note-swatch--line {
-  background: none; border-top: 2px solid var(--data-strong); height: 0; vertical-align: middle; opacity: 0.4; border-radius: 0;
+  background: none; border-top: 2px dashed var(--data-strong); height: 0; vertical-align: middle; border-radius: 0;
 }
 
 /* Valor escrito acima do pico e da barra corrente (REF 1: "654"). */
@@ -233,7 +234,7 @@
 /* Exceção: o período EM CURSO com zero precisa aparecer como em curso — sem
    isso a listra existia no Ano e sumia no Mês, para a mesma regra. A marca é
    um talo baixo e listrado, que ninguém lê como valor. */
-.bars__col.is-current .bars__fill.is-zero { min-height: 3px; }
+.bars__col.is-current .bars__fill.is-zero { min-height: 3px; background-image: none; background-color: var(--data-strong); }
 
 @keyframes bar-rise { from { transform: scaleY(0); } }
 
@@ -686,14 +687,13 @@
 .compare__line--negative { stroke: var(--data-negative); }
 .compare__line--mid      { stroke: var(--data-mid); }
 .compare__line--soft     { stroke: var(--data-soft); }
-.compare__line.is-dashed { stroke-dasharray: 8 4; }
 .compare__cursor { stroke: var(--ink-a20); stroke-width: 1; }
 /* Trecho do período antes do primeiro registro: fundo de trilho, sem linha. */
 .compare__void {
   position: absolute; left: 0; bottom: 0; height: 100%;
   display: flex; align-items: flex-end; justify-content: center;
   padding-bottom: var(--s-3);
-  border-right: 1px dashed var(--ink-a20);
+  border-right: 1px solid var(--ink-a12);
   font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro);
   color: var(--ink-400);
   pointer-events: none;
@@ -726,7 +726,9 @@
 .compare__end--mid strong      { color: var(--ink-950); }
 
 /* Período em curso: traço curto interrompido, o par da barra listrada. */
-.compare__line.is-current { opacity: 0.4; }
+/* Tracejado é uma coisa só: período em curso. A série "Pago" é sólida e se identifica
+   pela cor e pelo rótulo na ponta; as duas marcas diferiam só no comprimento do traço. */
+.compare__line.is-current { stroke-dasharray: 4 4; }
 
 .compare__hit { position: absolute; inset: 0; display: flex; }
 .compare__zone { flex: 1; height: 100%; padding: 0; background: none; cursor: crosshair; }
@@ -760,3 +762,188 @@
   font-variant-numeric: tabular-nums;
 }
 .plot__x-point:last-child { transform: translateX(-100%); }
+
+/* Interatividade de gráficos */
+.compare__hit,
+.ratio-bar__hit,
+.ratio-bar__seg,
+.category-bars li,
+.category-bars__track {
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   SKYLINE DE PRODUÇÃO — mapa de calor que se dobra em horizonte isométrico
+   O canvas lê a escada de azuis da paleta (--blue-200 → --blue-700); o dia sob
+   o cursor ou o foco vai para a tinta. Reduced-motion já é
+   zerado globalmente em base.css.
+   ========================================================================== */
+
+.skyline__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+}
+.skyline__head .chart__summary { margin-bottom: var(--s-3); }
+/* O seletor de visão é do tamanho do corpo, não da linha do número. */
+.skyline__head .tabs { align-self: center; margin-bottom: var(--s-3); }
+
+.skyline__scene { position: relative; }
+
+.skyline__stage {
+  position: relative;
+  width: 100%;
+  height: 150px;               /* o laço de desenho assume a altura real na primeira medida */
+  overflow: hidden;
+  border-radius: var(--r-sm);
+}
+.skyline__stage:has(.skyline__canvas:focus-visible) {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 4px;
+}
+
+.skyline__canvas {
+  position: absolute;
+  top: 0; left: 0;
+  display: block;
+  max-width: none;
+  outline: none;
+  touch-action: auto;
+}
+.skyline__canvas.is-orbit { touch-action: pan-y; }
+
+/* ——————————————— Dica: a mesma pílula escura das barras ——————————————— */
+
+.skyline__tip {
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--ink-900);
+  color: var(--surface-raised);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease);
+}
+.skyline__tip.is-on { opacity: 1; }
+.skyline__tip-date { font-weight: var(--w-regular); color: var(--ink-100); }
+.skyline__tip strong { font-weight: var(--w-semibold); }
+.skyline__tip-arrow {
+  position: absolute;
+  top: 100%;
+  left: var(--arrow, 50%);
+  margin-left: -5px;
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--ink-900);
+}
+
+/* ——————— Números do ano: nos cantos do skyline, em linha no mapa ——————— */
+
+.skyline-stat { min-width: 0; }
+.skyline-stat__label,
+.skyline-stat__sub {
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+.skyline-stat__value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: var(--s-1) 0;
+}
+.skyline-stat__value strong {
+  font-size: var(--t-h2); line-height: var(--lh-h2); letter-spacing: var(--ls-h2);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+}
+.skyline-stat__value span {
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-900);
+}
+
+.skyline__corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-in-out), transform var(--dur-3) var(--ease-in-out);
+}
+.skyline__corner--tr { top: var(--s-1); right: var(--s-1); align-items: flex-end; text-align: right; transform: translateY(calc(var(--s-3) * -1)); }
+.skyline__corner--bl { bottom: var(--s-1); left: var(--s-1); align-items: flex-start; transform: translateY(var(--s-3)); }
+.skyline__corner--tr .skyline-stat__value { justify-content: flex-end; }
+.skyline__corner.is-on { opacity: 1; transform: translateY(0); }
+
+.skyline__stats {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition-property: grid-template-rows, opacity;
+  transition-timing-function: var(--ease-in-out);
+}
+.skyline__stats.is-open { grid-template-rows: 1fr; opacity: 1; }
+.skyline__stats-clip { min-height: 0; overflow: hidden; }
+.skyline__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+  padding-top: var(--s-4);
+}
+@media (min-width: 900px) {
+  .skyline__stats-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ——————————————————————— Dica de uso e legenda ——————————————————————— */
+
+.skyline__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--ink-a06);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+}
+.skyline__hint { position: relative; display: grid; flex: 1 1 240px; min-width: 0; }
+.skyline__hint > span { grid-area: 1 / 1; transition: opacity var(--dur-4) var(--ease-in-out); }
+
+.skyline__legend { display: flex; align-items: center; gap: var(--s-2); }
+/* O alvo de toque é maior que a marca (40 px em tela de toque, ≤768 px). */
+.skyline__swatch {
+  position: relative;
+  width: 12px; height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.skyline__swatch::after { content: ''; position: absolute; inset: -6px; }
+.skyline__swatch:hover { transform: scale(1.25); }
+.skyline__swatch[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink-900); }
+.skyline__swatch--0 { background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--ink-a08); }
+.skyline__swatch--0[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink-900); }
+.skyline__swatch--1 { background: var(--blue-200); }
+.skyline__swatch--2 { background: var(--blue-300); }
+.skyline__swatch--3 { background: var(--blue-500); }
+.skyline__swatch--4 { background: var(--blue-700); }
+@media (max-width: 768px) {
+  .skyline__swatch::after { inset: -14px -4px; }
+}
+
+.skyline__data { max-height: 280px; overflow: auto; margin-top: var(--s-2); }
+.skyline__data .chart-data-table { margin-top: 0; width: 100%; }

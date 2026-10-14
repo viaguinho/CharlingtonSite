@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import * as repo from '../../data/repository.js';
 import { STORES, DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, DOCUMENT_STATUS, newDocument } from '../../data/schema.js';
 import {
-  DOCUMENT_SKELETONS, REQUIRES_SIGNATURE, VARIABLES,
+  DOCUMENT_SKELETONS, REQUIRES_SIGNATURE, SIGNATURE_PROVIDERS, VARIABLES,
   resolveVariables, unresolvedVariables,
 } from '../../data/documentTemplates.js';
 import { useSession } from '../../core/session.jsx';
@@ -27,12 +27,6 @@ import { date, dateLong, age } from '../../core/format.js';
  * painel anterior, `clientSecret` e o CPF do médico estavam no JavaScript
  * servido a qualquer visitante.
  */
-
-const SIGNATURE_PROVIDERS = [
-  { value: 'birdid', label: 'Bird ID (Soluti)' },
-  { value: 'vidaas', label: 'VIDaaS (Valid)' },
-  { value: 'icpbrasil', label: 'ICP-Brasil (certificado local)' },
-];
 
 export function ClinicalDocumentModal({ open, patient, guardians = [], appointment, initialType, onClose, onIssued }) {
   const { user, plaza, requireStepUp } = useSession();
@@ -77,7 +71,14 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
   }), [patient, guardian, appointment, user, plaza]);
 
   const resolvedText = useMemo(() => resolveVariables(text, context), [text, context]);
-  const pending = useMemo(() => unresolvedVariables(resolvedText), [resolvedText]);
+  // Itens da prescrição também aceitam {{variáveis}}: o que a prévia mostra é o que se grava, faz hash e imprime.
+  const resolvedItems = useMemo(() => items
+    .filter((i) => i.principio?.trim())
+    .map((i) => ({ ...i, posologia: resolveVariables(i.posologia ?? '', context) })), [items, context]);
+  const pending = useMemo(
+    () => unresolvedVariables(`${resolvedText}\n${resolvedItems.map((i) => i.posologia).join('\n')}`),
+    [resolvedText, resolvedItems],
+  );
 
   function applyTemplate(id) {
     setTemplateId(id);
@@ -94,6 +95,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
   async function issue() {
     const hasContent = resolvedText.trim() || items.some((i) => i.principio?.trim());
     if (!hasContent) { toast.error('O documento está vazio.'); return; }
+    if (tooLong) { toast.error('O texto não cabe em uma folha. Reduza o texto para emitir.'); return; }
 
     if (pending.length) {
       toast.warning(`Há variáveis sem valor: ${pending.join(', ')}. Complete a ficha ou edite o texto.`);
@@ -110,7 +112,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
     try {
       await requireStepUp('documents.issue', 'Emitir um documento clínico exige confirmação de identidade.');
 
-      const filledItems = items.filter((i) => i.principio?.trim());
+      const filledItems = resolvedItems;
       const canonical = JSON.stringify({ type, text: resolvedText, items: filledItems, patientId: patient.id });
       const hash = await sha256(canonical);
       const number = await nextNumber(plaza);
@@ -144,7 +146,12 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
         itens: filledItems,
         numero: number,
         hashConteudo: hash,
-        assinatura: signature ?? { provedor: null, id: null, urlVerificacao: null, assinadoEm: null },
+        // Quem emitiu fica DENTRO da assinatura (jsonb imutável depois de assinado): a folha
+        // reimpressa por outro usuário continua levando o nome e o CRM de quem assinou.
+        assinatura: {
+          ...(signature ?? { provedor: null, id: null, urlVerificacao: null, assinadoEm: null }),
+          medico: { nome: user?.nome ?? null, crm: user?.crm ?? null },
+        },
         status: signature ? DOCUMENT_STATUS.SIGNED : DOCUMENT_STATUS.DRAFT,
       });
 
@@ -158,9 +165,22 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
     }
   }
 
-  const previewItems = items
-    .filter((i) => i.principio?.trim())
-    .map((i) => ({ ...i, posologia: resolveVariables(i.posologia, context) }));
+  const previewItems = resolvedItems;
+
+  // A folha tem uma página só: texto que passa do corpo invade a assinatura e o rodapé do
+  // timbrado e é cortado na impressão. Mede-se numa cópia oculta sempre com 460 px (a largura em
+  // que as fontes da folha têm a proporção da impressão); a folha visível encolhe em tela estreita.
+  const [tooLong, setTooLong] = useState(false);
+  useLayoutEffect(() => {
+    if (!open) { setTooLong(false); return; }
+    const measure = () => {
+      const body = document.querySelector('.doc-measure .sheet-a4__main');
+      setTooLong(Boolean(body) && body.scrollHeight > body.clientHeight + 1);
+    };
+    measure();
+    // A fonte do papel pode terminar de carregar depois da primeira medida.
+    document.fonts?.ready.then(measure);
+  }, [open, resolvedText, previewItems, type]);
 
   return (
     <Modal
@@ -176,7 +196,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
             Depois de assinado, o documento não pode ser editado.
           </span>
           <Button onClick={onClose} disabled={busy}>Fechar</Button>
-          <Button variant="primary" icon="signature" onClick={issue} loading={busy}>
+          <Button variant="primary" icon="signature" onClick={issue} loading={busy} disabled={tooLong}>
             {REQUIRES_SIGNATURE.has(type) ? 'Assinar e emitir' : 'Emitir documento'}
           </Button>
         </>
@@ -336,7 +356,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
               <LetterheadPreview
                 plaza={plaza}
                 patientName={patient?.nomeSocial || patient?.nome}
-                patientBirth={patient?.dataNascimento ? date(patient.dataNascimento) : null}
+                patientBirth={patient?.dataNascimento ? `${date(patient.dataNascimento)} (${age(patient.dataNascimento).label})` : null}
                 guardianName={guardian?.nome}
                 documentTitle={skeleton.titulo}
                 documentSubtitle={skeleton.subtitulo}
@@ -350,6 +370,30 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
               />
             ) : null}
           </div>
+
+          <div className="doc-measure" aria-hidden="true">
+            <LetterheadPreview
+              plaza={plaza}
+              patientName={patient?.nomeSocial || patient?.nome}
+              patientBirth={patient?.dataNascimento ? `${date(patient.dataNascimento)} (${age(patient.dataNascimento).label})` : null}
+              guardianName={guardian?.nome}
+              documentTitle={skeleton.titulo ?? DOCUMENT_TYPE_LABELS[type]}
+              documentSubtitle={skeleton.subtitulo}
+              content={resolvedText}
+              items={previewItems}
+              doctorName={user?.nome}
+              doctorCRM={user?.crm}
+              issuedAt={dateLong(new Date())}
+              buyerBlock={skeleton.exigeIdentificacaoComprador}
+            />
+          </div>
+
+          {tooLong ? (
+            <p className="doc-preview__warning doc-preview__warning--blocking" role="alert">
+              <Icon name="alert-triangle" size={13} />
+              O texto não cabe em uma folha e seria cortado na impressão. Reduza o texto para poder emitir.
+            </p>
+          ) : null}
 
           {pending.length ? (
             <p className="doc-preview__warning">

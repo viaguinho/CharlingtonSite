@@ -2,6 +2,11 @@ import { forwardRef } from 'react';
 import Icon from './Icon.jsx';
 import { initials as toInitials } from '../core/format.js';
 
+export function CidCode({ code, className = '' }) {
+  if (!code) return null;
+  return <span className={`cid-code ${className}`.trim()}>{code}</span>;
+}
+
 /* ═══════════════════════════════ Botões ═══════════════════════════════ */
 
 /**

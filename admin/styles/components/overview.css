@@ -1,0 +1,42 @@
+/* ==========================================================================
+   VISÃO GERAL — cabeçalho no estilo Luma (referência Behance)
+   Só a saudação usa a tipografia geométrica (Urbanist) e a luz de fundo. O
+   restante da tela segue o painel. Tudo vive sob `.ov`.
+   ========================================================================== */
+
+.ov { position: relative; isolation: isolate; }
+
+.ov .greeting {
+  position: relative;
+  margin-bottom: var(--s-8);
+  align-items: flex-end;
+}
+
+/* Lavagem de luz atrás da saudação: fica no cabeçalho, não no conteúdo. */
+.ov .greeting::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -40px -24px -24px -24px;
+  pointer-events: none;
+  background:
+    radial-gradient(28% 60% at 30% 40%, var(--wash-b), transparent 100%),
+    radial-gradient(20% 50% at 80% 40%, var(--wash-a), transparent 100%);
+}
+
+.ov .greeting__text { gap: var(--s-2); font-family: var(--font-luma); }
+.ov .greeting__text .page-title {
+  order: 1;
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: var(--w-light);
+  letter-spacing: -.035em;
+  color: var(--ink-500);
+}
+.ov .greeting__name { font-weight: var(--w-semibold); color: var(--ink-950); }
+.ov .greeting__date { order: 2; font-size: 15px; color: var(--ink-400); }
+.ov .greeting__date::first-letter { text-transform: uppercase; }
+
+@media (max-width: 640px) {
+  .ov .greeting__text .page-title { font-size: 34px; }
+}

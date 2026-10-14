@@ -71,14 +71,29 @@ input[type="number"] {
 
 .input--select {
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: none;
   padding-right: calc(var(--s-8) + var(--s-1));
   cursor: pointer;
   text-overflow: ellipsis;
 }
+.input--select::-ms-expand {
+  display: none;
+}
 
-.field__icon { position: absolute; left: var(--s-3); color: var(--ink-300); pointer-events: none; }
-.field__chevron { position: absolute; right: var(--s-3); color: var(--ink-300); pointer-events: none; }
-.field__trailing { position: absolute; right: 4px; }
+.field__icon { position: absolute; left: var(--s-3); top: 50%; transform: translateY(-50%); color: var(--ink-300); pointer-events: none; }
+.field__chevron {
+  position: absolute;
+  right: var(--s-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-400);
+  pointer-events: none;
+  flex: none;
+  line-height: 1;
+}
+.field__trailing { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
 
 .field__suffix {
   position: absolute;

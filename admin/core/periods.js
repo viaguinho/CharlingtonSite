@@ -123,9 +123,10 @@ export function rangeShort(range, reference = new Date()) {
   const year = b.getFullYear() !== reference.getFullYear() ? `/${b.getFullYear()}` : '';
   // Travessão cercado de "word joiner": "01–16/08" nunca quebra no meio.
   const dash = '\u2060–\u2060';
-  // Com corte de horário, o rótulo diz até quando: "06–10/09 até 01h42".
+  // Com corte de horário, o rótulo diz até quando: "06–10/09 até 01h42". A quebra
+  // só pode cair ANTES de "até": a hora ("18h21") e o "até" que a antecede ficam juntos.
   const until = range.cutoff
-    ? `\u00a0até\u00a0${String(new Date(range.cutoff).getHours()).padStart(2, '0')}h${String(new Date(range.cutoff).getMinutes()).padStart(2, '0')}`
+    ? ` até\u00a0${String(new Date(range.cutoff).getHours()).padStart(2, '0')}h${String(new Date(range.cutoff).getMinutes()).padStart(2, '0')}`
     : '';
   return (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
     ? `${String(a.getDate()).padStart(2, '0')}${dash}${dm(b)}${year}`
@@ -191,10 +192,14 @@ export function bucketsFor(range, period) {
     }
     if (!seen.has(key)) {
       seen.add(key);
+      const isPartial = (key === todayKey && grain !== 'day') ||
+                        (grain === 'week' && key < range.from) ||
+                        (grain === 'month' && `${key}-01` < range.from);
       // O balde de hoje ainda não terminou: numa semana ou num mês pela
       // metade, a barra menor não é queda de produção. O gráfico o marca.
+      // O primeiro balde também pode ser incompleto se o período começou no meio dele.
       out.push({
-        key, label: bucketLabel(key, grain, range), current: key === todayKey, partial: key === todayKey && grain !== 'day',
+        key, label: bucketLabel(key, grain, range), current: key === todayKey, partial: isPartial,
         weekend: grain === 'day' && [0, 6].includes(atNoon(day).getDay()),
         end: day, endLabel: atNoon(day).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
       });

@@ -53,6 +53,11 @@
 
 .card__heading { min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
 
+/* O título nunca fica espremido sobre abas ou botões: as ações descem para a linha de baixo quando não cabem ao lado. */
+.card__header { flex-wrap: wrap; row-gap: var(--s-3); }
+.card__heading { flex: 1 1 calc(var(--s-20) * 3); }
+.card__tools { flex-wrap: wrap; max-width: 100%; }
+
 .card__title {
   font-size: var(--t-body);
   line-height: var(--lh-small);
@@ -173,6 +178,11 @@
   margin-top: var(--s-1);
   /* Sem palavra solta na última linha ("3 / por acontecer"). */
   text-wrap: pretty;
+  /* break-word, não anywhere: "anywhere" partia a hora no meio ("até 18h2 / 1"),
+     e um dígito solto lia-se como contagem. A quebra cai nos espaços. */
+  overflow-wrap: break-word;
+  hyphens: manual;
+  min-width: 0;
 }
 .metric--sm .metric__value { font-size: var(--t-title); }
 
@@ -218,10 +228,91 @@
 .metric-strip > *:first-child { border-left: 0; }
 
 @media (max-width: 1080px) {
-  .metric-strip { flex-wrap: wrap; }
-  .metric-strip > *, .metric-strip > *:first-child { flex: 1 1 50%; }
-  .metric-strip > *:nth-child(odd) { border-left: 0; }
-  .metric-strip > *:nth-child(n + 3) { border-top: 1px solid var(--ink-a06); }
+  .metric-strip:not(.metric-strip--bento) { flex-wrap: wrap; }
+  .metric-strip:not(.metric-strip--bento) > *, .metric-strip:not(.metric-strip--bento) > *:first-child { flex: 1 1 50%; }
+  .metric-strip:not(.metric-strip--bento) > *:nth-child(odd) { border-left: 0; }
+  .metric-strip:not(.metric-strip--bento) > *:nth-child(n + 3) { border-top: 1px solid var(--ink-a06); }
+}
+
+/* ——————————————— Pílulas Bento Separadas (Visão Geral) ——————————————— */
+
+.metric-strip--bento,
+.bento-strip > .metric-strip {
+  display: flex;
+  gap: var(--gutter);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.metric-strip--bento > *,
+.bento-strip > .metric-strip > * {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--ink-a06) !important;
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: transform var(--dur-2) var(--ease),
+              box-shadow var(--dur-2) var(--ease),
+              border-color var(--dur-2) var(--ease);
+}
+
+.metric-strip--bento > *:hover,
+.bento-strip > .metric-strip > *:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--e-2);
+  border-color: var(--ink-a08);
+}
+
+.metric-strip--bento > .is-featured,
+.metric-strip--bento:not(:has(> .is-featured)) > *:first-child,
+.bento-strip > .metric-strip > .is-featured,
+.bento-strip > .metric-strip:not(:has(> .is-featured)) > *:first-child {
+  flex: 1.25 1 0;
+}
+
+.metric-strip--bento .metric,
+.bento-strip > .metric-strip .metric {
+  height: 100%;
+}
+
+.metric-strip--bento .metric__target,
+.bento-strip > .metric-strip .metric__target {
+  margin-top: auto;
+  padding-top: var(--s-2);
+}
+
+@media (max-width: 1080px) {
+  .metric-strip--bento,
+  .bento-strip > .metric-strip {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--gutter);
+  }
+  .metric-strip--bento > *,
+  .metric-strip--bento > *:first-child,
+  .metric-strip--bento > *:nth-child(odd),
+  .bento-strip > .metric-strip > *,
+  .bento-strip > .metric-strip > *:first-child,
+  .bento-strip > .metric-strip > *:nth-child(odd) {
+    flex: initial;
+    border: 1px solid var(--ink-a06) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .metric-strip--bento,
+  .bento-strip > .metric-strip {
+    grid-template-columns: 1fr;
+    gap: var(--s-3);
+  }
 }
 
 /* ————————————————— Mini-card de métrica (REF 3) ————————————————— */
@@ -332,6 +423,7 @@
    que ele vira. Antes o lugar do card era mais ESCURO que o canvas e clareava
    ao carregar — a mesma peça com duas aparências invertidas. */
 .skeleton--card {
+  box-sizing: border-box; width: 100% !important;
   background-color: var(--surface);
   background-image: linear-gradient(90deg, transparent 0%, var(--ink-a06) 50%, transparent 100%);
   border: 1px solid var(--ink-a06);

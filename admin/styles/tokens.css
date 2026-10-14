@@ -153,6 +153,9 @@
   --blur: blur(20px);
   --blur-strong: blur(28px);
 
+  /* Urbanist: só a saudação da Visão geral (referência Luma). */
+  --font-luma: 'Urbanist', var(--font);
+
   /* ———————————————————————————————— Movimento ——————————————————————————————— */
   --dur-1: 120ms;
   --dur-2: 200ms;
@@ -169,6 +172,7 @@
 
   /* ————————————————————————————————— Layout ————————————————————————————————— */
   --row-min: 44px;   /* alvo mínimo de linha de lista */
+  --touch: 40px;     /* alvo mínimo de botão/aba em tela de toque (≤768px) */
   --rail: 76px;
   --rail-open: 248px;
   --topbar: 64px;

@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { EmptyState } from '../components/Card.jsx';
+import { CidCode } from '../components/primitives.jsx';
 
 /**
  * Biblioteca de gráficos — SVG próprio, sem dependência externa.
@@ -234,7 +235,7 @@ export function BarChart({
                   <span className={`bars__fill ${value ? '' : 'is-zero'}`} style={{ height: `${(value / top) * 100}%` }}>
                     {index === hovered ? (
                       <span className="bars__tip num">
-                        <span>{d.label}</span>
+                        <span>{d.label}{d.current ? ' · em curso' : ''}</span>
                         {d.display ?? formatValue(value)}
                       </span>
                     ) : value && (annotateAll || index === peakIndex || d.current) ? (
@@ -298,7 +299,7 @@ export function ComparisonChart({
   const W = 600;
   const H = 200;
   const x = (i) => (labels.length === 1 ? W / 2 : (i / (labels.length - 1)) * W);
-  const y = (v) => H - (v / top) * H;
+  const y = (v) => (H - 1) - (v / top) * (H - 2);
   const axis = formatAxis ?? formatValue;
   // Linha tem área útil menor que a de barras (a margem dos valores finais):
   // no máximo 6 datas, sempre incluindo a última.
@@ -350,6 +351,7 @@ export function ComparisonChart({
                 key={s.label}
                 points={s.points.flatMap((p, i) => {
                   if (i < startIndex) return [];
+                  if (currentLast && i === labels.length - 1) return [];
                   const v = y(Number(p.value) || 0);
                   if (i === startIndex) return [`${x(i)},${v}`];
                   return [`${x(i)},${y(Number(s.points[i - 1].value) || 0)}`, `${x(i)},${v}`];
@@ -400,13 +402,13 @@ export function ComparisonChart({
                 onMouseLeave={() => setHovered(null)}
                 onFocus={() => setHovered(i)}
                 onBlur={() => setHovered(null)}
-                aria-label={`${label}: ${series.map((s) => `${s.label} ${formatValue(s.points[i].value)}`).join(', ')}`}
+                aria-label={`${label}${currentLast && i === labels.length - 1 ? ' (em curso)' : ''}: ${series.map((s) => `${s.label} ${formatValue(s.points[i].value)}`).join(', ')}`}
               />
             ))}
           </div>
           {hovered != null ? (
             <span className="compare__tip" style={{ left: `${(x(hovered) / W) * 100}%` }}>
-              <strong>Até {labels[hovered]}</strong>
+              <strong>Até {labels[hovered]}{currentLast && hovered === labels.length - 1 ? ' · em curso' : ''}</strong>
               {series.map((s) => (
                 <span key={s.label} className="num">{s.label}: {formatValue(s.points[hovered].value)}</span>
               ))}
@@ -421,7 +423,7 @@ export function ComparisonChart({
           <span key={label} className="plot__x-point" style={{ left: `${(i / Math.max(labels.length - 1, 1)) * 100}%` }}>{label}</span>
         ) : null))}
       </div>
-      {lastNote ? <p className="chart__note"><span className="chart__note-swatch chart__note-swatch--line" aria-hidden="true" />Trecho mais claro: {lastNote}</p> : null}
+      {lastNote ? <p className="chart__note"><span className="chart__note-swatch chart__note-swatch--line" aria-hidden="true" />Trecho tracejado: {lastNote}</p> : null}
       {startIndex > 0 ? (
         <p className="chart__note">
           Nenhum {leadingNoun} neste período até {labels[startIndex]}: sem linha nesse trecho, porque não há o que acumular.
@@ -915,9 +917,19 @@ export function CategoryBars({
   if (!items.length || max <= 0) {
     return emptyMessage ? <p className="chart__note">{emptyMessage}</p> : null;
   }
-  // Empate pelo que o leitor VÊ: 44,4 e 43,8 min são "44 min" e "44 min".
-  const shownMax = formatValue(max);
-  const leaders = values.filter((v) => formatValue(v) === shownMax).length;
+  const top = useMemo(() => {
+    if (values.length < 2) return values.length === 1 && max > 0 ? 0 : -1;
+    const sorted = [...values].map((v, i) => ({ value: v, i })).sort((a, b) => b.value - a.value);
+    const first = sorted[0];
+    const second = sorted[1];
+    // Uma regra só, em toda unidade: líder único com pelo menos 5% de vantagem.
+    // "Diferença ≥ 2" dependia da unidade (2 crianças, 2 reais, 2 minutos) e
+    // destacava 13.170 contra 12.380 mas não 8 contra 7 crianças.
+    if (first.value > second.value && first.value >= second.value * 1.05) {
+      return first.i;
+    }
+    return -1;
+  }, [values]);
 
   return (
     <ul className={`category-bars category-bars--${layout}`} style={valueWidth ? { '--value-w': `${valueWidth}px` } : undefined}>
@@ -925,11 +937,11 @@ export function CategoryBars({
         const value = values[i];
         const tone = emphasis
           ? (emphasis(item, i) ?? 'plain')
-          : (value === max && leaders === 1 ? 'top' : 'plain');
+          : (i === top ? 'top' : 'plain');
         return (
           <li key={item.label ?? i}>
             <span className="category-bars__label" title={item.hint}>
-              {item.code ? <strong>{item.code}</strong> : null} {item.label}
+              {item.code ? <CidCode code={item.code} /> : null} {item.label}
             </span>
             <span className="category-bars__track">
               <span className={`category-bars__fill category-bars__fill--${tone}`} style={{ '--fill': Math.min(value / scale, 1) }} />

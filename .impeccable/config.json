@@ -8,6 +8,15 @@
         "value": "inter",
         "createdAt": "2026-09-15T23:55:40.633Z",
         "reason": "DesignCharlington.md especifica Inter nominalmente como substituta da PP Neue Montreal, e o site publico ja a usa; o painel precisa ser reconhecivel como a mesma marca. Trocar a face quebraria a consistencia com index.html, que este projeto esta proibido de alterar."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "admin/styles/components/agenda-panel.css"
+        ],
+        "createdAt": "2026-10-07T19:12:12.726Z",
+        "reason": "Claude: replica o trilho de estado já existente na Agenda (.slot/.week-slot em modules.css, 2px por tom e 3px azul em evento); o usuário pediu para preservar a identidade visual existente"
       }
     ]
   }

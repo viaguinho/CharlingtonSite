@@ -1,7 +1,7 @@
-import { displayStatus } from '../../../core/appointments.js';
+import { displayStatus, canReschedule } from '../../../core/appointments.js';
 import { useMemo, useState } from 'react';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
-import { Button, Chip } from '../../../components/primitives.jsx';
+import { Button, Chip, CidCode } from '../../../components/primitives.jsx';
 import { Tabs } from '../../../components/Tabs.jsx';
 import Icon from '../../../components/Icon.jsx';
 import {
@@ -38,7 +38,7 @@ const ICONS = {
   mensagem: 'message-circle',
 };
 
-export function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, patient, onGoToSection }) {
+export function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection }) {
   const [filter, setFilter] = useState('all');
 
   const events = useMemo(() => {
@@ -48,6 +48,7 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
         title: APPOINTMENT_TYPE_LABELS[a.tipo] ?? 'Consulta',
         detail: a.observacoes,
         status: a.status,
+        appointment: a,
       })),
       ...notes.map((n) => ({
         id: n.id, kind: 'evolucao', at: n.assinadaEm ?? n.criadoEm,
@@ -57,6 +58,7 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
         linked: appointments.find((a) => a.id === n.atendimentoId),
         detail: n.avaliacao || n.subjetivo,
         badge: n.cidPrincipal,
+        isCid: true,
         locked: n.travada,
       })),
       ...documents.map((d) => ({
@@ -124,7 +126,7 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
                       <div className="timeline__body">
                         <div className="timeline__head">
                           <strong>{event.title}</strong>
-                          {event.badge ? <Chip tone="code">{event.badge}</Chip> : null}
+                          {event.badge ? (event.isCid ? <CidCode code={event.badge} /> : <Chip tone="neutral">{event.badge}</Chip>) : null}
                           {event.locked ? (
                             <span className="timeline__locked" title="Evolução assinada e travada">
                               <Icon name="lock" size={11} />
@@ -142,6 +144,12 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
                             : `${date(event.at)} · ${relative(event.at)}`}
                           {event.linked ? ` · referente à consulta das ${time(event.linked.inicio)}` : ''}
                         </span>
+                        {/* Só consulta ainda por acontecer (agendada ou confirmada) se remarca. */}
+                        {onReschedule && event.appointment && canReschedule(event.appointment) ? (
+                          <span className="timeline__actions">
+                            <Button size="sm" icon="calendar" onClick={() => onReschedule(event.appointment)}>Remarcar</Button>
+                          </span>
+                        ) : null}
                       </div>
                     </li>
                   ))}

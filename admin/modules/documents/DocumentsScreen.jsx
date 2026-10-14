@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as repo from '../../data/repository.js';
 import { STORES, DOCUMENT_TYPE_LABELS, DOCUMENT_TYPES, DOCUMENT_STATUS, APPOINTMENT_STATUS } from '../../data/schema.js';
-import { LEGACY_TEMPLATES, DOCUMENT_SKELETONS } from '../../data/documentTemplates.js';
+import { LEGACY_TEMPLATES, DOCUMENT_SKELETONS, SIGNATURE_PROVIDERS } from '../../data/documentTemplates.js';
 import { useSession } from '../../core/session.jsx';
 import { PageHeader } from '../../components/Shell.jsx';
 import { Card, CardHeader, CardBody, EmptyState, Metric, MetricStrip } from '../../components/Card.jsx';
@@ -69,7 +69,7 @@ export default function DocumentsScreen() {
  * lugar só para que as duas telas nunca discordem.
  */
 function usePendingReports(plaza) {
-  const [state, setState] = useState({ loading: true, items: [], paid: 0 });
+  const [state, setState] = useState({ loading: true, items: [], paid: 0, paidCount: 0 });
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -87,10 +87,10 @@ function usePendingReports(plaza) {
         .map((a) => ({ ...a, patient: patients.find((p) => p.id === a.pacienteId) }));
       // Quanto essas famílias já pagaram por um documento que não receberam.
       const ids = new Set(items.map((a) => a.id));
-      const paid = entries
-        .filter((e) => e.tipo === 'receita' && e.status === 'pago' && ids.has(e.atendimentoId))
-        .reduce((total, e) => total + (Number(e.valor) || 0), 0);
-      if (!cancelled) setState({ loading: false, items, paid });
+      const paidEntries = entries
+        .filter((e) => e.tipo === 'receita' && e.status === 'pago' && ids.has(e.atendimentoId));
+      const paid = paidEntries.reduce((total, e) => total + (Number(e.valor) || 0), 0);
+      if (!cancelled) setState({ loading: false, items, paid, paidCount: new Set(paidEntries.map((e) => e.atendimentoId)).size });
     })();
     return () => { cancelled = true; };
   }, [plaza]);
@@ -98,7 +98,7 @@ function usePendingReports(plaza) {
 }
 
 function ToIssueTab({ pending }) {
-  const { items, loading, paid } = pending;
+  const { items, loading, paid, paidCount } = pending;
   // Empate por dia: dois laudos de 21/07 são os dois mais antigos, não um.
   const oldest = oldestByDay(items, (a) => localDay(a.inicio));
   const columns = [
@@ -149,7 +149,7 @@ function ToIssueTab({ pending }) {
           target={oldest
             ? [
               `${oldest.items.length === 1 ? 'Mais antigo' : `${oldest.items.length} mais antigos`}: ${namesList(oldest.items.map((a) => a.patient?.nome ?? '—'))}, ${oldest.items.length === 1 ? 'atendido' : 'atendidos'} ${relative(oldest.items[0].inicio)}`,
-              paid ? `${money(paid)} já recebidos por todos os laudos` : null,
+              paid ? `${money(paid)} já recebidos por ${paidCount} dos ${items.length} laudos` : null,
             ].filter(Boolean).join(' · ')
             : 'Nenhum laudo atrasado'}
         />
@@ -334,7 +334,7 @@ function IssuedTab({ plaza, pendingCount }) {
 
 function SignatureQueueTab({ plaza, canSign }) {
   const toast = useToast();
-  const { requireStepUp } = useSession();
+  const { requireStepUp, user } = useSession();
   const [pending, setPending] = useState([]);
   const [patients, setPatients] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -379,8 +379,11 @@ function SignatureQueueTab({ plaza, canSign }) {
           await repo.update(STORES.DOCUMENTS, id, {
             status: DOCUMENT_STATUS.SIGNED,
             assinatura: {
-              provedor: provider, id: result.signatureId,
+              provedor: SIGNATURE_PROVIDERS.find((p) => p.value === provider)?.label ?? provider,
+              id: result.signatureId,
               urlVerificacao: result.verificationUrl, assinadoEm: new Date().toISOString(),
+              // Quem assina é quem aparece no papel: preserva o médico gravado no rascunho.
+              medico: doc.assinatura?.medico ?? { nome: user?.nome ?? null, crm: user?.crm ?? null },
             },
           });
           ok += 1;
@@ -471,11 +474,7 @@ function SignatureQueueTab({ plaza, canSign }) {
       >
         <Select
           label="Provedor" value={provider} onChange={(e) => setProvider(e.target.value)}
-          options={[
-            { value: 'birdid', label: 'Bird ID (Soluti)' },
-            { value: 'vidaas', label: 'VIDaaS (Valid)' },
-            { value: 'icpbrasil', label: 'ICP-Brasil (certificado local)' },
-          ]}
+          options={SIGNATURE_PROVIDERS}
         />
         {provider !== 'icpbrasil' ? (
           <TextField

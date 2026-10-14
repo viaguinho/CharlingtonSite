@@ -211,6 +211,66 @@ export async function invoke(functionName, payload) {
 
 export const wipe = () => adapter.wipe();
 
+export const OFFICIAL_ROOMS = [
+  'Sala de Atendimento Neuropediátrico',
+  'Recepção Central',
+];
+
+/**
+ * Garante que a base de dados contenha unicamente os dois locais oficiais da clínica:
+ * 'Sala de Atendimento Neuropediátrico' e 'Recepção Central'.
+ * Reassocia agendamentos para a sala oficial e elimina quaisquer salas extintas.
+ */
+export async function normalizeClinicRooms() {
+  try {
+    const rooms = await adapter.list(STORES.ROOMS, { includeDeleted: true }).catch(() => []);
+    if (!rooms || !rooms.length) return;
+
+    let targetRoom = rooms.find((r) => r.nome === 'Sala de Atendimento Neuropediátrico');
+
+    const defunct = rooms.filter((r) => !OFFICIAL_ROOMS.includes(r.nome));
+    if (defunct.length > 0) {
+      if (!targetRoom) {
+        const primary = defunct[0];
+        primary.nome = 'Sala de Atendimento Neuropediátrico';
+        primary.status = 'disponivel';
+        await adapter.put(STORES.ROOMS, primary).catch(() => {});
+        targetRoom = primary;
+        defunct.shift();
+      }
+
+      const defunctIds = new Set(defunct.map((r) => r.id));
+      const appointments = await adapter.list(STORES.APPOINTMENTS, { includeDeleted: true }).catch(() => []);
+      for (const apt of appointments) {
+        if (apt.salaId && defunctIds.has(apt.salaId)) {
+          apt.salaId = targetRoom ? targetRoom.id : null;
+          await adapter.put(STORES.APPOINTMENTS, apt).catch(() => {});
+        }
+      }
+
+      for (const d of defunct) {
+        if (adapter.destroy) {
+          await adapter.destroy(STORES.ROOMS, d.id).catch(() => {});
+        } else {
+          await adapter.put(STORES.ROOMS, softDelete(d, currentUserId, 'Remoção de sala extinta')).catch(() => {});
+        }
+      }
+    }
+
+    const hasRecepcao = rooms.some((r) => r.nome === 'Recepção Central');
+    if (!hasRecepcao && targetRoom?.praca) {
+      await adapter.put(STORES.ROOMS, {
+        ...envelope({ userId: currentUserId, praca: targetRoom.praca }),
+        nome: 'Recepção Central',
+        recursos: [],
+        status: 'disponivel',
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[repository] normalizeClinicRooms warning:', err);
+  }
+}
+
 /** Registra o repositório no módulo de auditoria — fecha a dependência circular. */
 audit.configure({
   appendAudit,

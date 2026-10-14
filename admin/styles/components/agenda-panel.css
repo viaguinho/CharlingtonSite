@@ -1,0 +1,489 @@
+/* ==========================================================================
+   AGENDA DA VISÃO GERAL — dia, semana, mês e lista no card "Sua agenda"
+   Mesma gramática da Agenda: a cor da consulta é o estado (tons do .slot),
+   o tipo é texto, hoje se marca por peso e sublinhado, nunca por azul.
+   ========================================================================== */
+
+.agenda-panel { gap: var(--s-3); }
+
+.agenda-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+.agenda-panel__tools { display: flex; align-items: center; gap: var(--s-2); flex: none; }
+
+/* ——— Navegação + modo de ver ——— */
+.agenda-panel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.agenda-panel__nav { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.agenda-panel__period {
+  margin-left: var(--s-1);
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ——— Busca + filtros ——— */
+.agenda-panel__filters { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.agenda-panel__search { position: relative; display: flex; align-items: center; flex: 1 1 160px; min-width: 0; }
+.agenda-panel__search > .icon { position: absolute; left: var(--s-3); color: var(--ink-400); pointer-events: none; }
+.agenda-panel__search .input { height: 30px; padding-left: var(--s-8); padding-right: var(--s-8); }
+.agenda-panel__search .input::-webkit-search-cancel-button { display: none; }
+.agenda-panel__search .icon-btn { position: absolute; right: var(--s-1); }
+
+.agenda-filter { position: relative; }
+.agenda-filter__trigger { gap: var(--s-2); }
+.agenda-filter__trigger > .icon { color: var(--ink-400); }
+.agenda-filter__trigger.is-active { border-color: var(--ink-a20); }
+.agenda-filter__trigger.is-active .tabs__count { background: var(--ink-900); color: var(--surface); }
+
+.agenda-filter__menu {
+  position: absolute;
+  top: calc(100% + var(--s-1));
+  right: 0;
+  z-index: var(--z-popover);
+  width: 272px;
+  padding: var(--s-1);
+  background: var(--surface-raised);
+  border: 1px solid var(--ink-a08);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
+  animation: agenda-pop var(--dur-2) var(--ease);
+}
+.agenda-filter__title {
+  padding: var(--s-2) var(--s-3) var(--s-1);
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.agenda-filter__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 34px;
+  padding: var(--s-1) var(--s-3) var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  font-size: var(--t-body);
+  color: var(--ink-900);
+  text-align: left;
+}
+.agenda-filter__item:hover, .agenda-filter__item:focus-visible { background: var(--ink-a04); outline: none; }
+.agenda-filter__check {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px;
+  border: 1px solid var(--ink-a20);
+  border-radius: 4px;
+  color: var(--surface);
+}
+.agenda-filter__item.is-on .agenda-filter__check { background: var(--ink-900); border-color: var(--ink-900); }
+.agenda-filter__label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.agenda-filter__label > span { color: var(--ink-400); }
+.agenda-filter__count { color: var(--ink-400); font-size: var(--t-body); }
+.agenda-filter__clear {
+  width: 100%;
+  margin-top: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--ink-a06);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+  text-align: left;
+}
+.agenda-filter__clear:hover { color: var(--ink-900); }
+
+/* Amostra do estado: as mesmas marcas do trilho da consulta. */
+.agenda-swatch { flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--data-soft); }
+.agenda-swatch--info    { background: transparent; border: 1px solid var(--ink-a20); }
+.agenda-swatch--muted   { background: var(--ink-100); }
+.agenda-swatch--success { background: var(--signal-green-ink); }
+.agenda-swatch--warning { background: var(--signal-amber); }
+.agenda-swatch--danger  { background: var(--signal-red); }
+.agenda-swatch--event   { background: var(--blue-500); }
+
+.agenda-panel__active { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
+.agenda-panel__tag {
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  height: 24px;
+  padding: 0 var(--s-1) 0 var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--ink-a06);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+}
+.agenda-panel__tag button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: var(--r-circle);
+  color: var(--ink-400);
+}
+.agenda-panel__tag button:hover { background: var(--ink-a08); color: var(--ink-900); }
+
+/* ——— Área das vistas: altura fixa, o card não muda de tamanho ao trocar de vista ——— */
+.agenda-panel__view {
+  position: relative;
+  height: 360px;
+  border: 1px solid var(--ink-a06);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+.agenda-panel__view > * { height: 100%; }
+.agenda-panel__view > .empty-state { height: auto; padding-top: var(--s-12); }
+.agenda-panel__view.is-dragging .agenda-event:not(.is-dragged) { pointer-events: none; }
+
+/* ——— Consulta ——— */
+.agenda-event {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-xs);
+  background: var(--ink-a04);
+  border-left: 2px solid var(--ink-a12);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
+}
+.agenda-event:hover { background: var(--ink-a08); }
+.agenda-event:focus-visible { outline: 2px solid var(--blue-300); outline-offset: 1px; }
+.agenda-event.is-movable { cursor: grab; }
+.agenda-event.is-movable:active { cursor: grabbing; }
+.agenda-event.is-dragged { opacity: .45; }
+
+.agenda-event--muted   { background: transparent; border-left-color: var(--ink-a12); }
+.agenda-event--muted .agenda-event__name,
+.agenda-event--muted .agenda-event__text strong { color: var(--ink-400); text-decoration: line-through; }
+.agenda-event--info    { background: transparent; border: 1px solid var(--ink-a12); border-left: 2px solid var(--ink-a12); }
+.agenda-event--info:hover { background: var(--ink-a04); }
+.agenda-event--success { background: var(--signal-green-bg); border-left-color: var(--signal-green-ink); }
+.agenda-event--warning { background: var(--signal-amber-bg); border-left-color: var(--signal-amber-ink); }
+.agenda-event--danger  { background: var(--signal-red-bg); border-left-color: var(--signal-red-ink); }
+.agenda-event--event   { background: var(--blue-050); border: 1px solid var(--blue-200); border-left: 3px solid var(--blue-500); }
+.agenda-event--event .agenda-event__name,
+.agenda-event--event .agenda-event__text strong { color: var(--blue-700); }
+
+.agenda-event__text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.agenda-event__text strong {
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  overflow-wrap: anywhere;
+}
+.agenda-event__text > span { font-size: var(--t-body); color: var(--ink-400); }
+.agenda-event__icon {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: var(--r-circle);
+  background: var(--surface);
+  color: var(--blue-600);
+}
+.agenda-event__flag { flex: none; color: var(--signal-amber-ink); }
+.agenda-event__sense { flex: none; color: var(--ink-400); }
+.agenda-event > .chip { flex: none; }
+
+/* Compacta (semana e mês): hora + nome em uma linha. */
+.agenda-event--compact { gap: var(--s-1); padding: 2px var(--s-2) 2px calc(var(--s-2) - 2px); font-size: var(--t-body); line-height: var(--lh-body); }
+.agenda-event--compact.agenda-event--info { padding-left: calc(var(--s-2) - 3px); }
+.agenda-event__time { flex: none; color: var(--ink-400); }
+.agenda-event__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-more {
+  align-self: flex-start;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-xs);
+  font-size: var(--t-body);
+  color: var(--ink-500);
+}
+.agenda-more:hover { background: var(--ink-a04); color: var(--ink-900); }
+
+/* Alvo de soltura durante o arrasto. */
+.is-drop { box-shadow: inset 0 0 0 2px var(--blue-300); background: var(--blue-a08) !important; }
+
+/* ——— Dia ——— */
+.agenda-day { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.agenda-day__empty {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--row-min);
+  padding: var(--s-1) var(--s-3);
+  border-bottom: 1px solid var(--ink-a06);
+  background: var(--surface);
+  font-size: var(--t-body);
+  color: var(--ink-400);
+}
+.agenda-day__empty > span { flex: 1; min-width: 0; }
+.agenda-day__empty strong { color: var(--ink-900); font-weight: var(--w-medium); }
+.agenda-day__rows { display: flex; flex-direction: column; }
+.agenda-day__row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  min-height: 56px;
+  border-bottom: 1px solid var(--ink-a04);
+  transition: background var(--dur-1) var(--ease);
+}
+.agenda-day__row:last-child { border-bottom: 0; }
+.agenda-day__hour {
+  padding: var(--s-2) var(--s-3);
+  border-right: 1px solid var(--ink-a06);
+  font-size: var(--t-body);
+  color: var(--ink-400);
+}
+/* Hora atual: peso e traço neutros, como "hoje" na Semana da Agenda. */
+.agenda-day__row.is-now .agenda-day__hour { color: var(--ink-900); font-weight: var(--w-medium); box-shadow: inset -2px 0 0 var(--ink-900); }
+.agenda-day__slot { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-1) var(--s-2); justify-content: center; }
+.agenda-day__add {
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  align-self: stretch;
+  min-height: 40px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-xs);
+  font-size: var(--t-body);
+  color: transparent;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.agenda-day__add:hover, .agenda-day__add:focus-visible { background: var(--blue-050); color: var(--blue-600); outline: none; }
+
+/* ——— Semana ——— */
+.agenda-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow-y: auto; }
+.agenda-week__day { display: flex; flex-direction: column; min-width: 0; border-left: 1px solid var(--ink-a06); }
+.agenda-week__day:first-child { border-left: 0; }
+.agenda-week__head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: var(--s-2) var(--s-1);
+  border-bottom: 1px solid var(--ink-a06);
+  background: var(--surface);
+}
+.agenda-week__head:hover { background: var(--ink-a04); }
+.agenda-week__weekday {
+  font-size: var(--t-micro); line-height: var(--lh-micro);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.agenda-week__num { font-size: var(--t-title); line-height: var(--lh-title); font-weight: var(--w-light); color: var(--ink-950); }
+.agenda-week__day.is-today .agenda-week__head { background: var(--ink-a04); }
+.agenda-week__day.is-today .agenda-week__num { font-weight: var(--w-medium); text-decoration: underline 2px var(--ink-600); text-underline-offset: 4px; }
+.agenda-week__day.is-past .agenda-week__num { color: var(--ink-400); }
+.agenda-week__list { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-1); flex: 1; }
+.agenda-week__list .agenda-event--compact { flex-direction: column; align-items: flex-start; gap: 0; padding-block: var(--s-1); }
+.agenda-week__list .agenda-event__name { width: 100%; }
+.agenda-week__list .agenda-event__flag,
+.agenda-week__list .agenda-event__sense { position: absolute; top: var(--s-1); right: var(--s-1); }
+.agenda-week__empty { text-align: center; color: var(--ink-300); font-size: var(--t-body); padding: var(--s-3) 0; }
+
+/* ——— Mês ——— */
+.agenda-month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* Cada semana tem a altura do que cabe nela (número + 2 consultas + "+N").
+     Com `1fr` as seis linhas dividiam os 360 px e o excesso de uma célula
+     cobria o número da de baixo. Passando do espaço, a grade rola. */
+  grid-template-rows: auto;
+  grid-auto-rows: minmax(104px, auto);
+  align-content: start;
+  overflow-y: auto;
+}
+.agenda-month__weekday {
+  position: sticky; top: 0; z-index: 1;
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--ink-a06);
+  background: var(--surface);
+  text-align: center;
+  font-size: var(--t-micro); line-height: var(--lh-micro);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.agenda-month__cell {
+  position: relative;
+  overflow: hidden;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0;
+  padding: var(--s-1);
+  border-bottom: 1px solid var(--ink-a04);
+  border-left: 1px solid var(--ink-a04);
+  transition: background var(--dur-1) var(--ease);
+}
+.agenda-month__cell:nth-child(7n + 1) { border-left: 0; }
+.agenda-month__cell:hover { background: var(--ink-a04); }
+.agenda-month__cell.is-outside { background: var(--canvas); }
+.agenda-month__cell.is-outside .agenda-month__num { color: var(--ink-300); }
+.agenda-month__num {
+  align-self: flex-start;
+  min-width: 22px; height: 22px;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-pill);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+}
+.agenda-month__num:hover { background: var(--ink-a08); color: var(--ink-900); }
+.agenda-month__cell.is-today .agenda-month__num { background: var(--ink-900); color: var(--surface); font-weight: var(--w-medium); }
+.agenda-month__list { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.agenda-month__list .agenda-event--compact { padding-block: 0; }
+.agenda-month__list .agenda-event__flag, .agenda-month__list .agenda-event__sense { display: none; }
+.agenda-month__dot { display: none; }
+
+/* ——— Lista ——— */
+.agenda-list { overflow-y: auto; overscroll-behavior: contain; padding: var(--s-2) var(--s-3) var(--s-3); }
+.agenda-list__group + .agenda-list__group { margin-top: var(--s-3); }
+.agenda-list__group { border-radius: var(--r-sm); }
+.agenda-list__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-2) var(--s-1);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+  text-align: left;
+}
+.agenda-list__head:hover { color: var(--ink-900); }
+.agenda-list__head strong { color: var(--ink-900); font-weight: var(--w-medium); }
+.agenda-list__items { display: flex; flex-direction: column; gap: var(--s-1); }
+
+/* ——— Próximos 7 dias ——— */
+.agenda-panel__next {
+  display: flex; align-items: center; gap: var(--s-3);
+  width: 100%;
+  min-height: var(--row-min);
+  padding: 0 var(--s-1);
+  border-top: 1px solid var(--ink-a06);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+  text-align: left;
+}
+.agenda-panel__next > span:first-child { flex: 1; min-width: 0; }
+.agenda-panel__next strong { color: var(--ink-900); font-weight: var(--w-medium); }
+.agenda-panel__next > .num { color: var(--ink-900); font-weight: var(--w-medium); white-space: nowrap; }
+.agenda-panel__next > .icon { color: var(--ink-400); flex: none; }
+.agenda-panel__next:hover > .icon { color: var(--ink-900); }
+/* Sem confirmação é âmbar em toda tela (aviso de confirmação, StackedRatioBar). */
+.agenda-panel__warn { color: var(--signal-amber-ink); font-weight: var(--w-regular); }
+/* Celular: o título "Próximos 7 dias · 09/10 a 15/10" ocupa a linha inteira e a contagem desce para baixo dele;
+   lado a lado o título ficava com ~58 px e quebrava em quatro linhas. */
+@media (max-width: 640px) {
+  .agenda-panel__next { flex-wrap: wrap; row-gap: var(--s-1); padding-block: var(--s-2); }
+  .agenda-panel__next > span:first-child { flex: 1 1 100%; }
+  .agenda-panel__next > .num { flex: 1 1 0; min-width: 0; white-space: normal; }
+}
+
+.agenda-panel__clash {
+  display: flex; align-items: flex-start; gap: var(--s-1);
+  margin-block: var(--s-2);
+  color: var(--signal-red-ink);
+}
+.agenda-panel__clash .icon { flex: none; margin-top: 3px; }
+
+/* ——— Cartão flutuante ——— */
+.agenda-hovercard {
+  position: fixed;
+  z-index: var(--z-popover);
+  width: 288px;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--ink-a08);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
+  pointer-events: none;
+  opacity: 0;
+}
+.agenda-hovercard.is-ready { opacity: 1; animation: agenda-pop var(--dur-2) var(--ease); }
+.agenda-hovercard__head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); margin-bottom: var(--s-2); }
+.agenda-hovercard__head strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); overflow-wrap: anywhere; }
+.agenda-hovercard__head .chip { flex: none; }
+.agenda-hovercard__facts { display: flex; flex-direction: column; gap: var(--s-1); }
+.agenda-hovercard__facts > div { display: flex; align-items: flex-start; gap: var(--s-2); font-size: var(--t-body); color: var(--ink-900); }
+.agenda-hovercard__facts dt { flex: none; padding-top: 2px; color: var(--ink-400); }
+.agenda-hovercard__note {
+  display: flex; align-items: flex-start; gap: var(--s-2);
+  margin-top: var(--s-2);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+}
+.agenda-hovercard__note .icon { flex: none; margin-top: 3px; }
+.agenda-hovercard__note--warning { color: var(--signal-amber-ink); }
+.agenda-hovercard__obs {
+  margin-top: var(--s-2);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.agenda-hovercard__hint {
+  margin-top: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--ink-a06);
+  font-size: var(--t-body);
+  color: var(--ink-400);
+}
+
+@keyframes agenda-pop { from { opacity: 0; transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .agenda-filter__menu, .agenda-hovercard.is-ready { animation: none; }
+}
+
+/* ——— Larguras menores ——— */
+@media (max-width: 1320px) {
+  .agenda-event > .chip { display: none; }
+  .agenda-event--detailed.agenda-event--danger .agenda-event__text > span,
+  .agenda-event--detailed.agenda-event--warning .agenda-event__text > span { color: var(--ink-600); }
+}
+@media (max-width: 768px) {
+  .agenda-panel__head { flex-wrap: wrap; }
+  .agenda-panel__bar { flex-direction: column; align-items: stretch; }
+  /* Celular: os quatro modos cabem lado a lado sem ícone, em vez de rolar e cortar "Lista". */
+  .agenda-panel__bar .tabs { width: 100%; }
+  .agenda-panel__bar .tabs__item { flex: 1 1 0; justify-content: center; padding: 0 var(--s-1); }
+  .agenda-panel__bar .tabs__item > .icon { display: none; }
+  .agenda-panel__search { flex-basis: 100%; }
+  /* O menu abre na largura da linha de filtros, não preso ao botão (sairia da tela). */
+  .agenda-panel__filters { position: relative; }
+  .agenda-filter { position: static; flex: 1 1 auto; }
+  .agenda-filter__trigger { width: 100%; gap: var(--s-1); padding: 0 var(--s-2); }
+  .agenda-filter__trigger > .icon:first-child { display: none; }
+  /* Com o contador ("Situação 1") o conteúdo pede ~108 px: quem encolhia era a seta. */
+  .agenda-filter__trigger > .icon, .agenda-filter__trigger .tabs__count { flex-shrink: 0; }
+  .agenda-filter__menu { left: 0; right: 0; width: auto; }
+  /* O "Limpar" desce para a linha de baixo, à esquerda: na mesma linha os três filtros encolhiam a ~63 px e perdiam a seta. */
+  .agenda-panel__filters > .btn { flex: 1 1 100%; justify-content: flex-start; }
+  .agenda-panel__view { height: 420px; }
+  .agenda-day__row { grid-template-columns: 52px minmax(0, 1fr); }
+  .agenda-day__add { color: var(--ink-300); }
+  /* 132 px por dia: com 84 px o nome do paciente virava "Arthur ..."; a grade já rola na horizontal. */
+  .agenda-week { grid-template-columns: repeat(7, minmax(132px, 1fr)); overflow-x: auto; }
+  .agenda-month__list { display: none; }
+  .agenda-month__dot {
+    display: inline-flex; align-self: center; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 var(--s-1);
+    border-radius: var(--r-pill);
+    background: var(--ink-a08);
+    font-size: var(--t-micro);
+    color: var(--ink-600);
+  }
+}

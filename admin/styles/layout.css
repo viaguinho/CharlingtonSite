@@ -527,8 +527,8 @@
 
 @keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
 
-.topbar__bell { position: relative; display: inline-flex; }
-.topbar__bell .badge { position: absolute; top: -2px; right: -2px; }
+.topbar__bell, .topbar__messages { position: relative; display: inline-flex; }
+.topbar__bell .badge, .topbar__messages .badge { position: absolute; top: -2px; right: -2px; }
 
 /* ═══════════════════════════ Breadcrumb ═══════════════════════════ */
 
@@ -563,6 +563,7 @@
   font-size: var(--t-small);
   color: var(--ink-400);
   max-width: 62ch;
+  text-wrap: balance;
 }
 
 .page-header__tools {
@@ -681,7 +682,10 @@
   .rail__item.is-active .rail__marker { transform: translateX(-50%) scaleX(1); }
 
   .shell__content { padding-bottom: 84px; }
-  .bento > * { grid-column: span 12 !important; }
+  /* Mesma especificidade da regra de 1320 px (que usa :not): com seletor mais curto
+     ela vencia esta, e a Visão geral no celular ficava em duas colunas de 167 px,
+     com o texto quebrado palavra por palavra. */
+  .bento > *:not(.bento-full), .bento > .bento-full { grid-column: span 12 !important; }
 }
 
 @media (max-width: 768px) {
@@ -691,4 +695,7 @@
   .topbar__message-text { display: none; }
   .topbar__capsule { gap: 6px; padding: 4px 6px; }
   .page-header, .greeting { flex-direction: column; align-items: flex-start; gap: var(--s-4); }
+  /* O cabeçalho nunca passa da largura da tela: abas e ações rolam ou quebram dentro dele. */
+  .page-header > * { max-width: 100%; min-width: 0; }
+  .page-header__tools { width: 100%; }
 }

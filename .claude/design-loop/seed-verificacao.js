@@ -235,6 +235,40 @@ for (const [k, p] of pacientes.entries()) {
   }
 }
 
+/* Documentos emitidos (sintéticos): a rodada 3 julga a folha timbrada, o modal e a
+   impressão, e sem documento emitido a aba Emitidos fica vazia. O laudo emitido não
+   é ligado a atendimento (atendimentoId nulo), para não alterar a contagem de
+   "laudos a emitir" que as rodadas anteriores conferiram. A assinatura é fictícia
+   e local: não passa pelo provedor. */
+{
+  const sha = async (t) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const modelos = [
+    { k: 2, tipo: S.DOCUMENT_TYPES.PRESCRIPTION, titulo: 'PRESCRIÇÃO MÉDICA', dias: -12,
+      itens: [
+        { principio: 'Levetiracetam', concentracao: '100 mg/mL', forma: 'solução oral', posologia: 'Tomar 3 mL, via oral, de 12 em 12 horas, todos os dias.', quantidade: '1 frasco de 150 mL' },
+        { principio: 'Ácido fólico', concentracao: '5 mg', forma: 'comprimido', posologia: 'Tomar 1 comprimido, via oral, 1 vez ao dia.', quantidade: '30 comprimidos' },
+      ], conteudo: 'Retorno em 60 dias com diário de crises.' },
+    { k: 5, tipo: S.DOCUMENT_TYPES.ATTENDANCE, titulo: 'ATESTADO DE COMPARECIMENTO', dias: -3,
+      conteudo: 'Atesto, para os devidos fins de direito, que o paciente acima identificado, acompanhado de seu responsável legal, compareceu à consulta médica nesta data, no período das 09:30 às 10:10.' },
+    { k: 7, tipo: S.DOCUMENT_TYPES.REPORT, titulo: 'LAUDO NEUROLÓGICO', dias: -7,
+      conteudo: 'Criança em acompanhamento neuropediátrico por epilepsia focal, em uso regular de levetiracetam, sem crises nos últimos 4 meses. Exame neurológico sem sinais focais. Desenvolvimento neuropsicomotor adequado para a idade.\n\nConduta: manter a medicação e o acompanhamento. Retorno em 90 dias, ou antes se houver nova crise.' },
+  ];
+  for (const m of modelos) {
+    const p = pacientes[m.k];
+    const emitidoEm = ts(m.dias, 10, 12);
+    const canonico = JSON.stringify({ type: m.tipo, text: m.conteudo, items: m.itens ?? [], patientId: p.id });
+    const hash = await sha(canonico);
+    await repo.create(S.STORES.DOCUMENTS, {
+      ...S.newDocument({ praca: P }),
+      pacienteId: p.id, atendimentoId: null, tipo: m.tipo, titulo: m.titulo,
+      conteudo: m.conteudo, itens: m.itens ?? [], numero: `${new Date().getFullYear()}/${String(modelos.indexOf(m) + 1).padStart(4, '0')}`,
+      hashConteudo: hash,
+      assinatura: { provedor: 'Assinatura de verificação (local)', id: `VERIF-${hash.slice(0, 10).toUpperCase()}`, urlVerificacao: `https://verificacao.exemplo.local/${hash.slice(0, 12)}`, assinadoEm: emitidoEm, medico: { nome: 'Charlington M. Cavalcante', crm: '999999-SP' } },
+      status: S.DOCUMENT_STATUS.SIGNED,
+    });
+  }
+}
+
 /* Insumos */
 for (const [nome, unidade, estoque, minimo] of [['Luvas de procedimento', 'caixa', 4, 6], ['Álcool 70%', 'litro', 12, 5], ['Papel para maca', 'rolo', 2, 4], ['Martelo de reflexo', 'unidade', 3, 1]]) {
   await repo.create(S.STORES.SUPPLIES, { ...S.envelope({ praca: P }), nome, unidade, estoque, minimo, validade: '', fornecedor: '' });

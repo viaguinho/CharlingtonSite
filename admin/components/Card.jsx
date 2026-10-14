@@ -143,11 +143,23 @@ export function MoneyValue({ value, cents: showCents = true }) {
  * Faixa de métricas separadas por hairline vertical, sem bordas de card.
  * É a assinatura visual da REF 1 e o cabeçalho da Visão Geral.
  */
-export function MetricStrip({ children, className = '', loading = false }) {
+export function MetricStrip({ children, className = '', loading = false, variant = 'default' }) {
   // Carregando: esqueleto na altura da faixa. Um "0" antes de os dados chegarem
   // afirma um fato ("nenhuma falta", "0 laudos") que ninguém verificou.
-  if (loading) return <Skeleton height={168} radius="var(--r-lg)" className="metric-strip--loading" card />;
-  return <div className={`metric-strip ${className}`.trim()}>{children}</div>;
+  if (loading) {
+    if (variant === 'bento') {
+      return (
+        <div className={`metric-strip metric-strip--bento ${className}`.trim()}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={124} radius="var(--r-lg)" card />
+          ))}
+        </div>
+      );
+    }
+    return <Skeleton height={168} radius="var(--r-lg)" className="metric-strip--loading" card />;
+  }
+  const variantClass = variant !== 'default' ? `metric-strip--${variant}` : '';
+  return <div className={`metric-strip ${variantClass} ${className}`.trim()}>{children}</div>;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { localDay } from '../../core/periods.js';
-import { isLate, isUnresolved, isUpcoming, hasActiveConsent } from '../../core/appointments.js';
+import { isLate, isUnresolved, isUpcoming, hasActiveConsent, canReschedule } from '../../core/appointments.js';
 import * as repo from '../../data/repository.js';
 import { STORES, PATIENT_STATUS_LABELS, APPOINTMENT_TYPE_LABELS, CONSENT_PURPOSES } from '../../data/schema.js';
 import { useSession } from '../../core/session.jsx';
@@ -22,6 +22,7 @@ import { AttachmentsView } from './views/AttachmentsView.jsx';
 import { DocumentsView } from './views/DocumentsView.jsx';
 import { ConsentsView } from './views/ConsentsView.jsx';
 import { ClinicalDocumentModal } from '../documents/ClinicalDocumentModal.jsx';
+import RescheduleDialog from '../agenda/RescheduleDialog.jsx';
 
 /**
  * Prontuário eletrônico — três colunas.
@@ -55,6 +56,7 @@ export default function PatientRecordScreen() {
   const [editing, setEditing] = useState(false);
   const [docModal, setDocModal] = useState(null);
   const [resumoAberto, setResumoAberto] = useState(false);
+  const [rescheduling, setRescheduling] = useState(null);
   const [record, setRecord] = useState({
     patient: null, guardians: [], appointments: [], notes: [],
     scales: [], milestones: [], medications: [], attachments: [],
@@ -120,7 +122,9 @@ export default function PatientRecordScreen() {
     })(),
   };
 
-  const viewProps = { ...record, appointments: record.appointments, reload: load, onIssueDocument: setDocModal, onGoToSection: setSection };
+  // Remarcar só para quem edita a agenda; sem a permissão o botão nem aparece.
+  const onReschedule = can.write('agenda') ? setRescheduling : undefined;
+  const viewProps = { ...record, appointments: record.appointments, reload: load, onIssueDocument: setDocModal, onGoToSection: setSection, onReschedule };
 
   return (
     <>
@@ -138,6 +142,7 @@ export default function PatientRecordScreen() {
         onIssue={() => setDocModal({ patient })}
         onOpenResumo={() => setResumoAberto(true)}
         canIssue={can.write('documents.issue')}
+        onReschedule={onReschedule}
       />
 
       <div className="record">
@@ -189,6 +194,12 @@ export default function PatientRecordScreen() {
         onClose={() => setDocModal(null)}
         onIssued={() => { setDocModal(null); load(); }}
       />
+
+      <RescheduleDialog
+        appointment={rescheduling}
+        onClose={() => setRescheduling(null)}
+        onDone={() => { setRescheduling(null); load(); }}
+      />
     </>
   );
 }
@@ -197,7 +208,7 @@ export default function PatientRecordScreen() {
    A gramática da REF 3: avatar, nome grande, linha de diagnóstico, tempo de
    acompanhamento e um par de ações — secundária contornada, primária escura. */
 
-function PatientHeader({ patient, guardians, appointments, consents = [], onEdit, onIssue, onOpenResumo, canIssue }) {
+function PatientHeader({ patient, guardians, appointments, consents = [], onEdit, onIssue, onOpenResumo, canIssue, onReschedule }) {
   const navigate = useNavigate();
   const ageInfo = patient.dataNascimento ? age(patient.dataNascimento) : null;
   const guardian = guardians[0];
@@ -302,10 +313,21 @@ function PatientHeader({ patient, guardians, appointments, consents = [], onEdit
         {late ? (
           <Chip tone="danger" wrap>Hoje {time(late.inicio)} · atrasado, sem chegada · {APPOINTMENT_TYPE_LABELS[late.tipo]}</Chip>
         ) : null}
+        {/* Atrasado ou sem desfecho e ainda "agendado/confirmado": remarcar é a
+            alternativa a registrar falta. */}
+        {onReschedule && [late, unresolved].filter((a, i, list) => a && canReschedule(a) && list.indexOf(a) === i).map((a) => (
+          <button key={a.id} type="button" className="patient-header__next is-empty" onClick={() => onReschedule(a)}>
+            <Icon name="calendar" size={14} />
+            <span>Remarcar a consulta de {dateTime(a.inicio)}</span>
+          </button>
+        ))}
         {next ? (
           <div className="patient-header__next">
             <Icon name="calendar" size={14} />
             <span>Próxima: {dateTime(next.inicio)} · {APPOINTMENT_TYPE_LABELS[next.tipo]}</span>
+            {onReschedule && canReschedule(next)
+              ? <button type="button" className="patient-header__reschedule" onClick={() => onReschedule(next)}>Remarcar</button>
+              : null}
           </div>
         ) : present || late || unresolved ? null : (
           <button type="button" className="patient-header__next is-empty" onClick={() => navigate('/agenda')}>
@@ -368,7 +390,7 @@ function ContextPanel({ patient, medications, scales, appointments, embutido = f
       </section>
 
       <section className="context__block">
-        <span className="context__title">Medicações em uso</span>
+        <span className="context__title">Medicações registradas em uso</span>
         {active.length ? (
           <ul className="context__list">
             {active.map((m) => (
@@ -379,7 +401,10 @@ function ContextPanel({ patient, medications, scales, appointments, embutido = f
             ))}
           </ul>
         ) : (
-          <p className="context__empty">Nenhuma medicação em uso.</p>
+          // Ausência de registro não é ausência de medicação: numa criança com
+          // epilepsia, "nenhuma em uso" lido durante a consulta induz conduta. A
+          // frase diz o que o sistema sabe (nada foi registrado) e pede a confirmação.
+          <p className="context__empty">Nenhuma medicação registrada. Confirme com o responsável antes de prescrever.</p>
         )}
       </section>
 

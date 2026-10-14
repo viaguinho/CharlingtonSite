@@ -3,7 +3,7 @@ import * as repo from '../../../data/repository.js';
 import { STORES, newNote } from '../../../data/schema.js';
 import { useSession } from '../../../core/session.jsx';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
-import { Button, Chip, IconButton } from '../../../components/primitives.jsx';
+import { Button, Chip, IconButton, CidCode } from '../../../components/primitives.jsx';
 import { TextArea, Combobox, TextField } from '../../../components/Field.jsx';
 import { Modal, ConfirmDialog, useToast } from '../../../components/Overlay.jsx';
 import Icon from '../../../components/Icon.jsx';
@@ -59,7 +59,7 @@ export function NotesView({ patient, notes, appointments, reload }) {
                       <strong>{note.travada ? 'Evolução assinada' : 'Rascunho'}</strong>
                       <span>{dateTime(note.assinadaEm ?? note.criadoEm)} · {relative(note.assinadaEm ?? note.criadoEm)}</span>
                     </div>
-                    {note.cidPrincipal ? <Chip tone="code">{note.cidPrincipal}</Chip> : null}
+                    {note.cidPrincipal ? <CidCode code={note.cidPrincipal} /> : null}
                     {note.travada ? (
                       <span className="note__lock" title="Assinada e travada — correções entram como adendo">
                         <Icon name="lock" size={13} />

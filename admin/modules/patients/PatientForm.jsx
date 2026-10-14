@@ -137,6 +137,12 @@ export function PatientForm({ open, onClose, onSaved, patient: existing }) {
     setErrors(found);
     if (!isValid(found)) {
       toast.error('Revise os campos destacados antes de salvar.');
+      // O campo com erro pode estar fora da tela (a seção do responsável fica abaixo): leva até ele.
+      requestAnimationFrame(() => {
+        const first = document.querySelector('.sheet [aria-invalid="true"]');
+        first?.focus();
+        first?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
       return;
     }
 
@@ -192,7 +198,7 @@ export function PatientForm({ open, onClose, onSaved, patient: existing }) {
       onClose={onClose}
       width={620}
       title={existing ? 'Editar ficha' : 'Nova ficha de paciente'}
-      description="Só o nome e a data de nascimento são obrigatórios. O restante pode ser completado depois."
+      description="Obrigatórios: nome e data de nascimento da criança, e nome e telefone de um responsável. O restante pode ser completado depois."
       footer={
         <>
           <Button onClick={onClose} disabled={busy}>Cancelar</Button>

@@ -121,15 +121,21 @@ export function SetupWizard({ onComplete }) {
         status: 'ativo',
       }]);
 
-      // Uma sala por unidade, para que a agenda tenha onde alocar desde o
-      // primeiro agendamento. Nome genérico, editável — não é dado fictício,
-      // é a estrutura mínima de funcionamento.
-      await repo.putMany(STORES.ROOMS, data.plazas.map((praca) => ({
-        ...envelope({ userId, praca }),
-        nome: 'Consultório 1',
-        recursos: [],
-        status: 'disponivel',
-      })));
+      // Locais oficiais da clínica: Sala de Atendimento Neuropediátrico e Recepção Central.
+      await repo.putMany(STORES.ROOMS, data.plazas.flatMap((praca) => [
+        {
+          ...envelope({ userId, praca }),
+          nome: 'Sala de Atendimento Neuropediátrico',
+          recursos: [],
+          status: 'disponivel',
+        },
+        {
+          ...envelope({ userId, praca }),
+          nome: 'Recepção Central',
+          recursos: [],
+          status: 'disponivel',
+        },
+      ]));
 
       await repo.setMeta('parametros', {
         duracaoPadrao: Number(data.duracaoPadrao),

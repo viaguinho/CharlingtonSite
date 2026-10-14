@@ -263,6 +263,7 @@ function RoomsTab({ plaza }) {
   const [editing, setEditing] = useState(null);
 
   const load = useCallback(async () => {
+    await repo.normalizeClinicRooms().catch(() => {});
     setRooms(await repo.list(STORES.ROOMS, { where: plaza ? { praca: plaza } : {} }).catch(() => []));
   }, [plaza]);
 
@@ -317,7 +318,7 @@ function RoomsTab({ plaza }) {
                     <span>{PLAZA_LABELS[room.praca] ?? '—'}</span>
                   </div>
                   <StatusDot
-                    tone={room.status === 'disponivel' ? 'success' : room.status === 'manutencao' ? 'warning' : 'neutral'}
+                    tone={room.status === 'manutencao' ? 'warning' : 'neutral'}
                     label={room.status === 'disponivel' ? 'Disponível' : room.status === 'manutencao' ? 'Manutenção' : 'Ocupada'}
                   />
                   <IconButton name="edit" label={`Editar ${room.nome}`} onClick={() => setEditing(room)} />

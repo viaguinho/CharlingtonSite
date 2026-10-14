@@ -72,8 +72,11 @@ export default function FinanceScreen() {
       .filter((e) => e.tipo === type && e.status === ENTRY_STATUS.PAID
         && inWindow(e.pagamentoEm ?? e.vencimento, prevRange))
       .reduce((t, e) => t + (Number(e.valor) || 0), 0);
-    // Sem nenhum lançamento até o fim do trecho anterior não há o que comparar.
-    const history = hasHistory(entries.map((e) => localDay(e.pagamentoEm) ?? e.vencimento), prevRange, range);
+    // Base de comparação = existe lançamento DENTRO do trecho anterior. Antes bastava
+    // haver qualquer lançamento anterior ao período, e um trecho vazio (01–06/07, com
+    // os títulos começando em agosto) aparecia como "R$ 0,00 em 01–06/07" — um zero
+    // medido onde não houve registro.
+    const history = entries.some((e) => inWindow(e.pagamentoEm ?? e.vencimento, prevRange));
     return { history, revenue: paidIn(ENTRY_TYPES.REVENUE), expense: paidIn(ENTRY_TYPES.EXPENSE) };
   }, [entries, prevRange]);
   const noBase = entries.length ? `sem registro em ${rangeShort(prevRange)} para comparar` : 'sem histórico anterior para comparar';
@@ -202,8 +205,14 @@ export default function FinanceScreen() {
           label={`Recebido ${periodWords}`}
           value={hasData ? <MoneyValue value={summary.revenue} cents={false} /> : '—'}
           delta={hasData && previous.history ? <DeltaChip value={variation(summary.revenue, previous.revenue)} /> : null}
+          // A célula que tem o selo diz contra o quê compara: a base fica AQUI, não só
+          // na célula do Resultado.
           target={hasData
-            ? `${summary.paidCount} ${summary.paidCount === 1 ? 'recebimento' : 'recebimentos'} · ${previous.history ? `${money(previous.revenue)} em ${rangeShort(prevRange)}` : noBase}`
+            ? [
+              summary.revenue === summary.result && summary.expense === 0 ? 'igual ao resultado, sem despesa paga no trecho' : null,
+              `${summary.paidCount} ${summary.paidCount === 1 ? 'recebimento' : 'recebimentos'}`,
+              previous.history ? `${money(previous.revenue)} em ${rangeShort(prevRange)}` : noBase,
+            ].filter(Boolean).join(' · ')
             : undefined}
         />
         <Metric
@@ -215,7 +224,12 @@ export default function FinanceScreen() {
           target={hasData
             ? (summary.expenseCount
               ? (previous.history ? `${money(previous.expense)} em ${rangeShort(prevRange)}` : noBase)
-              : `Nenhuma despesa vence neste trecho${summary.lastExpenseOut ? ` · o último pagamento foi ${money(summary.lastExpenseOut.valor)} em ${shortDay(summary.lastExpenseOut.day)}${summary.lastExpenseOut.count > 1 ? ` (${summary.lastExpenseOut.count} títulos)` : ''}` : ''}`)
+              : [
+                'Nenhuma despesa vence neste trecho',
+                summary.lastExpenseOut ? `último pagamento ${money(summary.lastExpenseOut.valor)} em ${shortDay(summary.lastExpenseOut.day)}` : null,
+                // Mesma descrição da janela anterior que os KPIs vizinhos.
+                previous.history ? `${money(previous.expense)} em ${rangeShort(prevRange)}` : noBase,
+              ].filter(Boolean).join(' · '))
             : undefined}
         />
         <Metric
@@ -232,7 +246,34 @@ export default function FinanceScreen() {
       ) : null}
 
       {/* Vencidos A RECEBER: só onde se trata de receber (Fluxo e A receber). */}
-      {summary.overdue.length && (tab === 'fluxo' || tab === 'receber') ? (
+      {/* Na aba Fluxo, o que vence a receber e a pagar vai num bloco só: duas faixas
+          de 72 px empilhadas empurravam o gráfico para baixo da dobra. */}
+      {tab === 'fluxo' && summary.overdue.length && summary.payableSoon.length ? (
+        <>
+          <div style={{ height: 'var(--gutter)' }} />
+          <div className="ops-alert ops-alert--danger ops-alert--multi" role="status">
+            <Icon name="alert-triangle" size={15} />
+            <div className="ops-alert__rows">
+              <div className="ops-alert__row">
+                <p>
+                  <strong>{summary.overdue.length} {summary.overdue.length === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'} · {money(summary.overdue.reduce((t, e) => t + (Number(e.valor) || 0), 0))}</strong>{' '}
+                  · o mais antigo venceu em {date(summary.overdue[0].vencimento)}
+                </p>
+                <Button size="sm" onClick={() => { setLedgerStatus('overdue'); setTab('receber'); }}>Ver a receber</Button>
+              </div>
+              <div className="ops-alert__row">
+                <p>
+                  <strong>{money(summary.payableSoon.reduce((t, e) => t + Number(e.valor), 0))} a pagar em {summary.payableSoon[0].vencimento.slice(8, 10)}/{summary.payableSoon[0].vencimento.slice(5, 7)}</strong>{' '}
+                  ({summary.payableSoon.length} {summary.payableSoon.length === 1 ? 'título' : 'títulos'}) · o resultado {periodNoun} ainda não considera esse pagamento
+                </p>
+                <Button size="sm" onClick={() => { setLedgerStatus(ENTRY_STATUS.PENDING); setTab('pagar'); }}>Ver a pagar</Button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {summary.overdue.length && (tab === 'receber' || (tab === 'fluxo' && !summary.payableSoon.length)) ? (
         <>
           {tab === 'fluxo' ? <div style={{ height: 'var(--gutter)' }} /> : null}
           <div className="ops-alert ops-alert--danger" role="status">
@@ -249,7 +290,7 @@ export default function FinanceScreen() {
       ) : null}
 
       {/* A pagar nos próximos 7 dias: aviso na aba Fluxo, pois o KPI esconde que o dinheiro já está comprometido */}
-      {summary.payableSoon.length && tab === 'fluxo' ? (
+      {summary.payableSoon.length && tab === 'fluxo' && !summary.overdue.length ? (
         <>
           <div style={{ height: 'var(--gutter)' }} />
           <div className="ops-alert ops-alert--warning" role="status">
@@ -387,16 +428,21 @@ function CashFlowTab({ entries, summary, period, range, hasData, onNew, onSeeOve
               a leitura honesta é a frase com os valores. O gráfico volta quando
               houver pontos para desenhar. */}
           {flow.filter((b) => (Number(b.receitas) || 0) + (Number(b.despesas) || 0) > 0).length < 3 ? (
-            <p className="report-note report-note--plain">
-              {(() => {
+            <EmptyState
+              icon="chart-line"
+              title={(() => {
                 const withData = flow.filter((b) => (Number(b.receitas) || 0) + (Number(b.despesas) || 0) > 0);
                 const received = flow.reduce((t, b) => t + (Number(b.receitas) || 0), 0);
                 const paid = flow.reduce((t, b) => t + (Number(b.despesas) || 0), 0);
                 const noun = period === 'quarter' ? 'semanas' : period === 'year' ? 'meses' : 'dias';
-                return `Recebido ${money(received)} · pago ${money(paid)}, em ${withData.length} ${withData.length === 1 ? noun.slice(0, -1) : noun} com lançamento. Poucos pontos para desenhar a curva: o acumulado aparece quando houver três ou mais.`;
+                return `Recebido ${money(received)} · pago ${money(paid)}, em ${withData.length} ${withData.length === 1 ? noun.slice(0, -1) : noun} com lançamento`;
               })()}
-            </p>
+              description="Poucos pontos para desenhar a curva: o acumulado aparece quando houver três ou mais."
+              action={<Button size="sm" onClick={onSeePayable}>Ver títulos a pagar</Button>}
+              compact
+            />
           ) : (
+          <>
           <ComparisonChart
             leadingNoun="recebimento ou pagamento"
             title="Recebido e pago acumulados no período"
@@ -409,16 +455,25 @@ function CashFlowTab({ entries, summary, period, range, hasData, onNew, onSeeOve
               : period === 'year' ? `${flow[flow.length - 1]?.endLabel ?? 'o último mês'} é o mês em curso, somado até hoje.`
               : `${flow[flow.length - 1]?.label ?? 'hoje'} ainda está em curso.`}
             emptyMessage="Nenhum pagamento ou recebimento neste período."
+            // Sem nenhum pagamento no período, a série "Pago" não existe: uma linha
+            // tracejada em R$ 0 desenhava um dado que não há, ao lado do card que
+            // diz "nenhuma despesa paga".
             series={[
               { label: 'Recebido', tone: 'strong', points: cumulative(flow, 'receitas') },
-              { label: 'Pago', tone: 'soft', dashed: true, points: cumulative(flow, 'despesas') },
+              ...(flow.some((b) => (Number(b.despesas) || 0) > 0)
+                ? [{ label: 'Pago', tone: 'soft', points: cumulative(flow, 'despesas') }]
+                : []),
             ]}
           />
+          {!flow.some((b) => (Number(b.despesas) || 0) > 0) ? (
+            <p className="chart__note">Nenhuma despesa paga neste período: o gráfico mostra só o recebido.</p>
+          ) : null}
+          </>
           )}
         </CardBody>
       </Card>
 
-      <Card span={5}>
+      <Card span={5} style={{ alignSelf: 'start' }}>
         <CardHeader
           title="Em atraso"
           subtitle={summary.overdue.length
@@ -703,6 +758,7 @@ function EntryForm({ entry, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState({});
 
   // Não zeramos o form quando `entry` vira null: a gaveta precisa do conteúdo
   // para animar a saída. Por isso nada aqui dentro pode ler `entry` fora deste
@@ -728,11 +784,19 @@ function EntryForm({ entry, onClose, onSaved }) {
   const set = (field) => (event) => {
     const value = event?.target ? event.target.value : event;
     setForm((f) => ({ ...f, [field]: value }));
+    setErrors((e) => ({ ...e, [field]: null }));
   };
 
   async function save() {
-    if (!form.descricao.trim()) { toast.error('Descreva o lançamento.'); return; }
-    if (!form.valor || Number(form.valor) <= 0) { toast.error('Informe um valor válido.'); return; }
+    // O erro fica no próprio campo e o foco vai até ele (o aviso flutuante cobria os campos de baixo).
+    const found = {};
+    if (!form.descricao.trim()) found.descricao = 'Descreva o lançamento.';
+    if (!form.valor || Number(form.valor) <= 0) found.valor = 'Informe um valor maior que zero.';
+    setErrors(found);
+    if (Object.keys(found).length) {
+      requestAnimationFrame(() => document.querySelector('[aria-invalid="true"]')?.focus());
+      return;
+    }
 
     setBusy(true);
     try {
@@ -770,14 +834,14 @@ function EntryForm({ entry, onClose, onSaved }) {
             { value: ENTRY_TYPES.EXPENSE, label: 'Despesa' },
           ]}
         />
-        <TextField label="Descrição" required autoFocus value={form.descricao} onChange={set('descricao')} />
+        <TextField label="Descrição" required autoFocus value={form.descricao} onChange={set('descricao')} error={errors.descricao} />
         <Select
           label="Categoria" value={form.categoria} onChange={set('categoria')} placeholder="Selecione"
           options={(CATEGORIES[form.tipo] ?? []).map((c) => ({ value: c, label: c }))}
         />
         <FieldRow>
           <TextField label="Valor" type="number" min="0" step="0.01" required suffix="R$"
-            value={form.valor} onChange={set('valor')} />
+            value={form.valor} onChange={set('valor')} error={errors.valor} />
           <TextField label="Vencimento" type="date" value={form.vencimento} onChange={set('vencimento')} />
         </FieldRow>
         <TextField label="Centro de custo" value={form.centroCusto} onChange={set('centroCusto')} />

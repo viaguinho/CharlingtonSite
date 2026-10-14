@@ -22,7 +22,8 @@ function useFocusTrap(active, onEscape) {
       node?.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])') ?? [],
     );
 
-    focusables()[0]?.focus();
+    // Formulário: o primeiro campo recebe o foco; só diálogos sem campo caem no primeiro controle (o X).
+    (node?.querySelector(':is(.modal__body, .sheet__body) :is(input, select, textarea):not(:disabled)') ?? focusables()[0])?.focus();
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') { event.stopPropagation(); onEscape?.(); return; }

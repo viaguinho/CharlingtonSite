@@ -104,6 +104,15 @@ th.num .table__sort { flex-direction: row-reverse; }
 /* ═══════════════════════════════ Abas ═══════════════════════════════ */
 
 .tabs { display: inline-flex; align-items: center; gap: var(--s-1); min-width: 0; }
+/* No celular a fileira de abas rola na horizontal, em vez de cortar a última ("Mode…"). */
+@media (max-width: 768px) {
+  .tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs__item { flex: none; }
+}
+@media (max-width: 768px) {
+  .tabs .tabs__item { min-height: var(--touch); }
+}
 
 .tabs__item {
   display: inline-flex;
@@ -217,8 +226,12 @@ th.num .table__sort { flex-direction: row-reverse; }
   transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
 }
 .index-list button:hover { background: var(--ink-a04); color: var(--ink-900); }
-.index-list button.is-active { color: var(--ink-950); font-weight: var(--w-medium); }
-.index-list button.is-active .index-list__num { color: var(--ink-950); }
+.index-list button.is-active { background: var(--tab-active-bg); color: var(--tab-active-ink); border-radius: var(--r-xs); font-weight: var(--w-medium); }
+/* Sobre o fundo escuro do item ativo, o âmbar-ink (validado só sobre claro) media
+   3,29:1 e o contador 3,63:1. Texto de pendência e contador usam a tinta do ativo. */
+.index-list button.is-active .index-list__num,
+.index-list button.is-active .index-list__count,
+.index-list button.is-active .index-list__pending--warning { color: var(--tab-active-ink); }
 
 .index-list__num { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-300); flex: none; width: var(--s-5); padding-top: var(--s-1); }
 /* Duas linhas em vez de reticências: "Marcos do desenvolvimento" cortado em
@@ -237,7 +250,7 @@ th.num .table__sort { flex-direction: row-reverse; }
 /* —— Seletor de período com o intervalo por extenso —— */
 /* Largura fixa: a legenda muda de tamanho com o período e empurrava as abas
    — clicar no controle fazia o próprio controle andar. */
-.period-tabs { display: inline-flex; flex-direction: column; gap: var(--s-1); width: calc(var(--s-20) * 5); }
+.period-tabs { display: inline-flex; flex-direction: column; gap: var(--s-1); width: min(calc(var(--s-20) * 5), 100%); max-width: 100%; }
 .period-tabs__caption {
   /* Unidade e intervalo do recorte: qualifica todos os números da tela. */
   font-size: var(--t-body); line-height: var(--lh-body);

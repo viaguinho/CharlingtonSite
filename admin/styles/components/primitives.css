@@ -92,6 +92,12 @@
 
 .icon-btn--sm { width: 28px; height: 28px; }
 .icon-btn--md { width: 34px; height: 34px; }
+
+/* Toque: botões e ícones chegam a 40 px no celular e no tablet estreito. */
+@media (max-width: 768px) {
+  .btn--sm, .btn--md { height: var(--touch); }
+  .icon-btn--md { width: var(--touch); height: var(--touch); }
+}
 .icon-btn--lg { width: 40px; height: 40px; }
 
 .icon-btn--square { border-radius: var(--r-sm); }
@@ -131,8 +137,8 @@
 /* O ícone é parte do estado: nunca encolhe numa célula estreita. */
 .chip > .icon { flex: none; }
 
-.chip--neutral { background: var(--ink-a08); color: var(--ink-700); }
-.chip--muted   { background: var(--ink-a02); color: var(--ink-400); }
+.chip--neutral { background: var(--ink-a08); color: var(--ink-600); }
+.chip--muted   { background: var(--ink-a04); color: var(--ink-400); }
 /* Informativo não é destaque: tinta neutra. O azul fica com o período corrente
    e o foco — antes "Confirmado" e "G40.9" gastavam o acento da tela. */
 .chip--info    { background: transparent; border: 1px solid var(--ink-a12); color: var(--ink-900); padding: 0 calc(var(--s-2) - 1px); }
@@ -140,8 +146,16 @@
 .chip--warning { background: var(--signal-amber-bg); color: var(--signal-amber-ink); }
 .chip--danger  { background: var(--signal-red-bg); color: var(--signal-red-ink); }
 .chip--solid   { background: var(--ink-900); color: var(--surface); }
-/* Código (CID-10): fundo leve, sem borda — não se confunde com um estado. */
-.chip--code    { background: var(--ink-a04); border: none; color: var(--ink-900); font-variant-numeric: tabular-nums; }
+.chip--plaza   { background: transparent; border: 1px solid var(--ink-a12); border-radius: var(--r-pill); color: var(--ink-900); padding: 0 calc(var(--s-2) - 1px); }
+/* CID */
+.cid-code {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--w-medium);
+  color: var(--ink-950);
+  border-bottom: 1px dotted var(--ink-a12);
+  display: inline-flex;
+  align-items: baseline;
+}
 /* Chip com frase longa (cabeçalho do prontuário): quebra em vez de vazar. */
 .chip--wrap    { height: auto; min-height: 22px; white-space: normal; padding-block: var(--s-1); align-items: flex-start; }
 .chip--wrap > .icon { margin-top: calc((1lh - 12px) / 2); }
@@ -184,6 +198,12 @@
   white-space: nowrap;
 }
 .delta--success { background: var(--signal-green-bg); color: var(--signal-green-ink); }
+/* Celular: o selo ("sem variação (7 em 27–30/09 até 11h54)") é mais largo que a métrica e passava por cima do texto vizinho. */
+@media (max-width: 640px) {
+  .metric__value-row { flex-wrap: wrap; }
+  .metric__value-row .chip { height: auto; min-height: 22px; max-width: 100%; white-space: normal; padding-block: 1px; }
+  .delta { height: auto; min-height: 20px; white-space: normal; max-width: 100%; padding-block: 1px; }
+}
 .delta--danger  { background: var(--signal-red-bg); color: var(--signal-red-ink); }
 .delta--neutral { background: var(--ink-a06); color: var(--ink-400); }
 
@@ -224,7 +244,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: var(--w-medium);
+  font-weight: var(--w-regular);
   line-height: var(--lh-title);
   /* Iniciais em 20 px andam com --ls-title, como todo 20 px do painel. */
   letter-spacing: var(--ls-title);

@@ -174,6 +174,10 @@ try {
     for (const text of flags('click')) {
       await evaluate(page.send, `__btn(${JSON.stringify(text)})?.click(); await __sleep(700);`);
     }
+    // --eval: passo livre depois dos cliques (linha de tabela, campo, seleção).
+    for (const code of flags('eval')) {
+      await evaluate(page.send, `${code}; await __sleep(700);`);
+    }
     const y = Number(flag('y', 0));
     if (y) await evaluate(page.send, `(document.querySelector('.main, main, .shell__main') ?? document.scrollingElement).scrollTo(0, ${y}); window.scrollTo(0, ${y}); await __sleep(400);`);
     const params = { format: 'png' };
@@ -191,6 +195,28 @@ try {
     writeFileSync(out, Buffer.from(data, 'base64'));
     await page.close();
     console.log(resolve(out));
+  } else if (cmd === 'pdf') {
+    // pdf <rota> <saida.pdf> [--click "Texto"]... [--eval codigo]
+    // Imprime a página como o navegador imprimiria (CSS @media print, @page A4, fundo
+    // impresso). Serve para julgar o papel timbrado sem depender do diálogo de impressão.
+    const [route, out] = args;
+    const page = await session(route, { w: Number(flag('w', 1280)), h: Number(flag('h', 800)) });
+    for (const text of flags('click')) {
+      await evaluate(page.send, `__btn(${JSON.stringify(text)})?.click(); await __sleep(900);`);
+    }
+    for (const code of flags('eval')) await evaluate(page.send, `${code}; await __sleep(900);`);
+    // O mesmo caminho do botão Imprimir: só a folha sobra (core/print.js).
+    await evaluate(page.send, `
+      const { markForPrint } = await import('/admin/core/print.js');
+      const folha = document.querySelector('.doc-view__paper .sheet-a4, .doc-preview .sheet-a4, .sheet-a4');
+      if (!folha) throw new Error('folha A4 não encontrada para imprimir');
+      markForPrint(folha); await __sleep(300);
+    `);
+    const { data } = await page.send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true, displayHeaderFooter: false });
+    mkdirSync(dirname(resolve(out)), { recursive: true });
+    writeFileSync(out, Buffer.from(data, 'base64'));
+    await page.close();
+    console.log(resolve(out));
   } else if (cmd === 'eval') {
     const [route, code] = args;
     const page = await session(route, { w: Number(flag('w', 1280)), h: Number(flag('h', 800)) });
@@ -199,7 +225,7 @@ try {
     await page.close();
     console.log(JSON.stringify(value, null, 2));
   } else {
-    console.log('comandos: shot | eval | stop');
+    console.log('comandos: shot | pdf | eval | stop');
     process.exitCode = 1;
   }
 } catch (error) {

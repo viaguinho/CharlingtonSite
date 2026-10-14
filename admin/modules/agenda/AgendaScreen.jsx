@@ -1,16 +1,18 @@
 import { Fragment, useEffect, useMemo, useState, useCallback, createContext, useContext } from 'react';
 import * as repo from '../../data/repository.js';
 import { localDay } from '../../core/periods.js';
-import { isLate, isUpcoming, isUnresolved, stateOf, displayStatus, hasActiveConsent, messagingOptIn } from '../../core/appointments.js';
+import { isLate, isUpcoming, isUnresolved, stateOf, displayStatus, hasActiveConsent, messagingOptIn, canReschedule } from '../../core/appointments.js';
+import RescheduleDialog from './RescheduleDialog.jsx';
+import { useRescheduleDrag, RescheduleDragContext, useRescheduleDragContext } from './useRescheduleDrag.js';
 
 /**
  * Crianças sem consentimento vigente para teleconsulta. Chega a cada vista da
  * agenda por contexto: o impedimento aparece no cartão, na linha e no detalhe,
  * onde a recepção confirma e faz a consulta.
  */
-const NoTeleConsent = createContext(() => false);
+export const NoTeleConsent = createContext(() => false);
 const useNoTeleConsent = () => useContext(NoTeleConsent);
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   STORES, APPOINTMENT_STATUS, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE,
   APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, newAppointment,
@@ -38,21 +40,36 @@ import { isoDay, time, date, dateLong, duration, age, money } from '../../core/f
 
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 7);   // 07h às 19h
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+// Todas as consultas acontecem neste único ambiente: a Agenda não tem coluna da Recepção Central.
+export const ATENDIMENTO_ROOM = 'Sala de Atendimento Neuropediátrico';
+// Vistas que outra tela pode pedir pelo endereço (#/agenda?vista=semana&dia=2026-10-08).
+const VIEWS = ['dia', 'semana', 'lista', 'ocupacao'];
 
 export default function AgendaScreen() {
   const { plaza, can } = useSession();
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [view, setView] = useState('dia');
-  const [anchor, setAnchor] = useState(() => isoDay());
-  const [data, setData] = useState({ appointments: [], patients: [], rooms: [], blocks: [] });
+  const [params] = useSearchParams();
+  const [view, setView] = useState(() => (VIEWS.includes(params.get('vista')) ? params.get('vista') : 'dia'));
+  const [anchor, setAnchor] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('dia') ?? '') ? params.get('dia') : isoDay()));
+  // Um link para a Agenda (Visão geral, prontuário) pode chegar com a Agenda já aberta.
+  const wantedView = params.get('vista');
+  const wantedDay = params.get('dia');
+  useEffect(() => {
+    if (VIEWS.includes(wantedView)) setView(wantedView);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(wantedDay ?? '')) setAnchor(wantedDay);
+  }, [wantedView, wantedDay]);
+  const [data, setData] = useState({ appointments: [], patients: [], rooms: [], allRooms: [], blocks: [] });
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(null);
   const [detail, setDetail] = useState(null);
+  // Arrastar a pílula da consulta (vistas Dia e Semana) propõe um novo horário.
+  const drag = useRescheduleDrag({ canWrite: can.write('agenda') });
 
   const load = useCallback(async () => {
     setLoading(true);
+    await repo.normalizeClinicRooms().catch(() => {});
     const where = plaza ? { praca: plaza } : {};
     const [appointments, patients, rooms, blocks, consents] = await Promise.all([
       repo.list(STORES.APPOINTMENTS, { where }).catch(() => []),
@@ -61,7 +78,19 @@ export default function AgendaScreen() {
       repo.list(STORES.BLOCKS, { where }).catch(() => []),
       repo.list(STORES.CONSENTS, {}).catch(() => []),
     ]);
-    setData({ appointments, patients, rooms, blocks, consents });
+    // A grade mostra só a sala de atendimento; consulta ligada a outra sala (a Recepção, por
+    // exemplo) é exibida nela. Só a exibição muda: nada é gravado.
+    const atendimento = rooms.find((r) => r.nome === ATENDIMENTO_ROOM);
+    setData({
+      appointments: atendimento
+        ? appointments.map((a) => (a.salaId && a.salaId !== atendimento.id ? { ...a, salaId: atendimento.id, salaIdOriginal: a.salaId } : a))
+        : appointments,
+      patients,
+      rooms: atendimento ? [atendimento] : [],
+      allRooms: rooms,
+      blocks,
+      consents,
+    });
     setLoading(false);
   }, [plaza]);
 
@@ -137,6 +166,7 @@ export default function AgendaScreen() {
 
   return (
     <NoTeleConsent.Provider value={lacksTeleConsent}>
+     <RescheduleDragContext.Provider value={drag}>
       <PageHeader
         eyebrow="Atendimento"
         title="Agenda"
@@ -214,6 +244,7 @@ export default function AgendaScreen() {
                 {stats.unresolved
                   ? `Nada por acontecer · ${stats.unresolved} sem desfecho (registro ainda "confirmado" ou "agendado")`
                   : 'Nada por acontecer'}
+                <Button size="sm" onClick={() => setBooking({ date: anchor })}>Agendar</Button>
               </span>
             )}
         />
@@ -316,11 +347,20 @@ export default function AgendaScreen() {
       <AppointmentDetail
         appointment={detail}
         patient={data.patients.find((p) => p.id === detail?.pacienteId)}
-        room={data.rooms.find((r) => r.id === detail?.salaId)}
+        // O local mostrado é o gravado (um evento na Recepção continua dizendo Recepção), mesmo que a grade o exiba na sala de atendimento.
+        room={data.allRooms.find((r) => r.id === (detail?.salaIdOriginal ?? detail?.salaId))}
         hasTeleConsent={detail ? hasActiveConsent(data.consents ?? [], 'teleconsulta', detail.pacienteId) : false}
         onClose={() => setDetail(null)}
         onChanged={() => { setDetail(null); load(); }}
       />
+
+      <RescheduleDialog
+        appointment={drag.move?.appointment ?? null}
+        suggested={drag.move?.start ?? null}
+        onClose={() => drag.setMove(null)}
+        onDone={() => { drag.setMove(null); load(); }}
+      />
+     </RescheduleDragContext.Provider>
     </NoTeleConsent.Provider>
   );
 }
@@ -332,6 +372,7 @@ const UNALLOCATED_COLUMN = { id: UNALLOCATED, nome: 'Sem sala / remoto' };
 /* ═══════════════════════════ Vista de dia ═══════════════════════════ */
 
 function DayView({ appointments, patients, rooms: allRooms, day, loading, onOpen, onSlot }) {
+  const drag = useRescheduleDragContext();
   // A manutenção é o estado ATUAL da sala, sem data de início: pintá-la sobre
   // um dia passado afirmava um fato que o registro não tem.
   const rooms = day && day < isoDay()
@@ -347,7 +388,7 @@ function DayView({ appointments, patients, rooms: allRooms, day, loading, onOpen
   );
   const columns = rooms.length
     ? (semSala ? [...rooms, UNALLOCATED_COLUMN] : rooms)
-    : [{ id: null, nome: 'Consultório' }];
+    : [{ id: null, nome: 'Sala de Atendimento Neuropediátrico' }];
 
   // Sala em manutenção e sem nenhuma consulta no dia vira um bloco só, da
   // primeira à última hora: 13 caixas vazias iguais liam como carregamento.
@@ -364,7 +405,7 @@ function DayView({ appointments, patients, rooms: allRooms, day, loading, onOpen
 
   return (
     <Card variant="flush">
-      <div className="day-grid" style={{ '--columns': columns.length }}>
+      <div className={`day-grid${drag?.dragging ? ' is-dragging' : ''}`} style={{ '--columns': columns.length }}>
         <div className="day-grid__corner" />
         {columns.map((room) => (
           <div
@@ -387,6 +428,7 @@ function DayView({ appointments, patients, rooms: allRooms, day, loading, onOpen
             patients={patients}
             onOpen={onOpen}
             onSlot={onSlot}
+            day={day}
           />
         ))}
       </div>
@@ -403,8 +445,9 @@ function DayView({ appointments, patients, rooms: allRooms, day, loading, onOpen
   );
 }
 
-function HourRow({ hour, columns, blocked, appointments, patients, onOpen, onSlot }) {
+function HourRow({ hour, columns, blocked, appointments, patients, onOpen, onSlot, day }) {
   const noTele = useNoTeleConsent();
+  const drag = useRescheduleDragContext();
   return (
     <>
       <div className="day-grid__hour num">{String(hour).padStart(2, '0')}:00</div>
@@ -419,6 +462,7 @@ function HourRow({ hour, columns, blocked, appointments, patients, onOpen, onSlo
               style={{ gridRow: `span ${HOURS.length}` }}
             >
               <span className="day-grid__blocked" aria-label={`${room.nome} em manutenção`}>
+                <Icon name="tool" size={16} />
                 <strong>Em manutenção</strong>
                 <span>Sem agendamento até a sala ser liberada em Operações.</span>
               </span>
@@ -447,7 +491,11 @@ function HourRow({ hour, columns, blocked, appointments, patients, onOpen, onSlo
         });
 
         return (
-          <div key={room.id ?? 'default'} className="day-grid__cell">
+          <div
+            key={room.id ?? 'default'}
+            className={`day-grid__cell${drag?.dropKey === `${room.id}-${hour}` ? ' is-drop' : ''}`}
+            {...(drag && day && room.status !== 'manutencao' ? drag.dropProps(`${room.id}-${hour}`, day, hour) : {})}
+          >
             {slot.length ? slot.map((appointment) => {
               const patient = patients.find((p) => p.id === appointment.pacienteId);
               const startDt = new Date(appointment.inicio);
@@ -461,27 +509,35 @@ function HourRow({ hour, columns, blocked, appointments, patients, onOpen, onSlo
               // ficam no título e no painel de detalhe).
               const blockHeight = Math.max(20, Math.round(heightPx));
               const compact = blockHeight < 64;
-              const detail = isUnresolved(appointment)
+              const isEvent = appointment.tipo === 'evento' || !!appointment.titulo;
+              const detail = isEvent
+                ? (appointment.observacoes || appointment.descricao || 'Reunião clínica / evento interno')
+                : isUnresolved(appointment)
                 ? `${APPOINTMENT_TYPE_LABELS[appointment.tipo]} · sem desfecho registrado`
                 : isLate(appointment)
                 ? `Atrasado ${duration(Math.round((Date.now() - new Date(appointment.inicio)) / 60000))} · sem chegada`
                 : appointment.status === APPOINTMENT_STATUS.CHECKED_IN && appointment.checkInEm
                 ? `Aguardando há ${duration(Math.max(0, Math.round((Date.now() - new Date(appointment.checkInEm)) / 60000)))}`
                 : `${APPOINTMENT_TYPE_LABELS[appointment.tipo]} · ${APPOINTMENT_STATUS_LABELS[appointment.status]}`;
-              const name = patient?.nomeSocial || patient?.nome || 'Sem paciente';
+              const name = appointment.titulo || patient?.nomeSocial || patient?.nome || 'Sem paciente';
 
               return (
                 <button
                   key={appointment.id}
                   type="button"
                   style={{ top: `${Math.round(topPx)}px`, height: `${blockHeight}px` }}
-                  className={`slot slot--${displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).tone} ${isUnresolved(appointment) || isLate(appointment) ? 'is-pending-record' : ''} ${compact ? 'is-compact' : ''}`}
+                  className={`slot slot--${displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).tone} ${isEvent ? 'slot--event' : ''} ${isUnresolved(appointment) || isLate(appointment) ? 'is-pending-record' : ''} ${compact ? 'is-compact' : ''}${drag?.canMove(appointment) ? ' is-movable' : ''}${drag?.dragging?.id === appointment.id ? ' is-dragged' : ''}`}
                   onClick={() => onOpen(appointment)}
-                  title={`${time(appointment.inicio)}–${time(endDt.toISOString())} · ${name} · ${detail}`}
+                  title={`${isEvent ? 'Evento: ' : 'Horário marcado '}${time(appointment.inicio)}–${time(endDt.toISOString())} · ${name} · ${detail}${drag?.canMove(appointment) ? ' · arraste para remarcar' : ''}`}
+                  {...(drag ? drag.dragProps(appointment) : {})}
                 >
                   <span className="slot__time num">{time(appointment.inicio)}–{time(endDt.toISOString())}</span>
-                  <span className="slot__name">{compact ? displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).label : name}</span>
-                  {compact ? null : <span className="slot__type">{detail}</span>}
+                  <span className="slot__name">{name}</span>
+                  {/* Bloco curto: o nome da criança fica, e o estado entra ao lado.
+                      Dois estados diferentes (sem desfecho e faltou) saíam iguais. */}
+                  {compact
+                    ? <span className="slot__state">{displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).label}</span>
+                    : <span className="slot__type">{detail}</span>}
                   {noTele(appointment) && !compact ? <Chip tone="warning" icon="video" wrap>Sem consentimento</Chip> : null}
                   {noTele(appointment) && compact ? <Icon name="video" size={13} className="slot__flag" /> : null}
                 </button>
@@ -515,11 +571,12 @@ function HourRow({ hour, columns, blocked, appointments, patients, onOpen, onSlo
 
 function WeekView({ days, appointments, patients, onOpen, onDay }) {
   const noTele = useNoTeleConsent();
+  const drag = useRescheduleDragContext();
   const today = isoDay();
 
   return (
     <Card variant="flush">
-      <div className="week-grid">
+      <div className={`week-grid${drag?.dragging ? ' is-dragging' : ''}`}>
         {days.map((day) => {
           // Cancelados aparecem na grade (riscados, no fim do dia): a faixa diz
           // "fora 1 cancelada" e o leitor precisa achar qual. A contagem do dia
@@ -532,7 +589,11 @@ function WeekView({ days, appointments, patients, onOpen, onDay }) {
           const dayDate = new Date(`${day}T12:00:00`);
 
           return (
-            <section key={day} className={`week-day ${day === today ? 'is-today' : ''}`}>
+            <section
+              key={day}
+              className={`week-day ${day === today ? 'is-today' : ''}${drag?.dropKey === day ? ' is-drop' : ''}`}
+              {...(drag ? drag.dropProps(day, day) : {})}
+            >
               <button type="button" className="week-day__head" onClick={() => onDay(day)}>
                 <span className="week-day__weekday">{WEEKDAYS[dayDate.getDay()]}</span>
                 <span className="week-day__num num">{dayDate.getDate()}</span>
@@ -546,19 +607,23 @@ function WeekView({ days, appointments, patients, onOpen, onDay }) {
               <ul className="week-day__list">
                 {shownList.map((appointment) => {
                   const patient = patients.find((p) => p.id === appointment.pacienteId);
+                  const isEvent = appointment.tipo === 'evento' || !!appointment.titulo;
+                  const name = appointment.titulo || patient?.nomeSocial || patient?.nome || '—';
                   return (
                     <li key={appointment.id}>
                       <button
                         type="button"
-                        className={`week-slot week-slot--${displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).tone} ${isUnresolved(appointment) || isLate(appointment) ? 'is-pending-record' : ''}`}
+                        className={`week-slot week-slot--${displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).tone} ${isEvent ? 'week-slot--event' : ''} ${isUnresolved(appointment) || isLate(appointment) ? 'is-pending-record' : ''}${drag?.canMove(appointment) ? ' is-movable' : ''}${drag?.dragging?.id === appointment.id ? ' is-dragged' : ''}`}
                         onClick={() => onOpen(appointment)}
+                        title={drag?.canMove(appointment) ? 'Arraste para remarcar' : undefined}
+                        {...(drag ? drag.dragProps(appointment) : {})}
                       >
                         <span className="num">
-                          {time(appointment.inicio)} · {displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).label}
+                          {time(appointment.inicio)} · <span className="week-slot__state">{displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE).label}</span>
                         </span>
-                        <span>{patient?.nomeSocial || patient?.nome || '—'}</span>
-                        {/* Tipo no cartão: teleconsulta ou presencial muda o que a recepção prepara. */}
-                        <span className="week-slot__type">{APPOINTMENT_TYPE_LABELS[appointment.tipo]}</span>
+                        <span>{name}</span>
+                        {/* Tipo no cartão: teleconsulta, presencial ou evento interno */}
+                        <span className="week-slot__type">{isEvent ? 'Evento interno' : APPOINTMENT_TYPE_LABELS[appointment.tipo]}</span>
                         {noTele(appointment) && appointment.status !== APPOINTMENT_STATUS.CANCELLED ? (
                           <Chip tone="warning" icon="video" wrap>Sem consentimento</Chip>
                         ) : null}
@@ -616,7 +681,8 @@ function ListView({ title, appointments, patients, loading, onOpen }) {
             // Filtro vazio não ocupa largura (a não ser o selecionado); as
             // abas visíveis somam sempre o "Todos".
             items={[
-              { value: 'all', label: 'Presencial', count: appointments.length },
+              // "Todos" inclui os cancelados (o KPI do mês os deixa de fora): o rótulo diz.
+              { value: 'all', label: 'Todos, com cancelados', count: appointments.length },
               { value: 'sem_desfecho', label: 'Sem desfecho', count: appointments.filter((a) => keyOf(a) === 'sem_desfecho').length },
               { value: 'atrasado', label: 'Atrasado', count: appointments.filter((a) => keyOf(a) === 'atrasado').length },
               ...Object.values(APPOINTMENT_STATUS).map((s) => ({
@@ -725,7 +791,7 @@ function OccupancyView({ appointments, month }) {
 
 /* ═══════════════════════════ Agendamento ═══════════════════════════ */
 
-function BookingSheet({ request, patients, rooms, onClose, onSaved }) {
+export function BookingSheet({ request, patients, rooms, onClose, onSaved }) {
   const { plaza, user } = useSession();
   const toast = useToast();
   const [form, setForm] = useState(null);
@@ -840,16 +906,19 @@ function BookingSheet({ request, patients, rooms, onClose, onSaved }) {
 
 /* ═══════════════════════════ Detalhe ═══════════════════════════ */
 
-function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose, onChanged }) {
+export function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose, onChanged }) {
   const noTele = useNoTeleConsent();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [correcting, setCorrecting] = useState(false);
   const [teleConsentPrompt, setTeleConsentPrompt] = useState(null);
+  const [rescheduling, setRescheduling] = useState(false);
+  const { can } = useSession();
+  const mayReschedule = can?.write?.('agenda') && canReschedule(appointment);
 
   // Zera a edição quando muda a consulta
-  useEffect(() => { setCorrecting(false); }, [appointment?.id]);
+  useEffect(() => { setCorrecting(false); setRescheduling(false); }, [appointment?.id]);
 
   if (!appointment) return null;
 
@@ -869,8 +938,8 @@ function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose
   // Espera é o tempo ENTRE a chegada e o início do atendimento. Contar
   // "agora − chegada" num atendimento já encerrado dava "Esperando 33h" para
   // quem foi atendido às 8h, ao lado de "Aguardando 0" na mesma tela.
-  const waitEnd = appointment.inicioAtendimento ?? appointment.fimAtendimento ?? null;
-  const waited = appointment.checkInEm
+  const waitEnd = appointment.inicioAtendimento ?? null;
+  const waited = appointment.checkInEm && (waitEnd || !([APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.CANCELLED, APPOINTMENT_STATUS.NO_SHOW].includes(appointment.status)))
     ? Math.round(((waitEnd ? new Date(waitEnd).getTime() : Date.now()) - new Date(appointment.checkInEm).getTime()) / 60000)
     : null;
   const waitingNow = appointment.status === APPOINTMENT_STATUS.CHECKED_IN && !waitEnd && !isUnresolved(appointment);
@@ -880,29 +949,48 @@ function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose
     ? Math.round((Date.now() - new Date(appointment.inicio).getTime()) / 60000)
     : null;
 
+  const isEvent = appointment.tipo === 'evento' || !!appointment.titulo;
+
   return (
     <>
       <Sheet
         open={!!appointment}
         onClose={onClose}
-        width={420}
-        title={patient?.nomeSocial || patient?.nome || 'Agendamento'}
-        description={`${date(appointment.inicio)} às ${time(appointment.inicio)} · ${APPOINTMENT_TYPE_LABELS[appointment.tipo]}`}
+        width={480}
+        title={appointment.titulo || patient?.nomeSocial || patient?.nome || 'Agendamento'}
+        description={isEvent
+          ? `${date(appointment.inicio)} às ${time(appointment.inicio)} · Evento / Reunião interna`
+          : `${date(appointment.inicio)} às ${time(appointment.inicio)} · ${APPOINTMENT_TYPE_LABELS[appointment.tipo] || 'Consulta'}`}
         footer={
-          <>
-            {/* Consulta encerrada (concluída, falta ou já cancelada) não se
-                cancela: o desfecho já está registrado. */}
-            {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status)
-              ? <span />
-              : <Button variant="danger" onClick={() => setCancelling(true)} disabled={busy}>Cancelar consulta</Button>}
-            <Button
-              variant="primary"
-              onClick={() => window.location.hash = `#/pacientes/${appointment.pacienteId}`}
-              disabled={!appointment.pacienteId}
-            >
-              Abrir prontuário
-            </Button>
-          </>
+          isEvent ? (
+            <>
+              {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status)
+                ? <span />
+                : <Button variant="danger" onClick={() => setCancelling(true)} disabled={busy}>Cancelar evento</Button>}
+              <span className="appointment-detail__footer-group">
+                {mayReschedule ? <Button icon="calendar" onClick={() => setRescheduling(true)} disabled={busy}>Remarcar</Button> : null}
+                <Button onClick={onClose}>Fechar</Button>
+              </span>
+            </>
+          ) : (
+            <>
+              {/* Consulta encerrada (concluída, falta ou já cancelada) não se
+                  cancela: o desfecho já está registrado. */}
+              {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status)
+                ? <span />
+                : <Button variant="danger" onClick={() => setCancelling(true)} disabled={busy}>Cancelar consulta</Button>}
+              <span className="appointment-detail__footer-group">
+                {mayReschedule ? <Button icon="calendar" onClick={() => setRescheduling(true)} disabled={busy}>Remarcar</Button> : null}
+                <Button
+                  variant="primary"
+                  onClick={() => window.location.hash = `#/pacientes/${appointment.pacienteId}`}
+                  disabled={!appointment.pacienteId}
+                >
+                  Abrir prontuário
+                </Button>
+              </span>
+            </>
+          )
         }
       >
         <div className="appointment-detail">
@@ -912,14 +1000,20 @@ function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose
               return <StatusDot tone={shown.tone} label={shown.label} />;
             })()}
             {appointment && noTele(appointment) ? (
-              <Chip tone="warning" icon="video" wrap>Sem consentimento para teleconsulta · registrar no prontuário antes de atender</Chip>
+              <Chip tone="warning" icon="video" wrap>
+                {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status)
+                  ? 'Atendimento realizado sem consentimento registrado'
+                  : 'Sem consentimento para teleconsulta · registrar no prontuário antes de atender'}
+              </Chip>
             ) : null}
             {waited != null && waitingNow ? (
               <Chip tone={waited > 30 ? 'danger' : waited > 15 ? 'warning' : 'neutral'}>
                 Esperando há {duration(waited)}
               </Chip>
             ) : waited != null ? (
-              <Chip tone="neutral">Esperou {duration(Math.max(0, waited))}</Chip>
+              <Chip tone="neutral">Esperou {duration(Math.max(0, waited))} (da chegada ao início)</Chip>
+            ) : appointment.checkInEm && !appointment.inicioAtendimento && [APPOINTMENT_STATUS.DONE].includes(appointment.status) ? (
+              <Chip tone="neutral">Espera não calculável: sem hora de início registrada</Chip>
             ) : null}
             {pendingSince != null ? (
               <Chip tone="danger" icon="history">
@@ -928,48 +1022,66 @@ function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose
             ) : null}
           </div>
 
-          {/* A ficha do atendimento: abrir uma consulta do passado e encontrar só
-              o estado deixava o médico sem responsável, sala, valor nem o
-              consentimento que a teleconsulta exigia. */}
-          <dl className="appointment-detail__facts">
-            <div><dt>Tipo</dt><dd>{APPOINTMENT_TYPE_LABELS[appointment.tipo]}</dd></div>
-            <div><dt>Horário</dt><dd className="num">{date(appointment.inicio)} · {time(appointment.inicio)}{appointment.fim ? `–${time(appointment.fim)}` : ''}</dd></div>
-            <div>
-              <dt>{appointment.tipo === 'teleconsulta' ? 'Atendimento' : 'Sala'}</dt>
-              <dd>{appointment.tipo === 'teleconsulta' ? 'Remoto, sem sala' : room?.nome ?? 'Sala não definida'}</dd>
-            </div>
-            {patient?.dataNascimento ? (
-              <div><dt>Idade</dt><dd>{age(patient.dataNascimento).label}</dd></div>
-            ) : null}
-            {appointment.valor ? (
-              <div><dt>Valor</dt><dd className="num">{money(appointment.valor)}</dd></div>
-            ) : null}
-            {appointment.tipo === 'teleconsulta' ? (
+          {isEvent ? (
+            <dl className="appointment-detail__facts">
+              <div><dt>Tipo</dt><dd>Evento / Reunião interna</dd></div>
+              <div><dt>Horário marcado</dt><dd className="num">{date(appointment.inicio)} · {time(appointment.inicio)}{appointment.fim ? `–${time(appointment.fim)}` : ''}</dd></div>
               <div>
-                <dt>Consentimento</dt>
-                <dd>{hasTeleConsent ? 'Registrado para teleconsulta' : 'Não registrado'}</dd>
+                <dt>Local / Sala</dt>
+                <dd>{room?.nome ?? 'Sala de Atendimento Neuropediátrico'}</dd>
               </div>
-            ) : null}
-            {appointment.checkInEm ? (
-              <div><dt>Chegada</dt><dd className="num">{time(appointment.checkInEm)}</dd></div>
-            ) : null}
-            {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.IN_PROGRESS].includes(appointment.status) || appointment.inicioAtendimento ? (
-              <div><dt>Início do atendimento</dt><dd className={appointment.inicioAtendimento ? "num" : ""}>{appointment.inicioAtendimento ? time(appointment.inicioAtendimento) : 'não registrado'}</dd></div>
-            ) : null}
-            {appointment.fimAtendimento ? (
-              <div><dt>Conclusão</dt><dd className="num">{time(appointment.fimAtendimento)}</dd></div>
-            ) : null}
-          </dl>
+              {appointment.observacoes ? (
+                <div><dt>Pauta / Detalhes</dt><dd>{appointment.observacoes}</dd></div>
+              ) : null}
+              <div><dt>Origem</dt><dd>{appointment.origem || 'Mensagens Internas'}</dd></div>
+            </dl>
+          ) : (
+            <dl className="appointment-detail__facts">
+              <div><dt>Tipo</dt><dd>{APPOINTMENT_TYPE_LABELS[appointment.tipo]}</dd></div>
+              <div><dt>Horário marcado</dt><dd className="num">{date(appointment.inicio)} · {time(appointment.inicio)}{appointment.fim ? `–${time(appointment.fim)}` : ''}</dd></div>
+              <div>
+                <dt>{appointment.tipo === 'teleconsulta' ? 'Atendimento' : 'Sala'}</dt>
+                <dd>{appointment.tipo === 'teleconsulta' ? 'Remoto, sem sala' : room?.nome ?? 'Sala não definida'}</dd>
+              </div>
+              {patient?.dataNascimento ? (
+                <div><dt>Idade</dt><dd>{age(patient.dataNascimento).label}</dd></div>
+              ) : null}
+              {appointment.valor ? (
+                <div><dt>Valor</dt><dd className="num">{money(appointment.valor)}</dd></div>
+              ) : null}
+              {appointment.tipo === 'teleconsulta' ? (
+                <div>
+                  <dt>Consentimento</dt>
+                  <dd>{hasTeleConsent ? 'Registrado para teleconsulta' : 'Não registrado'}</dd>
+                </div>
+              ) : null}
+              {appointment.checkInEm ? (
+                <div><dt>Chegada</dt><dd className="num">{time(appointment.checkInEm)}</dd></div>
+              ) : null}
+              {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.IN_PROGRESS].includes(appointment.status) || appointment.inicioAtendimento ? (
+                <div><dt>Início do atendimento</dt><dd className={appointment.inicioAtendimento ? "num" : ""}>{appointment.inicioAtendimento ? time(appointment.inicioAtendimento) : 'não registrado'}</dd></div>
+              ) : null}
+              {appointment.fimAtendimento ? (
+                <div><dt>Conclusão</dt><dd className="num">{time(appointment.fimAtendimento)}</dd></div>
+              ) : null}
+            </dl>
+          )}
 
-          <div className="appointment-detail__flow">
-            <span className="field__label">
-              {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status) && !correcting
-                ? 'Desfecho registrado' : 'Avançar o atendimento'}
-            </span>
-            {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status) && !correcting ? (
-              <div className="appointment-detail__actions">
-                <p style={{ margin: 0, fontSize: 'var(--t-caption)', color: 'var(--ink-500)' }}>
-                  {APPOINTMENT_STATUS_LABELS[appointment.status]} em {date(appointment.fimAtendimento || appointment.inicio)} às {time(appointment.fimAtendimento || appointment.inicio)}.
+          {isEvent ? (
+            <div style={{ marginTop: 'var(--s-4)', padding: 'var(--s-3)', background: 'var(--blue-050)', borderRadius: 'var(--r-sm)', fontSize: 'var(--t-caption)', color: 'var(--blue-700)', display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
+              <Icon name="calendar" size={16} />
+              <span>Compromisso interno da clínica agendado pela equipe.</span>
+            </div>
+          ) : (
+            <div className="appointment-detail__flow">
+              <span className="field__label">
+                {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status) && !correcting
+                  ? 'Desfecho registrado' : 'Avançar o atendimento'}
+              </span>
+              {[APPOINTMENT_STATUS.DONE, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.CANCELLED].includes(appointment.status) && !correcting ? (
+                <div className="appointment-detail__actions">
+                  <p style={{ margin: 0, fontSize: 'var(--t-caption)', color: 'var(--ink-500)' }}>
+                    {APPOINTMENT_STATUS_LABELS[appointment.status]} em {date(appointment.fimAtendimento || appointment.inicio)} às {time(appointment.fimAtendimento || appointment.inicio)}.
                 </p>
                 <Button size="sm" onClick={() => setCorrecting(true)}>Corrigir desfecho</Button>
               </div>
@@ -1008,6 +1120,7 @@ function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose
               </div>
             )}
           </div>
+          )}
 
           {patient?.perfilSensorial?.gatilhos ? (
             <div className="appointment-detail__sensory">
@@ -1031,13 +1144,21 @@ function AppointmentDetail({ appointment, patient, room, hasTeleConsent, onClose
         </div>
       </Sheet>
 
+      <RescheduleDialog
+        appointment={rescheduling ? appointment : null}
+        onClose={() => setRescheduling(false)}
+        onDone={() => { setRescheduling(false); onChanged(); }}
+      />
+
       <ConfirmDialog
         open={cancelling}
         onCancel={() => setCancelling(false)}
         onConfirm={async () => { setCancelling(false); await setStatus(APPOINTMENT_STATUS.CANCELLED); }}
-        title="Cancelar esta consulta?"
-        message="O horário volta a ficar livre e o cancelamento fica registrado no histórico do paciente."
-        confirmLabel="Cancelar consulta"
+        title={isEvent ? 'Cancelar este evento?' : 'Cancelar esta consulta?'}
+        message={isEvent
+          ? 'O horário na sala volta a ficar livre para atendimentos na agenda.'
+          : 'O horário volta a ficar livre e o cancelamento fica registrado no histórico do paciente.'}
+        confirmLabel={isEvent ? 'Cancelar evento' : 'Cancelar consulta'}
       />
 
       <ConfirmDialog

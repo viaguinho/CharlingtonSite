@@ -14,5 +14,7 @@
 @import './components/patients.css';
 @import './components/documents.css';
 @import './components/modules.css';
+@import './components/agenda-panel.css';
+@import './components/overview.css';
 
 @import './print.css';

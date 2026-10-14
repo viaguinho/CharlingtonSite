@@ -11,10 +11,11 @@ import { Card, CardHeader, CardBody, EmptyState, Metric, MetricStrip, MoneyValue
 import { Button, Chip, DeltaChip } from '../../components/primitives.jsx';
 import { PeriodTabs } from '../../components/Tabs.jsx';
 import { useToast } from '../../components/Overlay.jsx';
-import { BarChart, StackedRatioBar, CategoryBars } from '../../charts/index.jsx';
+import { StackedRatioBar, CategoryBars } from '../../charts/index.jsx';
+import ContributionSkyline, { skylineWindow } from '../../charts/ContributionSkyline.tsx';
 import Icon from '../../components/Icon.jsx';
 import { money, duration, percent, number } from '../../core/format.js';
-import { periodRange, periodCaption, previousRange, rangeShort, hasHistory, bucketsFor, bucketKey, grainLabel, inRange, inWindow, localDay } from '../../core/periods.js';
+import { periodRange, periodCaption, previousRange, rangeShort, hasHistory, inRange, inWindow, localDay } from '../../core/periods.js';
 import { isLate, isUpcoming, isUnresolved, waitInfo, confirmationWindow, messagingOptIn } from '../../core/appointments.js';
 import { useNavigate } from 'react-router-dom';
 
@@ -91,10 +92,14 @@ export default function ReportsScreen() {
   // Uma descrição só para a janela anterior em toda a faixa: um KPI dizia
   // "0 em 01–06/07" e o vizinho "sem registro em 01–06/07", sobre o mesmo trecho.
   const noBase = data.appointments.length ? `sem registro em ${rangeShort(prevRange)} para comparar` : 'sem histórico anterior para comparar';
-  const prevRevenue = data.entries
-    .filter((e) => e.tipo === ENTRY_TYPES.REVENUE && e.status === ENTRY_STATUS.PAID
-      && inWindow(e.pagamentoEm ?? e.vencimento, prevRange))
+  const prevRevenueEntries = data.entries
+    .filter((e) => e.tipo === ENTRY_TYPES.REVENUE && inWindow(e.pagamentoEm ?? e.vencimento, prevRange));
+  const prevRevenue = prevRevenueEntries
+    .filter((e) => e.status === ENTRY_STATUS.PAID)
     .reduce((total, e) => total + (Number(e.valor) || 0), 0);
+  // "R$ 0,00 em 01–06/07" afirmava uma medida onde não havia nenhum lançamento,
+  // enquanto os KPIs vizinhos diziam "sem registro" para o mesmo trecho.
+  const prevHasRevenue = prevRevenueEntries.length > 0;
 
   // Espera em curso: a média só conta atendimentos já iniciados. Quem está na
   // recepção agora fica fora dela — e a tela precisa dizer isso.
@@ -132,9 +137,13 @@ export default function ReportsScreen() {
       row.sum += m; row.n += 1; map.set(a.tipo, row);
     }
     return Array.from(map.entries())
-      .map(([type, r]) => ({ label: APPOINTMENT_TYPE_LABELS[type] ?? type, value: r.sum / r.n, n: r.n, detail: `· ${r.n} ${r.n === 1 ? 'atendimento' : 'atendimentos'}` }))
+      .map(([type, r]) => {
+        const typeLabel = APPOINTMENT_TYPE_LABELS[type] ?? type;
+        const totalForType = byType.find(t => t.label === typeLabel)?.value ?? r.n;
+        return { label: typeLabel, value: r.sum / r.n, n: r.n, total: totalForType, detail: `· ${r.n} de ${totalForType} com hora de início` };
+      })
       .sort((a, b) => b.value - a.value);
-  }, [scoped.appointments]);
+  }, [scoped.appointments, byType]);
 
   // Crianças distintas por CID, não evoluções: um paciente com 23 retornos
   // pesava como 23 casos e o "perfil da clínica" era o perfil da agenda.
@@ -193,44 +202,66 @@ export default function ReportsScreen() {
   // Mesma regra da Visão geral: um só número de "sem confirmação" no painel.
   const unconfirmedNextWeek = useMemo(() => confirmationWindow(data.appointments, 7).unconfirmed, [data.appointments]);
 
-  // Primeiro registro da base: o balde que o contém e começa antes dele é
-  // PARCIAL (julho só tem registros a partir de 20/07). Desenhá-lo como mês
-  // cheio fazia a produção "dobrar" de julho para agosto.
+  // Primeiro registro da base: o que vem antes dele no skyline não é "zero
+  // atendimentos", é ausência de dado. Desenhá-lo como dia vazio fazia a
+  // produção parecer ter começado em queda.
   const firstRecordDay = useMemo(
     () => data.appointments.map((a) => localDay(a.inicio)).filter(Boolean).sort()[0] ?? null,
     [data.appointments],
   );
-  const daily = useMemo(() => buildProduction(scoped.appointments, range, period).map((d) => ({
-    ...d,
-    partialStart: Boolean(firstRecordDay && d.firstBusinessDay && firstRecordDay > d.firstBusinessDay && firstRecordDay <= d.end),
-  })), [scoped.appointments, range, period, firstRecordDay]);
 
-  // Média só sobre períodos FECHADOS com atendimento: sem o balde em curso
-  // (setembro pela metade) e, sem histórico anterior, sem o primeiro balde
-  // (julho começou no dia 20). Em dias, hoje fica de fora.
-  const closedAverage = useMemo(() => {
-    const closed = daily.filter((d) => !d.current && !d.partialStart && d.value > 0);
-    if (!closed.length) return null;
-    // A unidade diz o que entrou na conta, para a média reconciliar com a tela.
-    const names = closed.map((d) => d.label).join(', ');
-    // Diz também as completas SEM atendimento que ficaram de fora: "8 semanas"
-    // num gráfico de 12 não reconciliava sem isso.
-    // Cada exclusão contada de verdade (a soma fecha com as barras do gráfico).
-    const completeEmpty = daily.filter((d) => !d.current && !d.partialStart && !(d.value > 0)).length;
-    const partial = daily.filter((d) => d.partialStart).length;
-    const current = daily.filter((d) => d.current).length;
-    const left = [
-      partial ? `${partial} parcial` : null,
-      current ? `${current} em curso` : null,
-      completeEmpty ? `${completeEmpty} sem atendimento` : null,
-    ].filter(Boolean);
-    const unit = period === 'year'
-      ? (closed.length === 1 ? `no único mês completo com atendimento (${names})` : `por mês completo com atendimento (${names})`)
-      : period === 'quarter'
-        ? `por semana completa com atendimento (${closed.length} de ${daily.length} semanas${left.length ? `; fora ${left.join(', ')}` : ''})`
-        : 'por dia com atendimento, sem hoje';
-    return { value: closed.reduce((t, d) => t + d.value, 0) / closed.length, unit };
-  }, [daily, history, period]);
+  // Skyline: os últimos 12 meses, dia a dia, do mesmo universo do KPI
+  // "Atendimentos concluídos" (concluídos da unidade selecionada). O período
+  // escolhido fica em foco; o resto esmaece, e a soma do foco é o KPI.
+  const today = localDay(new Date().toISOString());
+  const skyline = useMemo(() => {
+    const done = new Map();
+    const missed = new Map();
+    for (const a of data.appointments) {
+      const day = localDay(a.inicio);
+      if (!day) continue;
+      if (a.status === APPOINTMENT_STATUS.DONE) done.set(day, (done.get(day) ?? 0) + 1);
+      else if (a.status === APPOINTMENT_STATUS.NO_SHOW) missed.set(day, (missed.get(day) ?? 0) + 1);
+    }
+    const window = skylineWindow(today);
+    const inWindowDay = (day) => day >= window.from && day <= window.to;
+    const days = [...new Set([...done.keys(), ...missed.keys()])].filter(inWindowDay).map((date) => {
+      const faltas = missed.get(date) ?? 0;
+      return { date, count: done.get(date) ?? 0, note: faltas ? `${faltas} ${faltas === 1 ? 'falta' : 'faltas'}` : undefined };
+    });
+    const total = days.reduce((t, d) => t + d.count, 0);
+    const busiest = days.reduce((best, d) => (d.count > (best?.count ?? 0) ? d : best), null);
+    // Médias só com dias FECHADOS: hoje ainda está em curso, e dividir o
+    // período por um dia incompleto puxava a média para baixo.
+    const inPeriod = days.filter((d) => d.count > 0 && inRange(d.date, range));
+    const closed = inPeriod.filter((d) => d.date !== today);
+    return {
+      days, window, total, busiest,
+      periodDays: inPeriod.length,
+      closedDays: closed.length,
+      closedMean: closed.length ? closed.reduce((t, d) => t + d.count, 0) / closed.length : null,
+    };
+  }, [data.appointments, range, today]);
+
+  const fullDate = (day) => new Date(`${day}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const dmy = (day) => `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
+  const plural = (n, one, many) => (n === 1 ? one : many);
+  const skylineStats = [
+    { label: 'Últimos 12 meses', value: number(skyline.total), unit: plural(skyline.total, 'atendimento', 'atendimentos'), sub: `${dmy(skyline.window.from)} a ${dmy(skyline.window.to)}` },
+    skyline.busiest
+      ? { label: 'Dia mais movimentado', value: number(skyline.busiest.count), unit: plural(skyline.busiest.count, 'atendimento', 'atendimentos'), sub: fullDate(skyline.busiest.date) }
+      : { label: 'Dia mais movimentado', value: '—', unit: '', sub: 'nenhum atendimento concluído' },
+    { label: 'Dias com atendimento', value: number(skyline.periodDays), unit: plural(skyline.periodDays, 'dia', 'dias'), sub: `no período · ${rangeShort(range)}` },
+    skyline.closedMean != null
+      ? { label: 'Média por dia', value: number(skyline.closedMean, 1), unit: 'por dia com atendimento', sub: `${skyline.closedDays} ${plural(skyline.closedDays, 'dia fechado', 'dias fechados')}, sem hoje` }
+      : { label: 'Média por dia', value: '—', unit: '', sub: 'nenhum dia fechado com atendimento no período' },
+  ];
+  const skylineNote = [
+    `Fora de ${rangeShort(range)}, os dias aparecem esmaecidos.`,
+    firstRecordDay && firstRecordDay > skyline.window.from
+      ? `Sem registros antes de ${dmy(firstRecordDay)}: esses dias não contam como zero.`
+      : null,
+  ].filter(Boolean).join(' ');
 
   const revenue = scoped.entries
     .filter((e) => e.tipo === ENTRY_TYPES.REVENUE && e.status === ENTRY_STATUS.PAID)
@@ -284,7 +315,7 @@ export default function ReportsScreen() {
           featured
           label="Atendimentos concluídos"
           value={production.done}
-          delta={comparable ? <DeltaChip value={variation(production.done, previous.done)} /> : null}
+          delta={comparable ? (variation(production.done, previous.done) === 0 ? <Chip tone="neutral">sem variação ({previous.done} em {prevLabel})</Chip> : <DeltaChip value={variation(production.done, previous.done)} />) : null}
           target={[
             prevHasRecords ? `${previous.done} em ${prevLabel}${smallSample ? ` · ${smallSampleNote}` : ''}` : noBase,
             production.waiting ? `${production.waiting} na recepção` : null,
@@ -299,11 +330,11 @@ export default function ReportsScreen() {
           suffix={production.absenteeism != null ? '%' : undefined}
           // Sem tom no número: vermelho fixo pintava de alarme uma taxa que caía.
           // A direção é do selo de variação.
-          delta={comparable && production.absenteeism != null && previous.absenteeism != null && production.expected >= MIN_DAY_SAMPLE && previous.expected >= MIN_DAY_SAMPLE
-            ? <DeltaChip value={(production.absenteeism - previous.absenteeism) * 100} suffix=" p.p." inverse />
+          delta={comparable && production.absenteeism != null && previous.absenteeism != null && production.expected >= MIN_COMPARE && previous.expected >= MIN_COMPARE
+            ? (variation(production.absenteeism, previous.absenteeism) === 0 ? <Chip tone="neutral">sem variação</Chip> : <DeltaChip value={(production.absenteeism - previous.absenteeism) * 100} suffix=" p.p." inverse />)
             : null}
           target={production.absenteeism != null
-            ? (prevHasRecords && previous.absenteeism != null && (production.expected < MIN_DAY_SAMPLE || previous.expected < MIN_DAY_SAMPLE))
+            ? (prevHasRecords && previous.absenteeism != null && (production.expected < MIN_COMPARE || previous.expected < MIN_COMPARE))
               ? `${production.noShow} de ${production.expected} esperados: ${smallSampleNote}`
               : `${production.noShow} de ${production.expected} esperados · ${prevHasRecords && previous.absenteeism != null ? `${percent(previous.absenteeism, 1)} em ${prevLabel}` : noBase}`
             : undefined}
@@ -316,12 +347,18 @@ export default function ReportsScreen() {
           // mais longa não é melhor nem pior.
           delta={comparable && production.avgDuration != null && previous.avgDuration != null
             // Diferença dos valores ARREDONDADOS que a tela mostra: 45 − 43 = 2.
-            ? <DeltaChip value={Math.round(production.avgDuration) - Math.round(previous.avgDuration)} suffix=" min" neutral />
+            ? (Math.round(production.avgDuration) - Math.round(previous.avgDuration) === 0 ? <Chip tone="neutral">sem variação</Chip> : <DeltaChip value={Math.round(production.avgDuration) - Math.round(previous.avgDuration)} suffix=" min" neutral />)
             : null}
           target={production.avgDuration == null && production.done > 0
             ? 'sem registro de início de atendimento no período'
-            : production.missingStartCount > 0
-              ? `${production.missingStartCount} de ${production.done} sem hora de início registrada`
+            : production.done > 0
+              ? [
+                // O que se mede, entre quais marcos, e sobre quantos.
+                'do início à conclusão',
+                `${production.done - production.missingStartCount} de ${production.done} concluídos com hora de início`,
+                production.teleconsultasCount ? `inclui ${production.teleconsultasCount} ${production.teleconsultasCount === 1 ? 'teleconsulta' : 'teleconsultas'}` : null,
+                prevHasRecords && previous.avgDuration != null ? `${Math.round(previous.avgDuration)}\u00a0min em ${prevLabel}${smallSample ? ` · ${smallSampleNote}` : ''}` : noBase,
+              ].filter(Boolean).join(' · ')
               : prevHasRecords && previous.avgDuration != null
                 ? `${Math.round(previous.avgDuration)}\u00a0min em ${prevLabel}${smallSample ? ` · ${smallSampleNote}` : ''}`
                 : noBase}
@@ -331,7 +368,7 @@ export default function ReportsScreen() {
           value={production.avgWait != null ? Math.round(production.avgWait) : '—'}
           suffix={production.avgWait != null ? 'min' : undefined}
           delta={comparable && production.avgWait != null && previous.avgWait != null && production.waitCount >= MIN_COMPARE
-            ? <DeltaChip value={Math.round(production.avgWait) - Math.round(previous.avgWait)} suffix=" min" inverse />
+            ? (Math.round(production.avgWait) - Math.round(previous.avgWait) === 0 ? <Chip tone="neutral">sem variação</Chip> : <DeltaChip value={Math.round(production.avgWait) - Math.round(previous.avgWait)} suffix=" min" inverse />)
             : null}
           target={(() => {
             if (production.avgWait == null && production.waitBase > 0) return 'sem registro de início de atendimento no período';
@@ -340,18 +377,19 @@ export default function ReportsScreen() {
             const stale = liveWaits.length - live.length;
             if (live.length) return `Agora: ${live.length === 1 ? '1 criança espera' : `${live.length} crianças esperam`} há até ${duration(live[0].minutes)}, fora da média`;
             if (stale) return `${stale} ${stale === 1 ? 'chegada de hoje sem início' : 'chegadas de hoje sem início'} de atendimento, fora da média`;
-            if (production.missingWaitStartCount > 0) return `${production.missingWaitStartCount} de ${production.waitBase} sem hora de início registrada`;
             // A base da média: quantos atendimentos tinham chegada registrada.
-            const base = `${production.waitCount} ${production.waitCount === 1 ? 'presencial' : 'presenciais'} com chegada registrada`;
-            if (!prevHasRecords || previous.avgWait == null) return base;
+            // O que se mede: da chegada ao INÍCIO do atendimento (não ao horário marcado).
+            const base = `da chegada ao início · ${production.waitCount} ${production.waitCount === 1 ? 'presencial com chegada' : 'presenciais com chegada'} · ${production.missingWaitStartCount} sem hora de início`;
+            // A janela anterior é dita em TODO KPI da faixa, inclusive quando falta.
+            if (!prevHasRecords || previous.avgWait == null) return `${base} · ${noBase}`;
             return `${base} · ${Math.round(previous.avgWait)}\u00a0min em ${prevLabel}${production.waitCount < MIN_COMPARE ? ` · ${smallSampleNote}` : ''}`;
           })()}
         />
         <Metric
           label="Recebido no período"
           value={<MoneyValue value={revenue} cents={false} />}
-          delta={history ? <DeltaChip value={variation(revenue, prevRevenue)} /> : null}
-          target={history ? `${money(prevRevenue)} em ${prevLabel}` : noBase}
+          delta={prevHasRevenue && comparable ? (variation(revenue, prevRevenue) === 0 ? <Chip tone="neutral">sem variação</Chip> : <DeltaChip value={variation(revenue, prevRevenue)} />) : null}
+          target={prevHasRevenue ? `${money(prevRevenue)} em ${prevLabel}` : noBase}
         />
       </MetricStrip>
 
@@ -406,29 +444,26 @@ export default function ReportsScreen() {
           />
         </Card>
       ) : (
-        <div className="bento">
-          <Card span={8}>
+        <div className="bento bento--top-heavy">
+          <Card span={12} className="card--production">
             <CardHeader
               title="Produção assistencial"
-              subtitle={`Atendimentos concluídos ${grainLabel(period)}${period === 'quarter' ? ' · cada semana rotulada pelo último dia' : ''}`}
+              subtitle="Atendimentos concluídos por dia nos últimos 12 meses · o período selecionado fica em destaque"
             />
             <CardBody>
-              <BarChart
-                data={daily}
-                height={220}
-                title={`Atendimentos concluídos ${grainLabel(period)} no período`}
-                valueLabel="Atendimentos concluídos"
-                formatValue={(v) => number(v)}
-                bucketNoun={period === 'year' ? 'meses' : period === 'quarter' ? 'semanas' : 'dias'}
-                zeroLabel="sem atendimento concluído"
-                historyBefore={history}
-                firstRecordLabel={firstRecordDay ? `${firstRecordDay.slice(8, 10)}/${firstRecordDay.slice(5, 7)}` : undefined}
-                summary={{
-                  value: number(production.done),
-                  label: `concluídos${closedAverage ? ` · média de ${number(closedAverage.value, 1)} ${closedAverage.unit}` : ''}`,
-                }}
-                emptyMessage="Nenhum atendimento concluído neste período."
-              />
+              {skyline.total > 0 ? (
+                <ContributionSkyline
+                  data={skyline.days}
+                  endDate={skyline.window.to}
+                  dataFrom={firstRecordDay}
+                  focus={range}
+                  summary={{ value: number(production.done), label: `concluídos em ${rangeShort(range)}` }}
+                  stats={skylineStats}
+                  note={skylineNote}
+                />
+              ) : (
+                <EmptyState icon="chart-bar" title="Nenhum atendimento concluído nos últimos 12 meses" compact />
+              )}
             </CardBody>
           </Card>
 
@@ -449,10 +484,13 @@ export default function ReportsScreen() {
                     {/* A frase "sem diferença" só com amostra: 1 atendimento de
                         teleconsulta não sustenta comparação nenhuma. */}
                     {durationByType.every((d) => d.n < MIN_TYPE_SAMPLE) ? (
-                      <p className="report-note report-note--plain">
-                        Nenhum tipo tem {MIN_TYPE_SAMPLE} atendimentos no período: amostra pequena para comparar a duração entre eles.
-                        Média geral: {Math.round(production.avgDuration)} min.
-                      </p>
+                      <EmptyState 
+                        icon="clock" 
+                        title="Poucos atendimentos com hora de início por tipo para comparar" 
+                        action={<Button size="sm" onClick={() => navigate('/agenda')}>Ver atendimentos sem início</Button>} 
+                        compact 
+                      />
+
                     ) : durationSpread(durationByType) > 0.15 || durationByType.some((d) => d.n < MIN_TYPE_SAMPLE) ? (
                       <>
                         <CategoryBars 
@@ -487,7 +525,7 @@ export default function ReportsScreen() {
             </CardBody>
           </Card>
 
-          <Card span={6}>
+          <Card span={4} style={{ alignSelf: 'start' }}>
             <CardHeader
               title="Perfil epidemiológico"
               subtitle={(() => {
@@ -515,7 +553,7 @@ export default function ReportsScreen() {
             </CardBody>
           </Card>
 
-          <Card span={6}>
+          <Card span={4} style={{ alignSelf: 'start' }}>
             <CardHeader title="Comparecimento" subtitle={`${number(production.expected)} atendimentos esperados no período`} />
             <CardBody>
               {production.expected ? (
@@ -579,6 +617,11 @@ export default function ReportsScreen() {
                           // imprimia "−1 faltas a mais" quando o dia de maior
                           // taxa tinha menos faltas que o seguinte.
                           const rateOf = (d) => (d.closed ? d.noShow / d.closed : 0);
+                          // Poucos atendimentos por dia: a frase concluiria o que a
+                          // tabela logo acima desmente (33,3% de 1 em 3 contra 0%).
+                          if (ranked.slice(0, 2).some((d) => d.closed < MIN_DAY_SAMPLE_WEEKDAY)) {
+                            return 'Poucos atendimentos por dia da semana neste período para comparar os dias.';
+                          }
                           const gapPp = (rateOf(ranked[0]) - rateOf(ranked[1])) * 100;
                           const comparison = gapPp < 0.05
                             ? 'tem praticamente a mesma taxa de'
@@ -604,19 +647,10 @@ const ABSENTEEISM_ALERT = 0.15;
 const MIN_NOSHOW_SAMPLE = 5;
 const MIN_DAY_SAMPLE = 10;
 const MIN_TYPE_SAMPLE = 5;
+// Mínimo de atendimentos encerrados por dia da semana para comparar um dia com outro.
+const MIN_DAY_SAMPLE_WEEKDAY = 5;
 const MIN_RATE_GAP = 0.05;
 const MIN_NOSHOW_GAP = 2;
-
-/** Primeiro dia útil de um balde (dia, semana a partir de domingo, mês). */
-function firstBusinessDay(key, period, range) {
-  const grain = PERIOD_GRAIN_OF[period] ?? 'day';
-  let start = grain === 'month' ? `${key}-01` : key;
-  if (start < range.from) start = range.from;
-  const d = new Date(`${start}T12:00:00`);
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-const PERIOD_GRAIN_OF = { week: 'day', month: 'day', quarter: 'week', year: 'month' };
 
 /** Indicadores de produção de um conjunto de agendamentos. */
 function summarizeProduction(appointments) {
@@ -627,6 +661,7 @@ function summarizeProduction(appointments) {
   // Cancelamento avisado não é falta e sai do denominador.
   const expected = done.length + noShow.length;
   const doneWithStart = done.filter((a) => a.inicioAtendimento);
+  const teleconsultasCount = doneWithStart.filter((a) => a.tipo === 'teleconsulta').length;
   const missingStartCount = done.length - doneWithStart.length;
   const durations = doneWithStart
     .filter((a) => a.fimAtendimento)
@@ -646,6 +681,7 @@ function summarizeProduction(appointments) {
     waitBase: waitBaseList.length,
     missingStartCount,
     missingWaitStartCount,
+    teleconsultasCount,
   };
 }
 
@@ -659,18 +695,4 @@ function durationSpread(rows) {
 function variation(current, previous) {
   if (!previous) return null;
   return ((current - previous) / previous) * 100;
-}
-
-
-/** Série cobre o período INTEIRO, no grão do período — a soma das barras é
-    o KPI "Atendimentos concluídos". */
-function buildProduction(appointments, range, period) {
-  const buckets = new Map(bucketsFor(range, period).map((b) => [b.key, { label: b.label, startLabel: b.startLabel, current: b.current, partial: b.partial, weekend: b.weekend, end: b.end, firstBusinessDay: firstBusinessDay(b.key, period, range), value: 0 }]));
-  let any = false;
-  for (const appointment of appointments) {
-    if (appointment.status !== APPOINTMENT_STATUS.DONE) continue;
-    const bucket = buckets.get(bucketKey(localDay(appointment.inicio), period));
-    if (bucket) { bucket.value += 1; any = true; }
-  }
-  return any ? Array.from(buckets.values()) : [];
 }

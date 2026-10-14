@@ -220,7 +220,7 @@
   display: block;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1025px) {
   .floating-dock-mobile {
     display: none;
   }
@@ -248,4 +248,11 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Celular e tablet (mesmo ponto em que o rail vira barra inferior no layout): só o hambúrguer aparece */
+@media (max-width: 1024px) {
+  .floating-dock-desktop {
+    display: none;
+  }
 }

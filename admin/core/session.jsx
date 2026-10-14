@@ -193,6 +193,7 @@ export function SessionProvider({ children }) {
       sessionId: crypto.uuid(),
     });
     repo.setActor(profile.id, activePlaza);
+    repo.normalizeClinicRooms().catch(() => {});
 
     sessionStart.current = Date.now();
     lastActivity.current = Date.now();

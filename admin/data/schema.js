@@ -98,6 +98,7 @@ export const APPOINTMENT_TYPES = {
   TELE: 'teleconsulta',
   PROCEDURE: 'procedimento',
   REPORT: 'laudo',
+  EVENT: 'evento',
 };
 
 export const APPOINTMENT_TYPE_LABELS = {
@@ -106,6 +107,7 @@ export const APPOINTMENT_TYPE_LABELS = {
   teleconsulta: 'Teleconsulta',
   procedimento: 'Procedimento',
   laudo: 'Emissão de laudo',
+  evento: 'Evento / Reunião interna',
 };
 
 export const APPOINTMENT_STATUS = {

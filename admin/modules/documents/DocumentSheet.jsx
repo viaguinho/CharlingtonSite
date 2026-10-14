@@ -6,6 +6,9 @@ import { Button, Chip } from '../../components/primitives.jsx';
 import { LetterheadPreview } from './LetterheadPreview.jsx';
 import Icon from '../../components/Icon.jsx';
 import { dateLong, dateTime, date, age } from '../../core/format.js';
+import * as audit from '../../core/audit.js';
+import { ACTIONS } from '../../core/audit.js';
+import { printElement } from '../../core/print.js';
 
 /**
  * Visualização de um documento já emitido.
@@ -23,16 +26,18 @@ export function DocumentSheet({ document: doc, patient, guardian, onClose, onRep
   const skeleton = DOCUMENT_SKELETONS[doc.tipo] ?? {};
   const signed = doc.status === DOCUMENT_STATUS.SIGNED || doc.status === DOCUMENT_STATUS.DELIVERED;
 
-  function print() {
+  async function print() {
     setPrinting(true);
-    // A folha de impressão (print.css) esconde toda a interface e imprime
-    // apenas o elemento .sheet-a4 em tamanho real, com o timbrado.
-    window.document.body.classList.add('is-printing');
-    window.requestAnimationFrame(() => {
-      window.print();
-      window.document.body.classList.remove('is-printing');
-      setPrinting(false);
-    });
+    // Imprime só a folha A4 (core/print.js marca tudo o que não é ela para sumir no
+    // papel) e registra a impressão: documento clínico impresso é evento auditável.
+    const paper = window.document.querySelector('.doc-view__paper .sheet-a4');
+    audit.log({ action: ACTIONS.PRINT, entity: 'documentos', entityId: doc.id, detail: `${DOCUMENT_TYPE_LABELS[doc.tipo] ?? 'Documento'}${doc.numero ? ` nº ${doc.numero}` : ''}` })
+      .catch(() => {});
+    // O papel timbrado pode ser um arquivo enviado (carregado de forma assíncrona): sem esperar a imagem
+    // decodificar, a folha poderia sair sem o papel.
+    await paper?.querySelector('.sheet-a4__letterhead')?.decode?.().catch(() => {});
+    printElement(paper);
+    window.setTimeout(() => setPrinting(false), 600);
   }
 
   return (
@@ -91,7 +96,8 @@ export function DocumentSheet({ document: doc, patient, guardian, onClose, onRep
           <LetterheadPreview
             plaza={doc.praca}
             patientName={patient?.nomeSocial || patient?.nome}
-            patientBirth={patient?.dataNascimento ? `${date(patient.dataNascimento)} (${age(patient.dataNascimento).label})` : null}
+            // A idade vale na data da emissão: reimprimir daqui a meses não pode mudar o que foi assinado.
+            patientBirth={patient?.dataNascimento ? `${date(patient.dataNascimento)} (${age(patient.dataNascimento, doc.assinatura?.assinadoEm ?? doc.criadoEm).label})` : null}
             guardianName={guardian?.nome}
             documentTitle={doc.titulo || skeleton.titulo || DOCUMENT_TYPE_LABELS[doc.tipo]}
             documentSubtitle={skeleton.subtitulo}
@@ -99,6 +105,9 @@ export function DocumentSheet({ document: doc, patient, guardian, onClose, onRep
             items={doc.itens}
             number={doc.numero}
             issuedAt={dateLong(doc.assinatura?.assinadoEm ?? doc.criadoEm)}
+            // Nome e CRM de quem EMITIU (gravados na assinatura), nunca os de quem está vendo.
+            doctorName={doc.assinatura?.medico?.nome}
+            doctorCRM={doc.assinatura?.medico?.crm}
             signature={doc.assinatura?.id ? doc.assinatura : null}
             verificationUrl={doc.assinatura?.urlVerificacao}
             buyerBlock={skeleton.exigeIdentificacaoComprador}

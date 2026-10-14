@@ -4,6 +4,7 @@
 
 .patients__search { flex: 1; min-width: 240px; max-width: 420px; }
 .patients__search .field__label { display: none; }
+@media (max-width: 640px) { .patients__search { flex: 1 1 100%; min-width: 0; max-width: none; } }
 
 /* ————————————————————— Grade de cards (REF 4) ————————————————————— */
 
@@ -60,6 +61,12 @@
   border-top: 1px solid var(--ink-a06);
 }
 .patient-card__foot .spacer { flex: 1; }
+/* Celular: o selo de situação ("Teleconsulta sem consentimento") e as ações não cabem lado a lado; as ações descem em vez de sair do cartão. */
+@media (max-width: 640px) {
+  .patient-card__foot { flex-wrap: wrap; row-gap: var(--s-2); }
+  .patient-card__foot .situation-chips { min-width: 0; max-width: 100%; }
+  .patient-card__foot > .icon-btn:first-of-type { margin-left: auto; }
+}
 
 /* ═══════════════════ Cabeçalho do paciente (REF 3) ═══════════════════ */
 
@@ -130,8 +137,18 @@
   cursor: pointer;
 }
 .patient-header__next.is-empty:hover { background: var(--blue-a08); color: var(--blue-700); }
+/* "Remarcar" dentro da próxima consulta: ação do próprio aviso, sem competir com ele. */
+.patient-header__reschedule {
+  margin-left: var(--s-1);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-xs);
+  font-size: var(--t-caption);
+  color: var(--blue-600);
+}
+.patient-header__reschedule:hover { background: var(--blue-a08); color: var(--blue-700); }
+@media (max-width: 768px) { .patient-header__reschedule { min-height: var(--touch); } }
 
-.patient-header__actions { display: flex; gap: var(--s-2); }
+.patient-header__actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 
 /* Faixa de alergia no cabeçalho — visível em qualquer largura, ao contrário
    da coluna de contexto, que colapsa abaixo de 1320px. */
@@ -316,6 +333,7 @@
 .timeline__head strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
 
 .timeline__locked { color: var(--ink-300); display: inline-flex; }
+.timeline__actions { display: flex; margin-top: var(--s-1); }
 
 .timeline__detail { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); }
 /* Data do item: qualifica o registro, é corpo (não micro). */
@@ -745,6 +763,12 @@
 .consent__text p { font-size: var(--t-small); color: var(--ink-500); line-height: 1.5; }
 .consent__meta { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-400); }
 .consent__action { flex: none; }
+/* Celular: o texto ocupa a largura toda e a ação desce; ao lado dela o texto ficava com ~85 px. */
+@media (max-width: 640px) {
+  .consent { flex-direction: column; align-items: stretch; gap: var(--s-3); }
+  .consent__action { align-self: flex-start; margin-top: var(--s-1); }
+  .consent .chip { max-width: 100%; height: auto; min-height: 22px; white-space: normal; padding-block: 1px; }
+}
 
 .consent-note,
 .audit-note,
@@ -765,6 +789,16 @@
 .report-note--warning svg { color: var(--signal-amber-ink); }
 /* Sem desfecho é vermelho em toda tela (chip, aviso, KPI) — aqui também. */
 .report-note--danger, .report-note--danger svg { color: var(--signal-red-ink); }
+
+/* Dados de demonstração (só desenvolvimento) */
+.demo-actions { display: flex; gap: var(--s-3); margin-top: var(--s-4); }
+.demo-badge { flex: none; }
+/* Celular: o aviso vira só o ícone (o texto segue lido por leitor de tela); o texto inteiro empurrava a barra para fora da tela. */
+@media (max-width: 640px) {
+  .demo-badge__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Com o aviso presente faltavam ~7 px na barra: a pílula "Dashboard" encolhia e a lupa a cobria. */
+  .topbar__right:has(.demo-badge) { gap: var(--s-1); }
+}
 
 /* ═══════════════════ Formulário da ficha ═══════════════════ */
 
@@ -811,6 +845,7 @@
 }
 
 .daylist__body {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--s-3);
@@ -832,6 +867,15 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .daylist__text span { font-size: var(--t-caption); color: var(--ink-400); }
+
+/* Celular: grade fixa de duas linhas. Avatar à esquerda; nome e, embaixo, o selo de situação.
+   Antes o selo dividia a linha com o nome e o deixava com ~47 px ("Heito…"). */
+@media (max-width: 640px) {
+  .daylist__body { display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: var(--s-3); row-gap: var(--s-1); align-items: center; }
+  .daylist__body > :first-child { grid-row: 1 / span 2; }
+  .daylist__text { grid-column: 2; }
+  .daylist__body > :last-child:not(.daylist__text) { grid-column: 2; justify-self: start; }
+}
 
 .pending { display: flex; flex-direction: column; gap: var(--s-2); }
 .pending li.pending__more { display: block; padding: var(--s-1) var(--s-3); background: none; color: var(--ink-400); font-size: var(--t-body); }
@@ -857,6 +901,12 @@
 .pending__text { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
 .pending__text strong { font-size: var(--t-small); font-weight: var(--w-medium); color: var(--ink-900); }
 .pending__text span { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); }
+/* Celular: com dois botões de ação (40 px cada) o texto ficava com ~144 px de 316. Os botões descem para a linha de baixo, à direita. */
+@media (max-width: 640px) {
+  .pending li { flex-wrap: wrap; row-gap: var(--s-1); }
+  .pending__text { flex: 1 1 calc(100% - 44px); }
+  .pending li > .icon-btn:nth-of-type(1) { margin-left: auto; }
+}
 
 .waiting { display: flex; flex-direction: column; gap: var(--s-1); padding: 0 var(--s-5) var(--s-5); }
 .waiting li { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-sm); }

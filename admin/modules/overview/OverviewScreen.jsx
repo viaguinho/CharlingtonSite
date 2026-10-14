@@ -8,11 +8,13 @@ import {
   APPOINTMENT_TYPE_LABELS, DOCUMENT_STATUS, ENTRY_STATUS, ENTRY_TYPES,
 } from '../../data/schema.js';
 import { GreetingHeader, Bento } from '../../components/Shell.jsx';
+import AgendaPanel from './AgendaPanel.jsx';
+import RescheduleDialog from '../agenda/RescheduleDialog.jsx';
 import { Card, CardHeader, CardBody, Metric, MetricStrip, EmptyState, Skeleton, MoneyValue } from '../../components/Card.jsx';
 import { Button, Chip, StatusDot, Avatar, IconButton } from '../../components/primitives.jsx';
 import { BarChart, Gauge, StackedRatioBar } from '../../charts/index.jsx';
 import { localDay, periodRange, inRange } from '../../core/periods.js';
-import { isLate, isUpcoming, isUnresolved, displayStatus, waitInfo, confirmationWindow, oldestByDay, namesList, trailingNoShows, CONSECUTIVE_NO_SHOW_ALERT, teleconsultsWithoutConsent, messagingOptIn } from '../../core/appointments.js';
+import { isLate, isUpcoming, isUnresolved, canReschedule, displayStatus, waitInfo, confirmationWindow, oldestByDay, namesList, trailingNoShows, CONSECUTIVE_NO_SHOW_ALERT, teleconsultsWithoutConsent, messagingOptIn } from '../../core/appointments.js';
 import Icon from '../../components/Icon.jsx';
 import { time, money, age, isoDay, duration } from '../../core/format.js';
 
@@ -27,31 +29,35 @@ import { time, money, age, isoDay, duration } from '../../core/format.js';
 export default function OverviewScreen() {
   const { user, plaza, can } = useSession();
   const [state, setState] = useState({ loading: true, data: null });
+  // Gravação feita na agenda do card (status, remarcação, novo agendamento)
+  // recarrega a tela inteira: os KPIs e as pendências contam o mesmo registro.
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       const where = plaza ? { praca: plaza } : {};
-      const [appointments, patients, documents, entries, consents] = await Promise.all([
+      const [appointments, patients, documents, entries, consents, rooms] = await Promise.all([
         repo.list(STORES.APPOINTMENTS, { where }).catch(() => []),
         repo.list(STORES.PATIENTS, { where }).catch(() => []),
         repo.list(STORES.DOCUMENTS, { where }).catch(() => []),
         repo.list(STORES.ENTRIES, { where }).catch(() => []),
         repo.list(STORES.CONSENTS, {}).catch(() => []),
+        repo.list(STORES.ROOMS, { where }).catch(() => []),
       ]);
-      if (!cancelled) setState({ loading: false, data: { appointments, patients, documents, entries, consents } });
+      if (!cancelled) setState({ loading: false, data: { appointments, patients, documents, entries, consents, rooms } });
     })();
 
     return () => { cancelled = true; };
-  }, [plaza]);
+  }, [plaza, version]);
 
-  if (state.loading) return <OverviewSkeleton />;
+  if (state.loading) return <div className="ov"><OverviewSkeleton /></div>;
 
-  const props = { ...state.data, user, canFinance: can?.read?.('finance') };
+  const props = { ...state.data, user, canFinance: can?.read?.('finance'), canSchedule: !!can?.write?.('agenda'), onChanged: () => setVersion((v) => v + 1) };
 
   return (
-    <>
+    <div className="ov">
       <GreetingHeader>
         <Button variant="primary" icon="plus" onClick={() => window.location.hash = '#/pacientes?novo=1'}>
           Novo paciente
@@ -61,14 +67,19 @@ export default function OverviewScreen() {
       {user?.role === ROLES.FINANCE ? <FinanceHome {...props} />
         : user?.role === ROLES.RECEPTION ? <ReceptionHome {...props} />
         : <DoctorHome {...props} />}
-    </>
+    </div>
   );
 }
 
 /* ═══════════════════════════ Home do médico ═══════════════════════════ */
 
-function DoctorHome({ appointments, patients, documents, entries = [], consents = [], canFinance }) {
+function DoctorHome({ appointments, patients, documents, entries = [], consents = [], rooms = [], canFinance, canSchedule, onChanged }) {
   const navigate = useNavigate();
+  const [rescheduling, setRescheduling] = useState(null);
+  // Remarcar só onde ainda cabe: agendado ou confirmado, e só para quem edita a agenda.
+  const rescheduleButton = (a) => (canSchedule && canReschedule(a)
+    ? <IconButton name="calendar" label="Remarcar" onClick={() => setRescheduling(a)} />
+    : null);
   const today = isoDay();
 
   const todays = useMemo(
@@ -149,8 +160,6 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
       .reduce((total, e) => total + (Number(e.valor) || 0), 0);
   }, [entries, reportsToIssue]);
   const confirmations = useMemo(() => confirmationWindow(appointments, 7), [appointments]);
-  // Próximos dias = a MESMA janela das confirmações: a soma da lista fecha com o card.
-  const nextDays = confirmations.byDay;
   const shortDay = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
   const addDays = (iso, n) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   // Nenhuma família com opt-in: a mensagem de confirmação não sai, e a tela
@@ -225,9 +234,8 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
             tone={reportsToIssue.length ? 'warning' : undefined}
             target={[
               reportsToIssue.length
-                ? `atendimentos de laudo concluídos, documento não emitido · mais antigo em ${new Date(`${oldestReports.day}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+                ? `atendimentos sem laudo emitido`
                 : 'Nenhum laudo a emitir',
-              canFinance && reportsPaid ? `${money(reportsPaid)} já recebidos` : null,
               pendingDocs.length ? `${pendingDocs.length} ${pendingDocs.length === 1 ? 'documento aguarda' : 'documentos aguardam'} assinatura` : null,
             ].filter(Boolean).join(' · ')}
           />
@@ -259,71 +267,15 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
         )}
       </MetricStripCard>
 
-      {/* ——— Agenda do dia em timeline vertical ——— */}
-      <Card span={7} rows={2} variant="flush">
-        <CardHeader
-          title="Sua agenda de hoje"
-          subtitle={todays.length ? `${todays.length} atendimentos programados` : undefined}
-          actions={<Button size="sm" onClick={() => navigate('/agenda')}>Abrir agenda</Button>}
-        />
-        <CardBody>
-          {todays.length ? (
-            <ol className="daylist">
-              {todays.map((appointment) => {
-                const patient = patients.find((p) => p.id === appointment.pacienteId);
-                const isNow = appointment.status === APPOINTMENT_STATUS.IN_PROGRESS;
-                return (
-                  <li key={appointment.id} className={`daylist__item ${isNow ? 'is-now' : ''}`}>
-                    <span className="daylist__time num">{time(appointment.inicio)}</span>
-                    <span className="daylist__rail" aria-hidden="true" />
-                    <button
-                      type="button"
-                      className="daylist__body"
-                      onClick={() => patient && navigate(`/pacientes/${patient.id}`)}
-                    >
-                      <Avatar name={patient?.nome} src={patient?.foto} size={34} />
-                      <span className="daylist__text">
-                        <strong>{patient?.nome ?? 'Paciente não vinculado'}</strong>
-                        <span>
-                          {patient?.dataNascimento ? `${age(patient.dataNascimento).label} · ` : ''}
-                          {APPOINTMENT_TYPE_LABELS[appointment.tipo] ?? 'Consulta'}
-                        </span>
-                      </span>
-                      {(() => {
-                        const shown = displayStatus(appointment, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE);
-                        return <Chip tone={shown.tone} icon={shown.icon}>{shown.label}</Chip>;
-                      })()}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          ) : (
-            <EmptyState
-              icon="calendar"
-              title="Nenhum atendimento hoje"
-              description="Quando houver consultas agendadas para hoje, elas aparecem aqui em ordem de horário."
-              action={<Button size="sm" icon="plus" onClick={() => navigate('/agenda')}>Agendar consulta</Button>}
-            />
-          )}
-          {nextDays.length ? (
-            <div className="card-subsection">
-              <p className="flow-pair__label">Próximos 7 dias <span className="muted">· {shortDay(confirmations.range.from)} a {shortDay(confirmations.range.to)}</span></p>
-              <ul className="next-days">
-                {nextDays.map(([day, row]) => (
-                  <li key={day}>
-                    <span>{new Date(`${day}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}</span>
-                    <strong className="num">
-                      {row.total} {row.total === 1 ? 'consulta' : 'consultas'}
-                      {row.unconfirmed ? <span className="muted"> · {row.unconfirmed} sem confirmação</span> : null}
-                    </strong>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </CardBody>
-      </Card>
+      {/* ——— Agenda: dia, semana, mês e lista, no espaço do antigo card do dia ——— */}
+      <AgendaPanel
+        appointments={appointments}
+        patients={patients}
+        rooms={rooms}
+        consents={consents}
+        confirmations={confirmations}
+        onChanged={onChanged}
+      />
 
       {/* ——— Fila de pendências ——— */}
       <Card span={5}>
@@ -338,6 +290,7 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
                     <strong>{nameOf(a.pacienteId)} não chegou</strong>
                     <span>Consulta das {time(a.inicio)} · {duration(Math.round((Date.now() - new Date(a.inicio)) / 60000))} de atraso · registrar chegada ou falta na agenda</span>
                   </span>
+                  {rescheduleButton(a)}
                   <IconButton name="chevron-right" label="Abrir agenda" onClick={() => navigate('/agenda')} />
                 </li>
               ))}
@@ -364,6 +317,7 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
                       {' · '}registrar na agenda
                     </span>
                   </span>
+                  {rescheduleButton(a)}
                   <IconButton name="chevron-right" label="Abrir agenda" onClick={() => navigate('/agenda')} />
                 </li>
               ))}
@@ -432,7 +386,7 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
                 <li>
                   <span className="pending__icon pending__icon--danger"><Icon name="wallet" size={15} /></span>
                   <span className="pending__text">
-                    <strong>{overdueTitles.length} {overdueTitles.length === 1 ? 'título vencido' : 'títulos vencidos'} · {money(overdueTotal)}</strong>
+                    <strong>{overdueTitles.length} {overdueTitles.length === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'} · {money(overdueTotal)}</strong>
                     <span>O mais antigo venceu em {new Date(`${overdueTitles[0].vencimento}T12:00:00`).toLocaleDateString('pt-BR')}.</span>
                   </span>
                   <IconButton name="chevron-right" label="Ver no financeiro" onClick={() => navigate('/financeiro')} />
@@ -552,14 +506,21 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
           />
         </CardBody>
       </Card>
+
+      <RescheduleDialog
+        appointment={rescheduling}
+        onClose={() => setRescheduling(null)}
+        onDone={() => { setRescheduling(null); onChanged?.(); }}
+      />
     </Bento>
   );
 }
 
 /* ═══════════════════════════ Home da recepção ═══════════════════════════ */
 
-function ReceptionHome({ appointments, patients }) {
+function ReceptionHome({ appointments, patients, canSchedule, onChanged }) {
   const navigate = useNavigate();
+  const [rescheduling, setRescheduling] = useState(null);
   const today = isoDay();
 
   const todays = appointments
@@ -656,6 +617,9 @@ function ReceptionHome({ appointments, patients }) {
                     <StatusDot tone="warning" />
                     <span className="confirm-list__name">{patient?.nome ?? '—'}</span>
                     <span className="confirm-list__time num">{time(appointment.inicio)}</span>
+                    {canSchedule && canReschedule(appointment)
+                      ? <Button size="sm" variant="ghost" icon="calendar" onClick={() => setRescheduling(appointment)}>Remarcar</Button>
+                      : null}
                     <Button size="sm" icon="whatsapp" onClick={() => navigate('/comunicacao')}>Confirmar</Button>
                   </li>
                 );
@@ -670,6 +634,12 @@ function ReceptionHome({ appointments, patients }) {
           )}
         </CardBody>
       </Card>
+
+      <RescheduleDialog
+        appointment={rescheduling}
+        onClose={() => setRescheduling(null)}
+        onDone={() => { setRescheduling(null); onChanged?.(); }}
+      />
     </Bento>
   );
 }
@@ -769,11 +739,11 @@ function FinanceHome({ entries }) {
 /* ═══════════════════════════ Apoio ═══════════════════════════ */
 
 function MetricStripCard({ children }) {
-  // `bento-full` mantém a faixa em 12 colunas mesmo quando o breakpoint
-  // colapsa os demais widgets para meia largura.
+  // `bento-full` mantém as pílulas bento em 12 colunas no grid bento,
+  // separadas individualmente com gap e cantos arredondados.
   return (
     <div className="bento-full bento-strip" style={{ gridColumn: 'span 12' }}>
-      <MetricStrip>{children}</MetricStrip>
+      <MetricStrip variant="bento">{children}</MetricStrip>
     </div>
   );
 }
@@ -783,8 +753,13 @@ function OverviewSkeleton() {
     <>
       <GreetingHeader />
       <Bento>
-        <div style={{ gridColumn: 'span 12' }}>
-          <Skeleton height={96} radius="var(--r-lg)" card />
+        <div className="bento-full bento-strip" style={{ gridColumn: 'span 12' }}>
+          <div className="metric-strip metric-strip--bento">
+            <Skeleton height={124} radius="var(--r-lg)" card />
+            <Skeleton height={124} radius="var(--r-lg)" card />
+            <Skeleton height={124} radius="var(--r-lg)" card />
+            <Skeleton height={124} radius="var(--r-lg)" card />
+          </div>
         </div>
         <div style={{ gridColumn: 'span 7' }}><Skeleton height={380} radius="var(--r-lg)" card /></div>
         <div style={{ gridColumn: 'span 5' }}><Skeleton height={380} radius="var(--r-lg)" card /></div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import * as repo from '../../data/repository.js';
 import { STORES, RETENTION_YEARS, CONSENT_PURPOSE_LABELS } from '../../data/schema.js';
 import { useSession } from '../../core/session.jsx';
@@ -11,6 +11,11 @@ import { Modal, ConfirmDialog, useToast } from '../../components/Overlay.jsx';
 import { TextField, Select, Switch, FieldRow } from '../../components/Field.jsx';
 import Icon from '../../components/Icon.jsx';
 import { money, date, fileSize } from '../../core/format.js';
+import { LETTERHEADS } from '../documents/LetterheadPreview.jsx';
+import { loadCustomLetterhead, saveCustomLetterhead, clearCustomLetterhead } from '../documents/customLetterhead.js';
+
+// Só existe no build de desenvolvimento e em modo local: na produção o ramo some e o módulo não entra no pacote.
+const DemoDataCard = import.meta.env.DEV ? lazy(() => import('../../dev/DemoDataCard.jsx')) : null;
 
 /**
  * Configurações e governança.
@@ -63,6 +68,58 @@ export default function SettingsScreen() {
 }
 
 /* ═══════════════════════════ Clínica ═══════════════════════════ */
+
+function LetterheadSlot({ plaza }) {
+  const toast = useToast();
+  const input = useRef(null);
+  const [custom, setCustom] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { loadCustomLetterhead(plaza).then(setCustom); }, [plaza]);
+
+  async function onFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    try {
+      setCustom(await saveCustomLetterhead(plaza, file));
+      toast.success(`Timbrado de ${PLAZA_LABELS[plaza]} atualizado.`);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reset() {
+    setBusy(true);
+    try {
+      await clearCustomLetterhead(plaza);
+      setCustom(null);
+      toast.success(`${PLAZA_LABELS[plaza]} voltou a usar o timbrado padrão.`);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="letterhead-slot">
+      <span className="letterhead-slot__label">{PLAZA_LABELS[plaza]}</span>
+      <div className="letterhead-slot__preview">
+        <img src={custom ?? LETTERHEADS[plaza]?.src} alt={`Timbrado de ${PLAZA_LABELS[plaza]}`} />
+      </div>
+      <span className="letterhead-slot__source">{custom ? 'Arquivo enviado' : 'Padrão (Campinas)'}</span>
+      <input ref={input} type="file" accept="image/jpeg,image/png" hidden onChange={onFile} />
+      <div className="letterhead-slot__actions">
+        <Button size="sm" icon="upload" onClick={() => input.current?.click()} loading={busy} aria-label={`Enviar timbrado de ${PLAZA_LABELS[plaza]}`}>Enviar timbrado</Button>
+        {custom ? <Button size="sm" variant="ghost" onClick={reset} disabled={busy} aria-label={`Usar o timbrado padrão em ${PLAZA_LABELS[plaza]}`}>Usar o padrão</Button> : null}
+      </div>
+    </div>
+  );
+}
 
 function ClinicTab() {
   const toast = useToast();
@@ -160,24 +217,20 @@ function ClinicTab() {
         <CardBody>
           <div className="letterheads">
             {(clinic.plazas ?? []).map((plaza) => (
-              <div key={plaza} className="letterhead-slot">
-                <span className="letterhead-slot__label">{PLAZA_LABELS[plaza]}</span>
-                <div className="letterhead-slot__preview">
-                  <Icon name="file-text" size={22} />
-                </div>
-                <Button size="sm" icon="upload">Enviar timbrado</Button>
-              </div>
+              <LetterheadSlot key={plaza} plaza={plaza} />
             ))}
           </div>
           <p className="form-note">
             <Icon name="info" size={13} />
-            O timbrado atual de Campinas está preservado do painel anterior. Fortaleza
-            usa o mesmo arquivo até que um próprio seja enviado.
+            Sem arquivo próprio, a unidade usa o papel timbrado de Campinas. O arquivo enviado vale para toda nova
+            impressão; o texto dos documentos já assinados não muda, só o papel.
           </p>
         </CardBody>
       </Card>
 
-      <div style={{ gridColumn: 'span 12', display: 'flex', justifyContent: 'flex-end' }}>
+      {DemoDataCard && !repo.isServerMode() ? <Suspense fallback={null}><DemoDataCard /></Suspense> : null}
+
+      <div className="bento-full" style={{ gridColumn: 'span 12', display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="primary" onClick={save} loading={busy}>Salvar configurações</Button>
       </div>
     </div>

@@ -17,6 +17,7 @@ const PENDING = ['agendado', 'confirmado'];
 const ACTIVE = ['agendado', 'confirmado', 'aguardando', 'em_atendimento'];
 
 export function isLate(appointment, now = Date.now()) {
+  if (appointment.tipo === 'evento') return false;
   return PENDING.includes(appointment.status)
     && localDay(appointment.inicio) === localDay(new Date(now).toISOString())
     && now - new Date(appointment.inicio).getTime() > LATE_AFTER_MINUTES * 60000;
@@ -42,6 +43,7 @@ export function isOpen(appointment, now = Date.now()) {
  * há 16 h". É um registro que falta, e toda tela o conta aqui.
  */
 export function isUnresolved(appointment, now = Date.now()) {
+  if (appointment.tipo === 'evento') return false;
   if (!ACTIVE.includes(appointment.status)) return false;
   const today = localDay(new Date(now).toISOString());
   if (localDay(appointment.inicio) < today) return true;
@@ -54,6 +56,7 @@ export function isUnresolved(appointment, now = Date.now()) {
  * somam o "Todos" e o KPI conta o mesmo que o chip diz.
  */
 export function stateOf(appointment, now = Date.now()) {
+  if (appointment.tipo === 'evento') return 'evento';
   if (isUnresolved(appointment, now)) return 'sem_desfecho';
   if (isLate(appointment, now)) return 'atrasado';
   return appointment.status;
@@ -62,10 +65,14 @@ export function stateOf(appointment, now = Date.now()) {
 export const DERIVED_STATE_LABELS = {
   sem_desfecho: 'Sem desfecho registrado',
   atrasado: 'Atrasado, sem chegada',
+  evento: 'Evento / Reunião',
 };
 
 /** Rótulo e tom de exibição, já considerando atraso e falta de desfecho. */
 export function displayStatus(appointment, labels, tones, now = Date.now()) {
+  if (appointment.tipo === 'evento') {
+    return { label: 'Evento / Reunião', tone: 'info', icon: 'calendar', late: false, unresolved: false };
+  }
   const state = stateOf(appointment, now);
   if (state === 'sem_desfecho') {
     return { label: DERIVED_STATE_LABELS.sem_desfecho, tone: 'danger', icon: 'history', late: false, unresolved: true };
@@ -202,4 +209,38 @@ export function teleconsultsWithoutConsent(appointments, consents) {
   const upcoming = tele.filter((a) => isUpcoming(a)).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const children = new Set([...done, ...upcoming].map((a) => a.pacienteId));
   return { done, upcoming, children };
+}
+
+/* ═══════════════════════════ Remarcação ═══════════════════════════ */
+
+/**
+ * Remarca-se o que ainda não começou: agendado ou confirmado, inclusive o
+ * horário que já passou sem chegada (é a alternativa a registrar falta). Quem
+ * já chegou, está em atendimento ou teve desfecho não se remarca — o desfecho
+ * já é o registro do que aconteceu.
+ */
+const RESCHEDULABLE = ['agendado', 'confirmado'];
+
+export function canReschedule(appointment) {
+  return !!appointment && !appointment.travada && RESCHEDULABLE.includes(appointment.status);
+}
+
+/** Duração em minutos; consulta sem horário de fim dura 60. */
+export function appointmentMinutes(appointment) {
+  if (!appointment?.inicio || !appointment.fim) return 60;
+  const minutes = Math.round((new Date(appointment.fim) - new Date(appointment.inicio)) / 60000);
+  return minutes > 0 ? minutes : 60;
+}
+
+/**
+ * Agendamentos ativos que se sobrepõem ao intervalo [start, end). Só avisa:
+ * encaixe e sobreposição proposital existem, quem decide é a recepção.
+ */
+export function findClashes(appointments, appointment, start, end) {
+  return appointments.filter((other) => {
+    if (other.id === appointment.id || other.status === 'cancelado' || !other.inicio) return false;
+    const otherStart = new Date(other.inicio).getTime();
+    const otherEnd = otherStart + appointmentMinutes(other) * 60000;
+    return otherStart < end.getTime() && otherEnd > start.getTime();
+  });
 }

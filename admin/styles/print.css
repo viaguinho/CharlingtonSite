@@ -13,6 +13,9 @@
 }
 
 @media print {
+  /* Tudo o que não é a folha (marcado por core/print.js) some na impressão. */
+  [data-print-hide] { display: none !important; }
+
   html, body {
     height: auto;
     background: #fff;
@@ -67,6 +70,8 @@
   }
 
   /* ——— A folha, em tamanho real ——— */
+  .sheet-fit { width: auto !important; height: auto !important; }
+  .sheet-fit__scaler { width: auto !important; transform: none !important; }
   .sheet-a4 {
     width: 210mm !important;
     height: 297mm !important;
@@ -107,9 +112,13 @@
   .sheet-a4__signature { padding-top: 5mm !important; }
   .sheet-a4__rule { width: 60mm !important; }
   .sheet-a4__signature strong { font-size: 11pt !important; }
-  .sheet-a4__crm { font-size: 8.5pt !important; }
-  .sheet-a4__seal { font-size: 7.5pt !important; }
-  .sheet-a4__verify { font-size: 7pt !important; }
+  .sheet-a4__crm { font-size: 9pt !important; }
+  /* O número do documento é o que a farmácia e a escola citam: em 7 px de tela ele saía com ~5 pt. */
+  .sheet-a4__number { font-size: 9pt !important; }
+  .sheet-a4__seal { font-size: 8pt !important; }
+  .sheet-a4__verify { font-size: 7.5pt !important; color: #333 !important; }
+  .sheet-a4__verify-row { gap: 3mm !important; }
+  .sheet-a4__qr { width: 20mm !important; height: 20mm !important; }
   .sheet-a4__placeholder { display: none !important; }
 
   /* Links não precisam mostrar a URL: o QR e o selo já carregam a

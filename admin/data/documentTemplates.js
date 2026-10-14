@@ -72,7 +72,7 @@ export const DOCUMENT_SKELETONS = {
     titulo: 'ATESTADO DE COMPARECIMENTO',
     corpo:
       'Atesto, para os devidos fins de direito, que {{paciente.nome}}, nascido(a) em ' +
-      '{{paciente.dataNascimento}}, acompanhado(a) de seu responsável legal, compareceu a ' +
+      '{{paciente.dataNascimento}}, acompanhado(a) de seu responsável legal, compareceu à ' +
       'consulta médica nesta data, no período das {{consulta.horaInicio}} às {{consulta.horaFim}}.',
   },
 
@@ -237,3 +237,10 @@ export function resolveVariables(text, context = {}) {
 export function unresolvedVariables(text) {
   return Array.from(String(text ?? '').matchAll(/\{\{[^}]+\}\}/g)).map((m) => m[0]);
 }
+
+/** Provedores de assinatura digital oferecidos na emissão e na fila de assinatura. */
+export const SIGNATURE_PROVIDERS = [
+  { value: 'birdid', label: 'Bird ID (Soluti)' },
+  { value: 'vidaas', label: 'VIDaaS (Valid)' },
+  { value: 'icpbrasil', label: 'ICP-Brasil (certificado local)' },
+];
