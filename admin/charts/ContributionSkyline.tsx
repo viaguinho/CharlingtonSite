@@ -40,6 +40,10 @@ export type Cell = {
   before: boolean;
   /** Dentro do período em foco (sempre true quando não há foco). */
   inFocus: boolean;
+  /** Modo mês: o dia ainda não aconteceu (não é zero). */
+  future?: boolean;
+  /** Modo mês: é hoje. */
+  today?: boolean;
   note?: string;
 };
 export type RGB = [number, number, number];
@@ -135,7 +139,73 @@ export const buildGrid = (
   const nz = cells.map((c) => c.count).filter((c) => c > 0).sort((a, b) => a - b);
   const busy = nz.length ? nz[Math.floor(0.95 * (nz.length - 1))] : 0;
   for (const c of cells) c.level = levelOf(c.count, busy);
-  return { cells, weeks: cells.length ? cells[cells.length - 1].week + 1 : 0, max: nz.length ? nz[nz.length - 1] : 0 };
+  return {
+    cells,
+    weeks: cells.length ? cells[cells.length - 1].week + 1 : 0,
+    rows: 7,
+    calendar: false as boolean,
+    max: nz.length ? nz[nz.length - 1] : 0,
+  };
+};
+
+/**
+ * Grade de UM mês, como calendário: as colunas (x) são os dias da semana e as
+ * linhas (y) são as semanas do mês. Só existem as células dos dias do mês. Os
+ * dias depois de `todayMs` ainda não aconteceram: ficam apagados e não contam
+ * como zero. Em cada célula, `week` guarda a coluna e `day` guarda a linha.
+ */
+export const buildMonthGrid = (
+  data: SkylineDay[],
+  month: string,
+  todayMs: number,
+  weekStart = 0,
+  options: { dataFrom?: string | null } = {},
+) => {
+  const m = /^(\d{4})-(\d{2})/.exec(month);
+  const y = m ? +m[1] : new Date(todayMs).getUTCFullYear();
+  const mo = m ? +m[2] - 1 : new Date(todayMs).getUTCMonth();
+  const first = Date.UTC(y, mo, 1);
+  const total = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+  const lead = (new Date(first).getUTCDay() - weekStart + 7) % 7;
+  const counts = new Map<string, number>();
+  const notes = new Map<string, string>();
+  for (const d of data) {
+    if (!d || typeof d.date !== 'string') continue;
+    const ms = dayMs(d.date);
+    if (!Number.isFinite(ms)) continue;
+    const k = toKey(ms);
+    if (d.note) notes.set(k, d.note);
+    const c = Number(d.count);
+    if (c > 0 && Number.isFinite(c)) counts.set(k, (counts.get(k) ?? 0) + c);
+  }
+  const todayKey = toKey(todayMs);
+  const cells: Cell[] = [];
+  for (let i = 0; i < total; i++) {
+    const date = toKey(first + i * DAY_MS);
+    const slot = lead + i;
+    cells.push({
+      date,
+      count: counts.get(date) ?? 0,
+      level: 0,
+      week: slot % 7,
+      day: Math.floor(slot / 7),
+      before: Boolean(options.dataFrom && date < options.dataFrom),
+      inFocus: true,
+      future: date > todayKey,
+      today: date === todayKey,
+      note: notes.get(date),
+    });
+  }
+  const nz = cells.filter((c) => !c.future && c.count > 0).map((c) => c.count).sort((a, b) => a - b);
+  const busy = nz.length ? nz[Math.floor(0.95 * (nz.length - 1))] : 0;
+  for (const c of cells) c.level = levelOf(c.count, busy);
+  return {
+    cells,
+    weeks: 7,
+    rows: Math.floor((lead + total - 1) / 7) + 1,
+    calendar: true as boolean,
+    max: nz.length ? nz[nz.length - 1] : 0,
+  };
 };
 
 /** Um rótulo em cada semana cujo primeiro dia abre um mês; o primeiro, se apertado, cai. */
@@ -198,8 +268,10 @@ type View = '2d' | '3d';
 export interface ContributionSkylineProps {
   /** Um item por dia com atendimento, `AAAA-MM-DD`. Datas repetidas somam. */
   data: SkylineDay[];
-  /** Último dia exibido (hoje). */
+  /** Último dia exibido (hoje). No modo mês, é o "hoje" que separa o que já aconteceu. */
   endDate: string | Date;
+  /** `AAAA-MM`: mostra só esse mês, como calendário com o número de cada dia. */
+  month?: string;
   /** Primeiro dia com registro na base: o que vem antes é "sem registro", não zero. */
   dataFrom?: string | null;
   /** Período selecionado na tela; fora dele o gráfico esmaece. */
@@ -309,6 +381,7 @@ const LEVEL_NAMES = ['Sem atendimento', 'Poucos', 'Moderado', 'Muitos', 'Dia mai
 export default function ContributionSkyline({
   data,
   endDate,
+  month,
   dataFrom = null,
   focus = null,
   view: viewProp,
@@ -334,12 +407,16 @@ export default function ContributionSkyline({
   const focusFrom = focus?.from ?? null;
   const focusTo = focus?.to ?? null;
   const model = React.useMemo(() => {
+    if (month) {
+      const grid = buildMonthGrid(data, month, endKey, weekStart, { dataFrom });
+      return { ...grid, months: [] as { week: number; label: string }[] };
+    }
     const grid = buildGrid(data, endKey, weekStart, {
       dataFrom,
       focus: focusFrom && focusTo ? { from: focusFrom, to: focusTo } : null,
     });
     return { ...grid, months: monthLabels(grid.cells, grid.weeks, locale) };
-  }, [data, endKey, weekStart, dataFrom, focusFrom, focusTo, locale]);
+  }, [data, month, endKey, weekStart, dataFrom, focusFrom, focusTo, locale]);
 
   // Em tela estreita o skyline encolhe até o ilegível: o mapa é a visão inicial do celular.
   const [innerView, setInnerView] = React.useState<View>(
@@ -379,13 +456,13 @@ export default function ContributionSkyline({
   const describe = (i: number) => {
     const c = model.cells[i];
     if (!c) return '';
-    const what = c.before ? 'Sem registro' : c.count ? nf.format(c.count) + ' ' + noun(c.count) : 'Sem ' + plural;
+    const what = c.future ? 'Ainda não aconteceu' : c.before ? 'Sem registro' : c.count ? nf.format(c.count) + ' ' + noun(c.count) : 'Sem ' + plural;
     return what + (c.note ? ', ' + c.note : '') + ' em ' + dfl.format(dayMs(c.date));
   };
 
   // Tudo o que o laço de desenho lê, renovado a cada render para nunca fechar sobre props velhas.
   const cfg = React.useRef<any>(null);
-  cfg.current = { model, duration, heightScale, maxHeight, orbit, legendLevel, target: view === '3d' ? 1 : 0, setActive, setWidth, setAnnounce, describe };
+  cfg.current = { model, weekStart, duration, heightScale, maxHeight, orbit, legendLevel, target: view === '3d' ? 1 : 0, setActive, setWidth, setAnnounce, describe };
 
   React.useEffect(() => {
     const root = rootRef.current;
@@ -445,6 +522,13 @@ export default function ContributionSkyline({
     let order: number[] = [];
     let months: { week: number; label: string }[] = [];
     let weekdayRows: { day: number; label: string }[] = [];
+    // modo mês: colunas = dias da semana (x), linhas = semanas do mês (y)
+    let cal = false;
+    let rowsN = 7;
+    let colLabels: string[] = [];
+    let fam = 'sans-serif';
+    let tod = new Uint8Array(0);
+    let dnum = new Uint8Array(0);
     // interação
     let hovered = -1;
     let pinned = -1;
@@ -457,12 +541,16 @@ export default function ContributionSkyline({
       const m = cfg.current.model;
       n = m.cells.length;
       weeks = m.weeks;
+      cal = Boolean(m.calendar);
+      rowsN = m.rows ?? 7;
       const fresh = wk.length !== n;
       if (fresh) {
         wk = new Float32Array(n);
         dy = new Float32Array(n);
         lv = new Uint8Array(n);
         before = new Uint8Array(n);
+        tod = new Uint8Array(n);
+        dnum = new Uint8Array(n);
         hgt = new Float32Array(n);
         zs = new Float32Array(n);
         hover = new Float32Array(n);
@@ -478,7 +566,9 @@ export default function ContributionSkyline({
         wk[i] = c.week;
         dy[i] = c.day;
         lv[i] = c.level;
-        before[i] = c.before ? 1 : 0;
+        before[i] = c.before || c.future ? 1 : 0;
+        tod[i] = c.today ? 1 : 0;
+        dnum[i] = +c.date.slice(8, 10);
         hgt[i] = barHeight(c.count, m.max, cfg.current.heightScale);
         fadeGoal[i] = c.inFocus ? 0 : 1;
         // Primeiro desenho: já no estado final. Mudar de período é que esmaece aos poucos.
@@ -490,6 +580,14 @@ export default function ContributionSkyline({
       for (let d = 0; d < 7 && d < n; d++) {
         const dow = new Date(dayMs(m.cells[d].date)).getUTCDay();
         if (dow === 1 || dow === 3 || dow === 5) weekdayRows.push({ day: d, label: wf.format(dayMs(m.cells[d].date)).replace('.', '') });
+      }
+      colLabels = [];
+      if (cal) {
+        for (let k = 0; k < 7; k++) {
+          const dow = ((cfg.current.weekStart ?? 0) + k) % 7;
+          const lab = wf.format(Date.UTC(2023, 0, 1 + dow)).replace('.', '');
+          colLabels.push(lab.charAt(0).toUpperCase() + lab.slice(1));
+        }
       }
       if (hovered >= n) hovered = -1;
       if (pinned >= n) pinned = -1;
@@ -516,7 +614,8 @@ export default function ContributionSkyline({
         col.set(colGoal);
         colReady = true;
       }
-      font = '400 10px ' + (cs.fontFamily || 'sans-serif');
+      fam = cs.fontFamily || 'sans-serif';
+      font = '400 10px ' + fam;
       ctx.font = font;
       labelW = Math.ceil(Math.max(20, ...weekdayRows.map((r) => ctx.measureText(r.label).width))) + 8;
       kick();
@@ -549,8 +648,8 @@ export default function ContributionSkyline({
         add(x0 + w, y0, 0);
       }
       // espaço para os rótulos de mês que correm pela borda da frente no 3D
-      add(0, 7 + 1.5 * e, 0);
-      add(weeks, 7 + 1.5 * e, 0);
+      add(0, rowsN + 1.5 * e, 0);
+      add(weeks, rowsN + 1.5 * e, 0);
       return { minx, maxx, miny, maxy };
     };
 
@@ -559,10 +658,12 @@ export default function ContributionSkyline({
       if (!w || !n) return;
       W = w;
       // Cartão estreito cede a coluna dos dias da semana para a grade: as linhas ficam apertadas demais para rótulo.
-      gutter = W < 520 ? 0 : labelW;
+      gutter = cal || W < 520 ? 0 : labelW;
       dpr = Math.min(2, window.devicePixelRatio || 1);
       const b2 = extent(camera(0), 0, true);
-      H2 = 20 + 4 + ((b2.maxy - b2.miny) / (b2.maxx - b2.minx)) * (W - gutter - 4);
+      H2 = (cal ? 34 : 20) + 4 + ((b2.maxy - b2.miny) / (b2.maxx - b2.minx)) * (W - gutter - 4);
+      // Calendário de um mês é quase quadrado: sem teto ele ficaria mais alto que o resto do card.
+      if (cal) H2 = Math.min(H2, Math.max(240, cfg.current.maxHeight));
       const b3 = extent(camera(1), 1, true);
       const natural = ((b3.maxy - b3.miny) / (b3.maxx - b3.minx)) * (W - 40) + 40;
       const cap = Math.max(240, cfg.current.maxHeight);
@@ -586,11 +687,11 @@ export default function ContributionSkyline({
         stage.style.height = Hc.toFixed(1) + 'px';
         lastH = Hc;
       }
-      for (let i = 0; i < n; i++) zs[i] = riseAt(t, wk[i], weeks, dy[i]) * hgt[i];
+      for (let i = 0; i < n; i++) zs[i] = (cal ? riseAt(t, dy[i], rowsN, wk[i]) : riseAt(t, wk[i], weeks, dy[i])) * hgt[i];
       const b = extent(cam, e, false);
       const pad = lerp(2, 20, e);
       const left = pad + gutter * (1 - e);
-      const top = pad + 20 * (1 - e);
+      const top = pad + (cal ? 34 : 20) * (1 - e);
       const aw = W - left - pad;
       const ah = Hc - top - pad;
       const bw = Math.max(1e-6, b.maxx - b.minx);
@@ -696,6 +797,30 @@ export default function ContributionSkyline({
           ctx.lineWidth = 1.5;
           ctx.stroke();
         }
+        if (cal) {
+          // Hoje ganha um anel; cada dia leva o seu número, na cor que lê sobre o preenchimento.
+          if (tod[i]) {
+            ctx.beginPath();
+            quadPath(ctx, polys, o, radius);
+            ctx.strokeStyle = rgbString(accent[0], accent[1], accent[2]);
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+          }
+          const cellPx = w * s;
+          if (cellPx >= 18) {
+            const size = Math.min(16, Math.max(11, cellPx * 0.3));
+            const tx = (polys[o] + polys[o + 2] + polys[o + 4] + polys[o + 6]) / 4;
+            const ty = (polys[o + 1] + polys[o + 3] + polys[o + 5] + polys[o + 7]) / 4;
+            const lum = (0.2126 * r + 0.7152 * g + 0.0722 * bl) / 255;
+            ctx.font = (tod[i] ? '700 ' : '500 ') + size.toFixed(1) + 'px ' + fam;
+            ctx.fillStyle = before[i]
+              ? 'rgba(' + muted[0] + ',' + muted[1] + ',' + muted[2] + ',0.85)'
+              : lum > 0.6 ? rgbString(fg[0], fg[1], fg[2]) : rgbString(bg[0], bg[1], bg[2]);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(dnum[i]), tx, ty);
+          }
+        }
       }
 
       // Rótulos: no alto e à esquerda no mapa, pela borda da frente no 3D. Esmaecem, não pulam.
@@ -703,7 +828,14 @@ export default function ContributionSkyline({
       const a2 = 1 - smoothstep(0, 0.4, e);
       const a3 = smoothstep(0.62, 1, e);
       const labelFill = (a: number) => 'rgba(' + Math.round(muted[0]) + ',' + Math.round(muted[1]) + ',' + Math.round(muted[2]) + ',' + a.toFixed(3) + ')';
-      if (a2 > 0.004) {
+      if (a2 > 0.004 && cal) {
+        ctx.fillStyle = labelFill(a2);
+        ctx.font = '500 12px ' + fam;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        for (let k = 0; k < colLabels.length; k++) ctx.fillText(colLabels[k], px(k + 0.5, -0.12), py(k + 0.5, -0.12, 0) - 3);
+        ctx.font = font;
+      } else if (a2 > 0.004) {
         ctx.fillStyle = labelFill(a2);
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
@@ -719,7 +851,14 @@ export default function ContributionSkyline({
         ctx.textBaseline = 'middle';
         if (gutter > 0) for (const r of weekdayRows) ctx.fillText(r.label, px(0, r.day + 0.5) - 6, py(0, r.day + 0.5, 0));
       }
-      if (a3 > 0.004) {
+      if (a3 > 0.004 && cal) {
+        ctx.fillStyle = labelFill(a3);
+        ctx.font = '500 12px ' + fam;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let k = 0; k < colLabels.length; k++) ctx.fillText(colLabels[k], px(k + 0.5, rowsN + 0.35), py(k + 0.5, rowsN + 0.35, 0) + 2);
+        ctx.font = font;
+      } else if (a3 > 0.004) {
         ctx.fillStyle = labelFill(a3);
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
@@ -915,10 +1054,13 @@ export default function ContributionSkyline({
       }
       let i = pinned >= 0 ? pinned : activeIdx >= 0 ? activeIdx : n - 1;
       if (pinned >= 0 || activeIdx >= 0) {
-        if (ev.key === 'ArrowLeft') i -= 7;
-        if (ev.key === 'ArrowRight') i += 7;
-        if (ev.key === 'ArrowUp') i -= 1;
-        if (ev.key === 'ArrowDown') i += 1;
+        // No calendário do mês, esquerda/direita andam um dia e cima/baixo uma semana.
+        const stepX = cal ? 1 : 7;
+        const stepY = cal ? 7 : 1;
+        if (ev.key === 'ArrowLeft') i -= stepX;
+        if (ev.key === 'ArrowRight') i += stepX;
+        if (ev.key === 'ArrowUp') i -= stepY;
+        if (ev.key === 'ArrowDown') i += stepY;
         if (ev.key === 'Home') i = 0;
         if (ev.key === 'End') i = n - 1;
       }
@@ -1128,7 +1270,7 @@ export default function ContributionSkyline({
                 {cell.date === toKey(endKey) ? ' · hoje, em curso' : ''}
               </span>
               <strong className="num">
-                {cell.before ? 'Sem registro' : cell.count ? nf.format(cell.count) + ' ' + noun(cell.count) : 'Sem ' + plural}
+                {cell.future ? 'Ainda não aconteceu' : cell.before ? 'Sem registro' : cell.count ? nf.format(cell.count) + ' ' + noun(cell.count) : 'Sem ' + plural}
                 {cell.note ? ' · ' + cell.note : ''}
               </strong>
             </>
@@ -1161,6 +1303,12 @@ export default function ContributionSkyline({
         </span>
         {showLegend ? (
           <div className="skyline__legend" onMouseLeave={() => setLegendLevel(-1)}>
+            {month ? (
+              <span className="skyline__keys" aria-hidden="true">
+                <span className="skyline__key"><i className="skyline__key-today" />Hoje</span>
+                <span className="skyline__key"><i className="skyline__key-future" />Ainda não aconteceu</span>
+              </span>
+            ) : null}
             <span>Menos</span>
             {LEVEL_NAMES.map((name, i) => (
               <button

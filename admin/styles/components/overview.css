@@ -1,30 +1,43 @@
 /* ==========================================================================
-   VISÃO GERAL — cabeçalho no estilo Luma (referência Behance)
-   Só a saudação usa a tipografia geométrica (Urbanist) e a luz de fundo. O
-   restante da tela segue o painel. Tudo vive sob `.ov`.
+   VISÃO GERAL — vidro claro, tipografia geométrica e números leves
+   Referência: Luma Workspace (Behance). O lima da referência é o azul da
+   marca; o resto do painel não muda. Tudo o que está aqui vive sob `.ov`.
    ========================================================================== */
 
-.ov { position: relative; isolation: isolate; }
-
-.ov .greeting {
+.ov {
+  /* Urbanist é mais baixa que a Inter no mesmo corpo: o corpo sobe de 13 para
+     14 px só aqui. As aliases precisam ser refeitas, porque `--t-small` e
+     companhia foram resolvidas no :root. */
+  --font: var(--font-luma);
+  --t-body: 14px;
+  --t-small: 14px;
+  --t-caption: 14px;
+  --t-base: 14px;
+  --ls-title: -.03em;
   position: relative;
-  margin-bottom: var(--s-8);
-  align-items: flex-end;
+  isolation: isolate;
+  font-family: var(--font-luma);
 }
 
-/* Lavagem de luz atrás da saudação: fica no cabeçalho, não no conteúdo. */
-.ov .greeting::before {
+/* Lavagem de luz atrás da saudação e do hero: a profundidade da referência. */
+.ov::before {
   content: "";
   position: absolute;
   z-index: -1;
-  inset: -40px -24px -24px -24px;
+  inset: -96px 0 auto 0;
+  height: 640px;
   pointer-events: none;
   background:
-    radial-gradient(28% 60% at 30% 40%, var(--wash-b), transparent 100%),
-    radial-gradient(20% 50% at 80% 40%, var(--wash-a), transparent 100%);
+    radial-gradient(28% 50% at 30% 24%, var(--wash-b), transparent 100%),
+    radial-gradient(20% 44% at 80% 26%, var(--wash-a), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 90px, black 230px, black 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, transparent 90px, black 230px, black 55%, transparent 100%);
 }
 
-.ov .greeting__text { gap: var(--s-2); font-family: var(--font-luma); }
+/* ——————————————————————————— Saudação ——————————————————————————— */
+
+.ov .greeting { margin-bottom: var(--s-8); align-items: flex-end; }
+.ov .greeting__text { gap: var(--s-2); }
 .ov .greeting__text .page-title {
   order: 1;
   font-size: 44px;
@@ -37,6 +50,264 @@
 .ov .greeting__date { order: 2; font-size: 15px; color: var(--ink-400); }
 .ov .greeting__date::first-letter { text-transform: uppercase; }
 
+/* ——————————————————————————— Cards de vidro ——————————————————————————— */
+
+.ov .card {
+  background: var(--card-glass);
+  border: 1px solid var(--card-glass-edge);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-glass);
+  padding: var(--s-6);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.ov .card--flush { padding: 0; }
+.ov .card--flush > .card__header { padding: var(--s-6) var(--s-6) var(--s-4); }
+.ov .card--flush > .card__body { padding-bottom: var(--s-2); }
+
+.ov .card__header { align-items: center; gap: var(--s-3); margin-bottom: var(--s-5); flex-wrap: nowrap; }
+.ov .card__heading { flex: 1 1 0; }
+.ov .card__title { font-size: 17px; line-height: 1.25; font-weight: var(--w-semibold); letter-spacing: -.015em; }
+.ov .card__subtitle { font-size: 14px; line-height: 1.35; }
+.ov .card__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-circle);
+  background: var(--surface-raised);
+  color: var(--ink-600);
+  box-shadow: inset 0 0 0 1px var(--ink-a06), var(--e-1);
+}
+.ov .card__tools .icon-btn { background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--ink-a06), var(--e-1); }
+
+.ov-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  font-size: 14px;
+  font-weight: var(--w-medium);
+  line-height: 1.2;
+  color: var(--ink-600);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--ink-a06), var(--e-1);
+}
+.ov-chip strong { font-weight: var(--w-semibold); color: var(--ink-950); }
+.ov-chip--ink { background: var(--ink-900); color: var(--ink-100); box-shadow: none; }
+.ov-chip--ink strong { color: var(--surface); }
+
+/* ——————————— Hero: indicadores à esquerda, skyline à direita ——————————— */
+
+.ov-hero { min-height: 680px; }
+.ov-hero__body {
+  display: grid;
+  grid-template-columns: minmax(240px, 296px) minmax(0, 1fr);
+  gap: var(--s-8);
+  flex: 1;
+  min-height: 0;
+}
+
+.ov-rail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-6) var(--s-4);
+  /* Como na referência: os números se distribuem de cima a baixo do card. */
+  align-content: space-between;
+  min-width: 0;
+}
+.ov-rail .metric { gap: 2px; min-width: 0; }
+.ov-rail .metric.is-featured {
+  order: -1;
+  grid-column: 1 / -1;
+  padding-bottom: var(--s-5);
+  border-bottom: 1px dashed var(--ink-a12);
+}
+.ov-rail .metric__label { min-height: 0; font-size: 14px; color: var(--ink-500); }
+.ov-rail .metric__value {
+  font-size: 38px;
+  line-height: 1.05;
+  font-weight: var(--w-light);
+  letter-spacing: -.04em;
+}
+.ov-rail .metric.metric--lg .metric__value { font-size: 68px; letter-spacing: -.045em; }
+.ov-rail .metric__target { margin-top: var(--s-1); font-size: 14px; line-height: 1.4; }
+.ov-rail .metric__unit--prefix { margin-right: var(--s-1); }
+
+.ov-hero__chart { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.ov-hero__chart .skyline { margin: 0; }
+.ov-hero__chart .skyline__head .chart__summary strong {
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+.ov-hero__chart .skyline-stat__value strong { font-size: 36px; line-height: 1; letter-spacing: -.04em; }
+.ov-hero__chart .skyline-stat__label,
+.ov-hero__chart .skyline-stat__sub { font-size: 14px; }
+.ov-hero__chart .skyline__tip {
+  background: var(--card-glass);
+  color: var(--ink-900);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-3);
+  box-shadow: var(--e-glass-hover);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.ov-hero__chart .skyline__tip-date { color: var(--ink-400); }
+.ov-hero__chart .skyline__tip-arrow { border-top-color: var(--surface-raised); }
+.ov-hero__chart .skyline__foot { border-top: 1px dashed var(--ink-a12); }
+
+/* ——————— Precisa de você + Confirmações: o card do assistente ———————
+   `contain: size` tira a lista da conta da altura da linha: o hero manda, e a
+   fila de pendências rola por dentro do card em vez de esticá-lo. */
+
+.ov-helper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  contain: size;
+  min-height: 0;
+  background: var(--card-glass-soft);
+}
+.ov-helper .card__header { margin-bottom: 0; flex: none; }
+.ov-helper__lead {
+  flex: none;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink-400);
+}
+.ov-helper__lead strong { font-weight: var(--w-medium); color: var(--ink-900); }
+
+.ov-insights {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-5);
+  border-radius: var(--r-xl);
+  background: var(--card-glass);
+  border: 1px solid var(--card-glass-edge);
+  box-shadow: var(--e-glass);
+}
+.ov-insights__head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
+.ov-insights__title { display: inline-flex; align-items: center; gap: var(--s-2); font-size: 16px; font-weight: var(--w-medium); color: var(--ink-900); }
+.ov-insights__title .icon { color: var(--ink-500); }
+.ov-insights__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-inline: calc(var(--s-2) * -1);
+  padding-inline: var(--s-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-a20) transparent;
+}
+
+.ov .pending { gap: 0; }
+.ov-insights .pending li {
+  padding: var(--s-3) 0;
+  border-radius: 0;
+  background: none;
+  border-bottom: 1px dashed var(--ink-a12);
+}
+.ov-insights .pending li:last-child { border-bottom: 0; }
+.ov-insights .pending li.pending__more { padding: var(--s-2) 0; }
+.ov .pending__icon { width: 36px; height: 36px; }
+.ov .pending__text strong { font-size: 15px; font-weight: var(--w-semibold); letter-spacing: -.005em; }
+.ov .pending__text span { font-size: 14px; }
+
+.ov-confirm { flex: none; display: flex; flex-direction: column; gap: var(--s-2); }
+.ov-confirm__row { display: flex; align-items: center; gap: var(--s-3); }
+.ov-confirm__pill {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-xl);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--ink-a04), var(--e-1);
+}
+.ov-confirm__caption { display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 1.3; color: var(--ink-400); }
+.ov-confirm__count { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 15px; line-height: 1.3; color: var(--ink-600); }
+.ov-confirm__count strong { font-size: 32px; line-height: 1; font-weight: var(--w-light); letter-spacing: -.04em; color: var(--ink-950); }
+.ov-confirm__meta { font-size: 13px; line-height: 1.3; color: var(--ink-400); }
+.ov-confirm__warn { color: var(--signal-amber-ink); }
+.ov-confirm__bar { display: flex; gap: 2px; height: 8px; border-radius: var(--r-pill); overflow: hidden; background: var(--ink-a06); }
+.ov-confirm__bar i { display: block; height: 100%; min-width: 0; background: var(--data-accent); }
+.ov-confirm__bar i.is-pending { background: var(--signal-amber); }
+.ov-confirm__send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-circle);
+  background: var(--ink-900);
+  color: var(--surface);
+  cursor: pointer;
+  box-shadow: var(--e-2);
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.ov-confirm__send:hover { transform: scale(1.06); box-shadow: var(--e-3); }
+.ov-confirm__send:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 3px; }
+.ov-confirm__note { margin: 0; padding-inline: var(--s-2); font-size: 13px; line-height: 1.4; color: var(--ink-400); }
+.ov-confirm__note.report-note--danger { color: var(--signal-red-ink); }
+
+/* ——————— Produção: o gráfico de barras ocupa a altura da agenda ——————— */
+
+.ov .chart__summary { align-items: flex-end; gap: var(--s-3); margin-bottom: var(--s-4); }
+.ov .chart__summary strong {
+  font-size: 48px;
+  line-height: 1;
+  font-weight: var(--w-light);
+  letter-spacing: -.045em;
+}
+.ov .chart__summary span { padding-bottom: var(--s-2); font-size: 14px; color: var(--ink-500); }
+
+/* ——————————— Recepção e financeiro: faixa de indicadores em vidro ——————————— */
+
+.ov .metric-strip--bento > *,
+.ov .bento-strip > .metric-strip > * {
+  background: var(--card-glass);
+  border: 1px solid var(--card-glass-edge) !important;
+  border-radius: var(--r-card);
+  box-shadow: var(--e-glass);
+  padding: var(--s-6);
+}
+.ov .metric-strip--bento > *:hover,
+.ov .bento-strip > .metric-strip > *:hover { box-shadow: var(--e-glass-hover); border-color: var(--card-glass-edge); }
+.ov .metric-strip--bento .metric__value,
+.ov .bento-strip > .metric-strip .metric__value { font-size: 40px; font-weight: var(--w-light); letter-spacing: -.04em; }
+.ov .metric-strip .metric:not(.is-featured) .metric__value { font-size: 40px; }
+.ov .metric-strip--bento .metric.metric--lg .metric__value { font-size: 60px; letter-spacing: -.045em; }
+.ov .metric__label { font-size: 14px; color: var(--ink-500); }
+.ov .metric__target { font-size: 14px; }
+
+.ov .waiting li, .ov .confirm-list li { border-radius: var(--r-md); }
+
+/* ——————————————————————————— Responsivo ——————————————————————————— */
+
+@media (max-width: 1320px) {
+  .ov .bento > .ov-hero,
+  .ov .bento > .ov-helper { grid-column: span 12 !important; }
+  .ov-helper { contain: none; max-height: 680px; }
+}
+
+@media (max-width: 1080px) {
+  .ov-hero { min-height: 0; }
+  .ov-hero__body { grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+  .ov-rail { align-content: start; }
+}
+
 @media (max-width: 640px) {
   .ov .greeting__text .page-title { font-size: 34px; }
+  .ov .card { padding: var(--s-5); border-radius: var(--r-xl); }
+  .ov-rail .metric.metric--lg .metric__value { font-size: 56px; }
+  .ov-confirm__send { width: 52px; height: 52px; }
 }

@@ -13,6 +13,8 @@ import RescheduleDialog from '../agenda/RescheduleDialog.jsx';
 import { Card, CardHeader, CardBody, Metric, MetricStrip, EmptyState, Skeleton, MoneyValue } from '../../components/Card.jsx';
 import { Button, Chip, StatusDot, Avatar, IconButton } from '../../components/primitives.jsx';
 import { BarChart, Gauge, StackedRatioBar } from '../../charts/index.jsx';
+import DitherDonut from '../../charts/DitherDonut.tsx';
+import { PERIOD_OPTIONS } from '../../components/Tabs.jsx';
 import { localDay, periodRange, inRange } from '../../core/periods.js';
 import { isLate, isUpcoming, isUnresolved, canReschedule, displayStatus, waitInfo, confirmationWindow, oldestByDay, namesList, trailingNoShows, CONSECUTIVE_NO_SHOW_ALERT, teleconsultsWithoutConsent, messagingOptIn } from '../../core/appointments.js';
 import Icon from '../../components/Icon.jsx';
@@ -188,9 +190,28 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
   // Teleconsulta sem consentimento marcada para hoje ou amanhã: só aí é alerta.
   const teleUrgent = tele.upcoming.some((a) => localDay(a.inicio) <= addDays(today, 1));
 
+  // Gráfico do hero: a situação dos atendimentos em cada período (semana,
+  // mês, trimestre e ano corrente), com o mesmo critério de "sem desfecho"
+  // dos KPIs ao lado. Reunião interna não é atendimento e fica fora.
+  const statusPeriods = useMemo(() => buildStatusPeriods(appointments, today), [appointments, today]);
+
+  // Quantas linhas a fila de pendências mostra (o texto do cartão conta).
+  const pendingCount = late.length + waiting.length + unresolved.length + repeatedNoShows.length
+    + (tele.children.size ? 1 : 0) + (reportsToIssue.length ? 1 : 0) + (overdueTitles.length ? 1 : 0)
+    + (payableSoonTitles.length ? 1 : 0) + (pendingDocs.length ? 1 : 0);
+
   return (
     <Bento>
-      <MetricStripCard>
+      {/* ——— Atividade dos pacientes: os indicadores do dia à esquerda e o
+          skyline de produção à direita (referência Luma) ——— */}
+      <Card span={7} className="ov-hero">
+        <CardHeader
+          icon="activity"
+          title="Atividade dos pacientes"
+          onExpand={() => navigate('/relatorios')}
+        />
+        <div className="ov-hero__body">
+          <div className="ov-rail">
         {/* O número grande é o que pede ação agora. Consulta sem desfecho (o
             registro que falta de um horário passado) vem primeiro quando
             existe; sem ela, quem espera na recepção; sem ninguém, o dia. */}
@@ -265,22 +286,34 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
               : 'Todos com retorno marcado'}
           />
         )}
-      </MetricStripCard>
+          </div>
 
-      {/* ——— Agenda: dia, semana, mês e lista, no espaço do antigo card do dia ——— */}
-      <AgendaPanel
-        appointments={appointments}
-        patients={patients}
-        rooms={rooms}
-        consents={consents}
-        confirmations={confirmations}
-        onChanged={onChanged}
-      />
+          <div className="ov-hero__chart">
+            <DitherDonut
+              periods={statusPeriods}
+              defaultPeriod="month"
+              title="Situação dos atendimentos"
+              unit="atendimento"
+            />
+          </div>
+        </div>
+      </Card>
 
-      {/* ——— Fila de pendências ——— */}
-      <Card span={5}>
-        <CardHeader title="Precisa de você" subtitle="Pendências do consultório, da mais urgente à rotina" />
-        <CardBody>
+      {/* ——— Precisa de você + Confirmações: o card do assistente da referência ——— */}
+      <Card span={5} className="ov-helper">
+        <CardHeader icon="clipboard" title="Precisa de você" />
+        <p className="ov-helper__lead">
+          {pendingCount
+            ? <>Você tem <strong>{pendingCount} {pendingCount === 1 ? 'pendência' : 'pendências'}</strong> no consultório, da mais urgente à rotina.</>
+            : <>Nenhuma pendência no consultório <strong>agora</strong>.</>}
+        </p>
+
+        <section className="ov-insights" aria-label="Fila de pendências">
+          <header className="ov-insights__head">
+            <span className="ov-insights__title"><Icon name="list" size={16} /> Fila de pendências</span>
+            {pendingCount ? <span className="ov-chip ov-chip--ink"><strong className="num">{pendingCount}</strong></span> : null}
+          </header>
+          <div className="ov-insights__body">
           {(pendingDocs.length || checkedIn.length || reportsToIssue.length || late.length || unresolved.length || overdueTitles.length || payableSoonTitles.length || repeatedNoShows.length || tele.children.size) ? (
             <ul className="pending">
               {late.map((a) => (
@@ -421,50 +454,58 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
               compact
             />
           )}
-        </CardBody>
-      </Card>
+          </div>
+        </section>
 
-      {/* ——— Confirmações dos próximos 7 dias ———
-          A composição por tipo de 3 consultas não pedia ação nenhuma. O que a
-          recepção faz com a próxima semana é confirmar: quantas faltam. */}
-      <Card span={5}>
-        <CardHeader
-          title="Confirmações"
-          subtitle={`Consultas de ${shortDay(confirmations.range.from)} a ${shortDay(confirmations.range.to)} (próximos 7 dias)`}
-          actions={confirmations.unconfirmed
-            ? (
-              <Button size="sm" onClick={() => navigate('/comunicacao')}>
-                {optIn ? 'Pedir confirmação' : 'Registrar consentimento'}
-              </Button>
-            )
-            : null}
-        />
-        <CardBody>
+        {/* ——— Confirmações dos próximos 7 dias: o que a recepção faz com a
+            próxima semana é confirmar; aqui, quantas faltam. ——— */}
+        <div className="ov-confirm">
           {confirmations.total ? (
             <>
-              <p className="chart__summary">
-                <strong className="num">{confirmations.confirmed}</strong>
-                <span>de {confirmations.total} {confirmations.total === 1 ? 'consulta confirmada' : 'consultas confirmadas'}</span>
-              </p>
-              <StackedRatioBar
-                segments={[
-                  // Sem confirmação é âmbar como no aviso de confirmação de
-                  // toda tela; dois cinzas vizinhos (1,4:1) não se distinguiam.
-                  { label: 'Confirmadas', value: confirmations.confirmed, tone: 'mid' },
-                  { label: 'Sem confirmação', value: confirmations.unconfirmed, tone: 'warning' },
-                ]}
-                formatValue={(v) => `${v}`}
-                showPercent={false}
-              />
+              <div className="ov-confirm__row">
+                <div className="ov-confirm__pill">
+                  <span className="ov-confirm__caption">
+                    <Icon name="calendar" size={14} />
+                    Confirmações · próximos 7 dias
+                  </span>
+                  <span className="ov-confirm__count">
+                    <strong className="num">{confirmations.confirmed}</strong>{' '}
+                    de {confirmations.total} {confirmations.total === 1 ? 'consulta confirmada' : 'consultas confirmadas'}
+                  </span>
+                  <span
+                    className="ov-confirm__bar"
+                    role="img"
+                    aria-label={`${confirmations.confirmed} confirmadas e ${confirmations.unconfirmed} sem confirmação`}
+                  >
+                    <i style={{ flex: confirmations.confirmed }} />
+                    <i className="is-pending" style={{ flex: confirmations.unconfirmed }} />
+                  </span>
+                  <span className="ov-confirm__meta">
+                    Consultas de {shortDay(confirmations.range.from)} a {shortDay(confirmations.range.to)}
+                    {confirmations.unconfirmed ? <span className="ov-confirm__warn"> · {confirmations.unconfirmed} sem confirmação</span> : null}
+                  </span>
+                </div>
+                {confirmations.unconfirmed ? (
+                  <button
+                    type="button"
+                    className="ov-confirm__send"
+                    onClick={() => navigate('/comunicacao')}
+                    aria-label={optIn ? 'Pedir confirmação' : 'Registrar consentimento'}
+                    title={optIn ? 'Pedir confirmação' : 'Registrar consentimento'}
+                  >
+                    <Icon name="message-circle" size={20} />
+                  </button>
+                ) : null}
+              </div>
               {confirmations.firstUnconfirmed ? (
-                <p className="chart__note">
+                <p className="ov-confirm__note">
                   Primeira sem confirmação: {nameOf(confirmations.firstUnconfirmed.pacienteId)},{' '}
                   {new Date(confirmations.firstUnconfirmed.inicio).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}{' '}
                   às {time(confirmations.firstUnconfirmed.inicio)}.
                 </p>
               ) : null}
               {confirmations.unconfirmed && !optIn ? (
-                <p className="chart__note report-note--danger">
+                <p className="ov-confirm__note report-note--danger">
                   <Icon name="alert-triangle" size={13} />
                   Nenhuma família registrou consentimento para mensagens: a confirmação
                   automática não sai até o opt-in ser registrado no prontuário.
@@ -472,18 +513,29 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
               ) : null}
             </>
           ) : (
-            <EmptyState
-              icon="calendar"
-              title="Nada agendado para os próximos 7 dias"
-              action={<Button size="sm" icon="plus" onClick={() => navigate('/agenda')}>Agendar</Button>}
-              compact
-            />
+            <div className="ov-confirm__row">
+              <div className="ov-confirm__pill">
+                <span className="ov-confirm__count">Nada agendado para os próximos 7 dias</span>
+              </div>
+              <Button size="sm" icon="plus" onClick={() => navigate('/agenda')}>Agendar</Button>
+            </div>
           )}
-        </CardBody>
+        </div>
       </Card>
 
+
+      {/* ——— Agenda: dia, semana, mês e lista, no espaço do antigo card do dia ——— */}
+      <AgendaPanel
+        appointments={appointments}
+        patients={patients}
+        rooms={rooms}
+        consents={consents}
+        confirmations={confirmations}
+        onChanged={onChanged}
+      />
+
       {/* ——— Produção da semana ——— */}
-      <Card span={12} className="bento-full">
+      <Card span={5} rows={2} className="ov-production">
         <CardHeader
           title="Produção assistencial"
           subtitle="Atendimentos concluídos nos últimos 14 dias"
@@ -492,7 +544,7 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
         <CardBody>
           <BarChart
             data={weekBars}
-            height={200}
+            height={320}
             title="Atendimentos concluídos por dia nos últimos 14 dias"
             valueLabel="Atendimentos concluídos"
             bucketNoun="dias"
@@ -766,6 +818,56 @@ function OverviewSkeleton() {
       </Bento>
     </>
   );
+}
+
+/** As fatias da rosca do hero, na mesma ordem em todo período. */
+const SITUATION_SLICES = [
+  { key: 'done', label: 'Concluídos', color: '--blue-700' },
+  { key: 'upcoming', label: 'A realizar', color: '--blue-300' },
+  { key: 'open', label: 'Sem desfecho', color: '--signal-amber' },
+  { key: 'noshow', label: 'Faltas', color: '--signal-red' },
+  { key: 'cancelled', label: 'Cancelados', color: '--ink-200' },
+];
+
+/** Fim do período de calendário que começa em `from` (a semana vai até sábado, o mês até o último dia). */
+function periodEnd(period, from) {
+  const d = new Date(`${from}T12:00:00`);
+  if (period === 'week') d.setDate(d.getDate() + 6);
+  else if (period === 'month') d.setMonth(d.getMonth() + 1, 0);
+  else if (period === 'quarter') d.setMonth(d.getMonth() + 3, 0);
+  else d.setMonth(12, 0);
+  return isoDay(d);
+}
+
+/**
+ * Atendimentos de cada período por situação. O período inteiro entra, não só
+ * até hoje: o que ainda vai acontecer é "A realizar", e o que já passou sem
+ * registro é "Sem desfecho" (a mesma regra da lista de pendências).
+ */
+function buildStatusPeriods(appointments, today) {
+  const ref = new Date(`${today}T12:00:00`);
+  const dm = (day) => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+  return PERIOD_OPTIONS.map(({ value, label }) => {
+    const from = periodRange(value, ref).from;
+    const to = periodEnd(value, from);
+    const counts = { done: 0, upcoming: 0, open: 0, noshow: 0, cancelled: 0 };
+    for (const a of appointments) {
+      if (a.tipo === 'evento') continue;
+      const day = localDay(a.inicio);
+      if (!day || day < from || day > to) continue;
+      if (a.status === APPOINTMENT_STATUS.DONE) counts.done += 1;
+      else if (a.status === APPOINTMENT_STATUS.NO_SHOW) counts.noshow += 1;
+      else if (a.status === APPOINTMENT_STATUS.CANCELLED) counts.cancelled += 1;
+      else if (isUnresolved(a) || isLate(a)) counts.open += 1;
+      else counts.upcoming += 1;
+    }
+    return {
+      key: value,
+      label,
+      caption: `${dm(from)} a ${dm(to)}`,
+      slices: SITUATION_SLICES.map((s) => ({ ...s, value: counts[s.key] })),
+    };
+  });
 }
 
 /** Últimos 14 dias de atendimentos concluídos, por dia. */

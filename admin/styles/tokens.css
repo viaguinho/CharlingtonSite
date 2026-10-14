@@ -153,8 +153,18 @@
   --blur: blur(20px);
   --blur-strong: blur(28px);
 
-  /* Urbanist: só a saudação da Visão geral (referência Luma). */
+  /* ——————— Visão geral (referência Luma) — vidro claro, azul no lugar do lima ———————
+     Urbanist e superfícies de vidro com brilho interno só na tela inicial. */
   --font-luma: 'Urbanist', var(--font);
+  --r-card: 28px;
+  --card-glass: linear-gradient(180deg, rgba(255, 255, 255, .94) 0%, rgba(255, 255, 255, .72) 100%);
+  --card-glass-soft: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .30) 100%);
+  --card-glass-edge: rgba(255, 255, 255, .95);
+  --e-glass: inset 0 1px 0 rgba(255, 255, 255, .95), 0 18px 44px rgba(15, 16, 18, .05), 0 1px 3px rgba(15, 16, 18, .04);
+  --e-glass-hover: inset 0 1px 0 rgba(255, 255, 255, .95), 0 24px 56px rgba(15, 16, 18, .08), 0 1px 3px rgba(15, 16, 18, .05);
+  --wash-a: rgba(0, 113, 227, .11);
+  --wash-b: rgba(159, 201, 247, .26);
+  --chip-blue: linear-gradient(180deg, #d6e8fb 0%, #e8f2fd 100%);
 
   /* ———————————————————————————————— Movimento ——————————————————————————————— */
   --dur-1: 120ms;
@@ -176,7 +186,7 @@
   --rail: 76px;
   --rail-open: 248px;
   --topbar: 64px;
-  --content-max: 1440px;
+  --content-max: 100%;   /* o conteúdo ocupa toda a largura útil; só o respiro lateral (--gutter) sobra */
   --gutter: 24px;
   --bento-row: 180px;
 

@@ -42,9 +42,10 @@ export function Card({
  * Cabeçalho de card: título à esquerda, ferramentas à direita (REF 4).
  * `actions` recebe elementos prontos; `onExpand` adiciona o botão ↗ padrão.
  */
-export function CardHeader({ title, eyebrow, subtitle, actions, onExpand, className = '' }) {
+export function CardHeader({ title, eyebrow, subtitle, actions, onExpand, icon, className = '' }) {
   return (
     <header className={`card__header ${className}`.trim()}>
+      {icon ? <span className="card__icon" aria-hidden="true"><Icon name={icon} size={16} /></span> : null}
       <div className="card__heading">
         {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
         {title ? <h3 className="card__title">{title}</h3> : null}

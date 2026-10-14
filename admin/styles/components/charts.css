@@ -921,7 +921,7 @@
 .skyline__hint { position: relative; display: grid; flex: 1 1 240px; min-width: 0; }
 .skyline__hint > span { grid-area: 1 / 1; transition: opacity var(--dur-4) var(--ease-in-out); }
 
-.skyline__legend { display: flex; align-items: center; gap: var(--s-2); }
+.skyline__legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 /* O alvo de toque é maior que a marca (40 px em tela de toque, ≤768 px). */
 .skyline__swatch {
   position: relative;
@@ -947,3 +947,70 @@
 
 .skyline__data { max-height: 280px; overflow: auto; margin-top: var(--s-2); }
 .skyline__data .chart-data-table { margin-top: 0; width: 100%; }
+
+/* ——— Modo mês: chave de "hoje" e de "ainda não aconteceu" ao lado da legenda ——— */
+.skyline__keys { display: inline-flex; align-items: center; gap: var(--s-3); margin-right: var(--s-4); }
+.skyline__key { display: inline-flex; align-items: center; gap: var(--s-1); }
+.skyline__key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.skyline__key-today { background: var(--blue-300); box-shadow: 0 0 0 2px var(--ink-900); margin: 2px; }
+.skyline__key-future { background: var(--surface-sunken); opacity: .55; box-shadow: inset 0 0 0 1px var(--ink-a12); }
+
+/* ==========================================================================
+   ROSCA PONTILHADA — situação dos atendimentos (canvas + legenda focável)
+   A cor de cada fatia é um token; o canvas o lê por getComputedStyle.
+   ========================================================================== */
+
+.donut { margin: 0; display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.donut__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3) var(--s-4); }
+.donut__title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.donut__title strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.donut__title span { font-size: var(--t-body); color: var(--ink-400); }
+
+.donut__body { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-6) var(--s-8); }
+.donut__stage { position: relative; flex: none; width: 240px; height: 240px; }
+.donut__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+.donut__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 var(--s-8);
+  text-align: center;
+  pointer-events: none;
+}
+.donut__center strong {
+  font-size: 44px;
+  line-height: 1;
+  font-weight: var(--w-light);
+  letter-spacing: -.045em;
+  color: var(--ink-950);
+}
+.donut__center span { font-size: var(--t-body); line-height: 1.25; color: var(--ink-400); }
+
+.donut__list { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); margin: 0; padding: 0; list-style: none; }
+.donut__row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto 44px;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+}
+.donut__row:hover,
+.donut__row.is-hot { background: var(--ink-a04); border-color: var(--ink-a08); }
+.donut__row:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.donut__dot { width: 10px; height: 10px; border-radius: var(--r-circle); }
+.donut__label { font-size: var(--t-body); color: var(--ink-900); }
+.donut__value { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.donut__pct { font-size: var(--t-body); color: var(--ink-400); text-align: right; }
+
+@media (max-width: 640px) {
+  .donut__stage { width: 200px; height: 200px; margin-inline: auto; }
+  .donut__center strong { font-size: 36px; }
+}
