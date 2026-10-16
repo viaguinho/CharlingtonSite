@@ -194,6 +194,7 @@ export default function FinanceScreen() {
           label={`Resultado ${periodWords}`}
           value={hasData ? <MoneyValue value={summary.result} cents={false} /> : '—'}
           tone={hasData && summary.result < 0 ? 'danger' : undefined}
+          mood={hasData && summary.result < 0 ? 'attention' : 'positive'}
           target={hasData
             ? [
               summary.expenseCount ? null : 'nenhuma despesa vence neste trecho',

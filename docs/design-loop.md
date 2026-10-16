@@ -437,6 +437,31 @@ Rodada 3 encerrada na 11ª passada, **por limiar e não por unanimidade na mesma
 
 ---
 
+## Redesign visual — vidro, gradiente com sentido, matriz de pontos (14/10/2026)
+
+**Pedido do dono:** reformulação visual do painel inteiro no estilo das 11 referências, preservando todas as funções; alinhado por /grill-me (decisão `dec-redesign-painel-vidro-claro-multicolor-por-sentido` no cofre). Só o menu vertical fica fora.
+**Régua:** [`bar-redesign.md`](bar-redesign.md) · **Passadas:** 2 (pedido do dono) · **Correções:** aplicadas por mim (exceção pontual).
+
+**Peças**
+
+| Peça | Telas | Capturas |
+|---|---|---|
+| 1 · Visão geral | hero com régua de tiques, assistente, agenda, produção; celular; movimento | `shots/redesign-pN/p1-*` |
+| 2 · Telas de dados | Financeiro, Relatórios (calendário de pontos), Pacientes (Lista e Cards) | `p2-*` |
+| 3 · Fluxos e entrada | Agenda, Documentos, prontuário, modal, gaveta, paleta, Operações, Configurações, login com logo líquido | `p3-*` |
+
+**Críticos:** brief (opus, só o objetivo), sistema (sonnet, tokens e DOM medidos), acabamento (opus, régua + comparação cega com a REF Superpower/CreditPros).
+
+### 1ª passada
+
+| Crítico | Peça 1 | Peça 2 | Peça 3 | Maior lacuna |
+|---|---|---|---|---|
+| Brief | … | … | … | … |
+| Sistema | … | … | … | … |
+| Acabamento | … | … | … | … |
+
+---
+
 ## Contagem
 
 | | |

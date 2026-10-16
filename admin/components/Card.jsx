@@ -1,5 +1,7 @@
+import { isValidElement } from 'react';
 import { IconButton, SectionLabel } from './primitives.jsx';
 import Icon from './Icon.jsx';
+import { DotNumber, canDot } from './DotNumber.jsx';
 import { compact } from '../core/format.js';
 
 /**
@@ -74,14 +76,47 @@ export function CardFooter({ className = '', children }) {
 /* ═══════════════════════════════ Métricas ═══════════════════════════════ */
 
 /**
+ * Humor do card de destaque — a cor do gradiente diz o SENTIDO do número
+ * (decisão de 14/10): positivo (verde→lima), atenção (laranja→pêssego),
+ * volume (azul→ciano) e clínico (rosa→magenta). Sem `mood` explícito, sai
+ * do tom: perigo e alerta pedem atenção; o resto é volume.
+ */
+const TONE_MOOD = { danger: 'attention', warning: 'attention', success: 'positive', accent: 'volume' };
+export const MOODS = ['positive', 'attention', 'volume', 'clinical'];
+
+/** Valor do destaque em matriz de pontos; `null` quando não há glifo para ele. */
+function dottedValue(value) {
+  // Dinheiro: "R$" e centavos ficam em texto pequeno, os inteiros em pontos.
+  if (isValidElement(value) && value.type === MoneyValue) {
+    const n = Number(value.props.value);
+    if (value.props.value == null || Number.isNaN(n)) return null;
+    const showCents = value.props.cents !== false;
+    const [int, cents] = Math.abs(showCents ? n : Math.round(n)).toFixed(2).split('.');
+    const digits = `${n < 0 ? '−' : ''}${Number(int).toLocaleString('pt-BR')}`;
+    return (
+      <>
+        <span className="metric__unit metric__unit--prefix">R$</span>
+        <DotNumber key={digits} value={digits} />
+        {showCents ? <span className="metric__unit">,{cents}</span> : null}
+      </>
+    );
+  }
+  if ((typeof value === 'number' || typeof value === 'string') && canDot(value)) {
+    return <DotNumber key={String(value)} value={value} />;
+  }
+  return null;
+}
+
+/**
  * Métrica isolada: rótulo pequeno, número dominante com sufixo de unidade em
  * corpo menor, e variação opcional (REF 1).
  * `useCompact` abrevia milhares/milhões e devolve o sufixo separado para que
  * a tipografia possa diferenciá-lo.
+ * `featured` vira o card de destaque em gradiente, com o número em pontos.
  */
 export function Metric({
   label, value, suffix, denominator, delta, tone, target, action,
-  useCompact = false, size = 'md', featured = false,
+  useCompact = false, size = 'md', featured = false, mood,
 }) {
   let displayValue = value;
   let displaySuffix = suffix;
@@ -92,8 +127,14 @@ export function Metric({
     displaySuffix = parts.suffix || suffix;
   }
 
+  const resolvedMood = featured ? (MOODS.includes(mood) ? mood : TONE_MOOD[tone] ?? 'volume') : null;
+  const dotted = featured ? dottedValue(displayValue) : null;
+
   return (
-    <div className={`metric metric--${featured ? 'lg' : size} ${featured ? 'is-featured' : ''} ${tone ? `metric--${tone}` : ''}`.trim()}>
+    <div
+      className={`metric metric--${featured ? 'lg' : size} ${featured ? 'is-featured' : ''} ${tone ? `metric--${tone}` : ''} ${dotted ? 'has-dots' : ''}`.replace(/\s+/g, ' ').trim()}
+      data-mood={resolvedMood ?? undefined}
+    >
       <div className="metric__head">
         <span className="metric__label">{label}</span>
       </div>
@@ -101,7 +142,7 @@ export function Metric({
           largura e quebrava "Taxa de / faltas" em duas linhas. */}
       <div className="metric__value-row">
         <p className={`metric__value num ${value === '—' ? 'metric__value--empty' : ''}`}>
-          {displayValue}
+          {dotted ?? displayValue}
           {displaySuffix ? <span className="metric__suffix">{displaySuffix}</span> : null}
           {denominator ? <span className="metric__denominator">/{denominator}</span> : null}
         </p>

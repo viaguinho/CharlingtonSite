@@ -17,28 +17,32 @@
   transition: background var(--dur-2) var(--ease),
               border-color var(--dur-2) var(--ease),
               color var(--dur-2) var(--ease),
-              transform var(--dur-1) var(--ease),
+              transform var(--dur-2) var(--ease-spring),
               box-shadow var(--dur-2) var(--ease);
 }
+.btn--sm { height: 32px; padding: 0 var(--s-4); font-size: var(--t-small); }
+.btn--md { height: 40px; padding: 0 var(--s-5); font-size: var(--t-body); }
+.btn--lg { height: 48px; padding: 0 var(--s-6); font-size: calc(var(--t-base) + 1px); }
+/* Toque: todo botão afunda um pouco ao ser apertado, como no iOS. */
+.btn:active:not(:disabled) { transform: scale(.97); transition-duration: var(--dur-1); }
 
-.btn--sm { height: 30px; padding: 0 var(--s-3); font-size: var(--t-small); }
-.btn--md { height: 38px; padding: 0 var(--s-5); font-size: var(--t-body); }
-.btn--lg { height: 46px; padding: 0 var(--s-6); font-size: var(--t-base); }
-
+/* Primário: tinta escura com um brilho de luz no topo (botão de aparelho). */
 .btn--primary {
-  background: var(--ink-900);
+  background: linear-gradient(180deg, var(--ink-600) 0%, var(--ink-900) 46%, var(--ink-950) 100%);
   color: var(--surface);
-  border: 1px solid var(--ink-900);
+  border: 1px solid var(--ink-950);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 6px 16px -8px rgba(15, 16, 18, .55);
 }
-.btn--primary:hover:not(:disabled) { background: var(--ink-950); transform: translateY(-1px); box-shadow: var(--e-2); }
-.btn--primary:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.btn--primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 12px 24px -10px rgba(15, 16, 18, .6); }
+.btn--primary:active:not(:disabled) { transform: scale(.97); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
 
 .btn--secondary {
-  background: var(--surface);
+  background: var(--surface-raised);
   color: var(--ink-900);
-  border: 1px solid var(--ink-a12);
+  border: 1px solid var(--ink-a08);
+  box-shadow: var(--e-1);
 }
-.btn--secondary:hover:not(:disabled) { border-color: var(--ink-a20); background: var(--surface-raised); }
+.btn--secondary:hover:not(:disabled) { border-color: var(--ink-a12); box-shadow: var(--e-2); transform: translateY(-1px); }
 
 .btn--ghost {
   background: transparent;
@@ -48,11 +52,12 @@
 .btn--ghost:hover:not(:disabled) { background: var(--ink-a04); color: var(--ink-900); }
 
 .btn--accent {
-  background: var(--blue-500);
-  color: var(--surface-raised);
-  border: 1px solid var(--blue-500);
+  background: var(--mood-volume);
+  color: var(--on-mood);
+  border: 1px solid var(--mood-volume-deep);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 8px 20px -10px var(--mood-volume-mid);
 }
-.btn--accent:hover:not(:disabled) { background: var(--blue-600); border-color: var(--blue-600); transform: translateY(-1px); }
+.btn--accent:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 14px 26px -12px var(--mood-volume-mid); }
 
 .btn--danger {
   background: var(--surface);
@@ -87,11 +92,14 @@
   border: 1px solid transparent;
   transition: background var(--dur-2) var(--ease),
               color var(--dur-2) var(--ease),
-              border-color var(--dur-2) var(--ease);
+              border-color var(--dur-2) var(--ease),
+              box-shadow var(--dur-2) var(--ease),
+              transform var(--dur-2) var(--ease-spring);
 }
+.icon-btn:active:not(:disabled) { transform: scale(.92); transition-duration: var(--dur-1); }
 
-.icon-btn--sm { width: 28px; height: 28px; }
-.icon-btn--md { width: 34px; height: 34px; }
+.icon-btn--sm { width: 30px; height: 30px; }
+.icon-btn--md { width: 38px; height: 38px; }
 
 /* Toque: botões e ícones chegam a 40 px no celular e no tablet estreito. */
 @media (max-width: 768px) {
@@ -106,16 +114,17 @@
 .icon-btn--ghost:hover { background: var(--ink-a06); color: var(--ink-900); }
 
 .icon-btn--surface {
-  background: var(--surface);
-  border-color: var(--ink-a08);
+  background: var(--surface-raised);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--ink-a06), var(--e-1);
 }
-.icon-btn--surface:hover { background: var(--surface-raised); border-color: var(--ink-a12); color: var(--ink-900); }
+.icon-btn--surface:hover { color: var(--ink-900); box-shadow: inset 0 0 0 1px var(--ink-a08), var(--e-2); transform: translateY(-1px); }
 
 .icon-btn--solid { background: var(--ink-900); color: var(--surface); }
 .icon-btn--solid:hover { background: var(--ink-950); }
 
-.icon-btn--accent { background: var(--blue-050); color: var(--blue-600); }
-.icon-btn--accent:hover { background: var(--blue-100); }
+.icon-btn--accent { background: var(--mood-volume); color: var(--on-mood); box-shadow: 0 6px 14px -8px var(--mood-volume-mid); }
+.icon-btn--accent:hover { transform: translateY(-1px); }
 
 .icon-btn:disabled { opacity: .4; pointer-events: none; }
 
@@ -125,9 +134,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-1);
-  height: 22px;
-  padding: 0 var(--s-2);
-  border-radius: var(--r-xs);
+  height: 24px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
   font-size: var(--t-caption);
   line-height: var(--lh-caption);
   font-weight: var(--w-medium);
@@ -141,12 +150,12 @@
 .chip--muted   { background: var(--ink-a04); color: var(--ink-400); }
 /* Informativo não é destaque: tinta neutra. O azul fica com o período corrente
    e o foco — antes "Confirmado" e "G40.9" gastavam o acento da tela. */
-.chip--info    { background: transparent; border: 1px solid var(--ink-a12); color: var(--ink-900); padding: 0 calc(var(--s-2) - 1px); }
+.chip--info    { background: rgba(255, 255, 255, .7); border: 1px solid var(--ink-a12); color: var(--ink-900); padding: 0 calc(var(--s-3) - 1px); }
 .chip--success { background: var(--signal-green-bg); color: var(--signal-green-ink); }
 .chip--warning { background: var(--signal-amber-bg); color: var(--signal-amber-ink); }
 .chip--danger  { background: var(--signal-red-bg); color: var(--signal-red-ink); }
 .chip--solid   { background: var(--ink-900); color: var(--surface); }
-.chip--plaza   { background: transparent; border: 1px solid var(--ink-a12); border-radius: var(--r-pill); color: var(--ink-900); padding: 0 calc(var(--s-2) - 1px); }
+.chip--plaza   { background: var(--surface); border: 1px solid transparent; border-radius: var(--r-pill); color: var(--ink-900); height: 38px; padding: 0 var(--s-4); }
 /* CID */
 .cid-code {
   font-variant-numeric: tabular-nums;
@@ -157,7 +166,7 @@
   align-items: baseline;
 }
 /* Chip com frase longa (cabeçalho do prontuário): quebra em vez de vazar. */
-.chip--wrap    { height: auto; min-height: 22px; white-space: normal; padding-block: var(--s-1); align-items: flex-start; }
+.chip--wrap    { height: auto; min-height: 24px; white-space: normal; padding-block: var(--s-1); align-items: flex-start; border-radius: var(--r-md); }
 .chip--wrap > .icon { margin-top: calc((1lh - 12px) / 2); }
 
 /* ———————————————————————————————— Badge ———————————————————————————————— */
@@ -187,9 +196,9 @@
   align-items: center;
   gap: var(--s-1);
   flex: none;
-  height: 20px;
-  padding: 0 var(--s-1);
-  border-radius: var(--r-xs);
+  height: 24px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
   /* O selo qualifica o número: corpo, não micro. */
   font-size: var(--t-body);
   line-height: var(--lh-body);
@@ -282,9 +291,9 @@
 .section-label {
   display: inline-flex;
   align-items: center;
-  height: 26px;
+  height: 28px;
   padding: 0 var(--s-3);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-pill);
   background: var(--ink-a04);
   color: var(--ink-500);
   font-size: var(--t-caption);

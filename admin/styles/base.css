@@ -151,13 +151,13 @@ strong, b { font-weight: var(--w-semibold); }
   color: var(--ink-400);
 }
 
-/* O título da página é orientação, não informação: em 27px ele era o maior
-   elemento da dobra em Financeiro e Relatórios, acima de qualquer número.
-   O número dominante (48px) manda; o título fica no tamanho de título. */
+/* Título de tela grande e leve, à moda Apple: 32 px em peso 300. Ele orienta;
+   quem domina a dobra é o número em matriz de pontos (52 px) do card de
+   destaque, que tem mais massa visual mesmo sendo só um pouco maior. */
 .page-title {
-  font-size: var(--t-title);
-  line-height: var(--lh-title);
-  letter-spacing: var(--ls-title);
+  font-size: var(--t-page);
+  line-height: var(--lh-page);
+  letter-spacing: var(--ls-page);
   font-weight: var(--w-light);
   color: var(--ink-950);
 }
@@ -206,10 +206,16 @@ strong, b { font-weight: var(--w-semibold); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
+  /* Troca de lista/cartões e de período: sem morfose, troca seca. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
 }
 
 .nowrap { white-space: nowrap; }

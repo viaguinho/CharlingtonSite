@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as repo from '../../data/repository.js';
 import {
-  STORES, APPOINTMENT_STATUS, APPOINTMENT_TYPE_LABELS, ENTRY_TYPES, ENTRY_STATUS,
+  STORES, APPOINTMENT_STATUS, APPOINTMENT_TYPE_LABELS, ENTRY_TYPES, ENTRY_STATUS, DOCUMENT_TYPES,
 } from '../../data/schema.js';
 import { findCID10 } from '../../data/cid10.js';
 import { useSession } from '../../core/session.jsx';
@@ -12,7 +12,7 @@ import { Button, Chip, DeltaChip } from '../../components/primitives.jsx';
 import { PeriodTabs } from '../../components/Tabs.jsx';
 import { useToast } from '../../components/Overlay.jsx';
 import { StackedRatioBar, CategoryBars } from '../../charts/index.jsx';
-import ContributionSkyline, { skylineWindow } from '../../charts/ContributionSkyline.tsx';
+import DotCalendar, { skylineWindow } from '../../charts/DotCalendar.jsx';
 import Icon from '../../components/Icon.jsx';
 import { money, duration, percent, number } from '../../core/format.js';
 import { periodRange, periodCaption, previousRange, rangeShort, hasHistory, inRange, inWindow, localDay } from '../../core/periods.js';
@@ -32,22 +32,23 @@ export default function ReportsScreen() {
   const navigate = useNavigate();
 
   const [period, setPeriod] = useState('month');
-  const [data, setData] = useState({ appointments: [], patients: [], notes: [], entries: [], documents: [], consents: [] });
+  const [data, setData] = useState({ appointments: [], patients: [], notes: [], entries: [], documents: [], consents: [], medications: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       const where = plaza ? { praca: plaza } : {};
-      const [appointments, patients, notes, entries, documents, consents] = await Promise.all([
+      const [appointments, patients, notes, entries, documents, consents, medications] = await Promise.all([
         repo.list(STORES.APPOINTMENTS, { where }).catch(() => []),
         repo.list(STORES.PATIENTS, { where }).catch(() => []),
         repo.list(STORES.NOTES).catch(() => []),
         repo.list(STORES.ENTRIES, { where }).catch(() => []),
         repo.list(STORES.DOCUMENTS, { where }).catch(() => []),
         repo.list(STORES.CONSENTS, { where }).catch(() => []),
+        repo.list(STORES.MEDICATIONS).catch(() => []),
       ]);
-      setData({ appointments, patients, notes, entries, documents, consents });
+      setData({ appointments, patients, notes, entries, documents, consents, medications });
       setLoading(false);
     })();
   }, [plaza]);
@@ -61,7 +62,12 @@ export default function ReportsScreen() {
     // somava o histórico inteiro sob um seletor de "Semana" e afirmava 28
     // registros de autismo numa semana, numa clínica de 12 pacientes.
     notes: data.notes.filter((n) => inRange(localDay(n.assinadaEm ?? n.criadoEm), range)),
-  }), [data, range]);
+    documents: data.documents.filter((d) => inRange(localDay(d.assinatura?.assinadoEm ?? d.criadoEm), range)),
+    medications: (data.medications || []).filter((m) => {
+      if (plaza && m.praca && m.praca !== plaza) return false;
+      return inRange(localDay(m.iniciadaEm ?? m.criadoEm), range);
+    }),
+  }), [data, range, plaza]);
 
   const production = useMemo(() => ({
     ...summarizeProduction(scoped.appointments),
@@ -165,6 +171,52 @@ export default function ReportsScreen() {
       // aparecia no mês — e a lista parecia completa.
       .sort((a, b) => b.value - a.value || a.code.localeCompare(b.code));
   }, [scoped.notes]);
+
+  // Medicações mais prescritas: agrupadas por princípio ativo (ou nome comercial)
+  // contabilizando o total de crianças atendidas com o medicamento no período.
+  const topMedications = useMemo(() => {
+    const map = new Map();
+
+    const register = (rawName, patientId) => {
+      if (!rawName) return;
+      const clean = String(rawName).trim();
+      if (!clean) return;
+      // Normalização com inicial maiúscula
+      const normalized = clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+      if (!map.has(normalized)) {
+        map.set(normalized, { label: normalized, children: new Set(), total: 0 });
+      }
+      const entry = map.get(normalized);
+      if (patientId) entry.children.add(patientId);
+      entry.total += 1;
+    };
+
+    // 1. Medicações registradas diretamente no prontuário do paciente
+    for (const med of scoped.medications) {
+      register(med.principioAtivo || med.nome, med.pacienteId);
+    }
+
+    // 2. Prescrições emitidas via documentos clínicos no período
+    for (const doc of scoped.documents) {
+      if (doc.tipo !== DOCUMENT_TYPES.PRESCRIPTION && !doc.itens?.length) continue;
+      if (Array.isArray(doc.itens)) {
+        for (const item of doc.itens) {
+          register(item.principio || item.nome || item.medicamento, doc.pacienteId);
+        }
+      }
+    }
+
+    return Array.from(map.values())
+      .map((entry) => {
+        const count = entry.children.size || entry.total;
+        return {
+          label: entry.label,
+          value: count,
+          detail: count === 1 ? 'criança' : 'crianças',
+        };
+      })
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
+  }, [scoped.medications, scoped.documents]);
 
   // Faltas por dia da semana: diz em que dia a confirmação da véspera rende
   // mais. Taxa sobre os encerrados daquele dia, não contagem bruta — segunda
@@ -313,6 +365,7 @@ export default function ReportsScreen() {
       <MetricStrip loading={loading}>
         <Metric
           featured
+          mood="positive"
           label="Atendimentos concluídos"
           value={production.done}
           delta={comparable ? (variation(production.done, previous.done) === 0 ? <Chip tone="neutral">sem variação ({previous.done} em {prevLabel})</Chip> : <DeltaChip value={variation(production.done, previous.done)} />) : null}
@@ -452,7 +505,7 @@ export default function ReportsScreen() {
             />
             <CardBody>
               {skyline.total > 0 ? (
-                <ContributionSkyline
+                <DotCalendar
                   data={skyline.days}
                   endDate={skyline.window.to}
                   dataFrom={firstRecordDay}
@@ -467,7 +520,7 @@ export default function ReportsScreen() {
             </CardBody>
           </Card>
 
-          <Card span={4}>
+          <Card span={6}>
             <CardHeader title="Tipos de atendimento" subtitle={`Entre os ${number(production.done)} concluídos`} />
             <CardBody>
               {byType.length ? (
@@ -525,35 +578,7 @@ export default function ReportsScreen() {
             </CardBody>
           </Card>
 
-          <Card span={4} style={{ alignSelf: 'start' }}>
-            <CardHeader
-              title="Perfil epidemiológico"
-              subtitle={(() => {
-                const children = new Set(scoped.notes.filter((n) => n.cidPrincipal).map((n) => n.pacienteId)).size;
-                const counted = epidemiology.reduce((t, e) => t + e.value, 0);
-                // Uma criança com CIDs diferentes em evoluções distintas conta em
-                // cada CID: a soma das barras passa do total, e a tela diz por quê.
-                const top = Math.max(0, ...epidemiology.map((e) => e.value));
-                return `${children} ${children === 1 ? 'criança atendida' : 'crianças atendidas'} no período, por CID-10 principal`
-                  + (counted > children ? ` · ${counted - children} com mais de um CID, contada em cada` : '')
-                  + (top ? ` · barra cheia = ${top} ${top === 1 ? 'criança' : 'crianças'}` : '');
-              })()}
-            />
-            <CardBody>
-              {epidemiology.length ? (
-                <CategoryBars items={epidemiology} formatValue={(v) => number(v)} layout="stacked" valueWidth={96} />
-              ) : (
-                <EmptyState
-                  icon="brain"
-                  title="Nenhum CID registrado"
-                  description="O perfil aparece conforme as evoluções forem sendo assinadas com CID-10."
-                  compact
-                />
-              )}
-            </CardBody>
-          </Card>
-
-          <Card span={4} style={{ alignSelf: 'start' }}>
+          <Card span={6} style={{ alignSelf: 'start' }}>
             <CardHeader title="Comparecimento" subtitle={`${number(production.expected)} atendimentos esperados no período`} />
             <CardBody>
               {production.expected ? (
@@ -634,6 +659,63 @@ export default function ReportsScreen() {
                 </>
               ) : (
                 <EmptyState icon="calendar" title="Sem atendimentos esperados no período" compact />
+              )}
+            </CardBody>
+          </Card>
+
+          <Card span={6} style={{ alignSelf: 'start' }}>
+            <CardHeader
+              title="Perfil epidemiológico"
+              subtitle={(() => {
+                const children = new Set(scoped.notes.filter((n) => n.cidPrincipal).map((n) => n.pacienteId)).size;
+                const counted = epidemiology.reduce((t, e) => t + e.value, 0);
+                // Uma criança com CIDs diferentes em evoluções distintas conta em
+                // cada CID: a soma das barras passa do total, e a tela diz por quê.
+                const top = Math.max(0, ...epidemiology.map((e) => e.value));
+                return `${children} ${children === 1 ? 'criança atendida' : 'crianças atendidas'} no período, por CID-10 principal`
+                  + (counted > children ? ` · ${counted - children} com mais de um CID, contada em cada` : '')
+                  + (top ? ` · barra cheia = ${top} ${top === 1 ? 'criança' : 'crianças'}` : '');
+              })()}
+            />
+            <CardBody>
+              {epidemiology.length ? (
+                <CategoryBars items={epidemiology} formatValue={(v) => number(v)} layout="stacked" valueWidth={96} />
+              ) : (
+                <EmptyState
+                  icon="brain"
+                  title="Nenhum CID registrado"
+                  description="O perfil aparece conforme as evoluções forem sendo assinadas com CID-10."
+                  compact
+                />
+              )}
+            </CardBody>
+          </Card>
+
+          <Card span={6} style={{ alignSelf: 'start' }}>
+            <CardHeader
+              title="Medicações mais prescritas"
+              subtitle={(() => {
+                const children = new Set([
+                  ...scoped.medications.filter((m) => m.principioAtivo || m.nome).map((m) => m.pacienteId),
+                  ...scoped.documents.filter((d) => d.tipo === DOCUMENT_TYPES.PRESCRIPTION && d.itens?.length).map((d) => d.pacienteId),
+                ].filter(Boolean)).size;
+                const counted = topMedications.reduce((t, m) => t + m.value, 0);
+                const top = Math.max(0, ...topMedications.map((m) => m.value));
+                return `${children} ${children === 1 ? 'criança com prescrição' : 'crianças com prescrição'} no período, por princípio ativo`
+                  + (counted > children ? ` · ${counted - children} com mais de um fármaco, contada em cada` : '')
+                  + (top ? ` · barra cheia = ${top} ${top === 1 ? 'criança' : 'crianças'}` : '');
+              })()}
+            />
+            <CardBody>
+              {topMedications.length ? (
+                <CategoryBars items={topMedications} formatValue={(v) => number(v)} layout="stacked" valueWidth={96} />
+              ) : (
+                <EmptyState
+                  icon="pill"
+                  title="Nenhuma medicação registrada no período"
+                  description="As medicações mais frequentes aparecem conforme forem prescritas ou registradas no prontuário."
+                  compact
+                />
               )}
             </CardBody>
           </Card>

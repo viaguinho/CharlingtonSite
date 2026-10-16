@@ -55,21 +55,21 @@
 
 .legend-dot { width: 8px; height: 8px; border-radius: var(--r-circle); display: inline-block; flex: none; }
 /* A primeira fatia é a série principal (--data-strong), não azul. */
-.legend-dot--accent { background: var(--data-accent); }
-.legend-dot--slice-1 { background: var(--data-strong); }
-.legend-dot--strong { background: var(--data-strong); }
-.legend-dot--mid,     .legend-dot--slice-2 { background: var(--data-mid); }
-.legend-dot--slice-3 { background: var(--data-soft); }
-/* A legenda é a marca em miniatura: segmento neutro é cheio, a legenda também. */
+/* A legenda é a marca em miniatura, na cor do sentido da série. */
+.legend-dot--accent { background: var(--mark-volume); }
+.legend-dot--slice-1 { background: var(--mark-volume); }
+.legend-dot--strong { background: var(--mood-volume-deep); }
+.legend-dot--mid,     .legend-dot--slice-2 { background: var(--mark-positive); }
+.legend-dot--slice-3 { background: var(--mark-attention); }
 .legend-dot--soft,    .legend-dot--slice-4,
-.legend-dot--neutral { background: var(--data-soft); }
-.legend-dot--success { background: var(--data-positive); }
-.legend-dot--warning { background: var(--data-caution); }
-.legend-dot--danger  { background: var(--data-negative); }
+.legend-dot--neutral { background: var(--mark-neutral); }
+.legend-dot--success { background: var(--mark-positive); }
+.legend-dot--warning { background: var(--mark-attention); }
+.legend-dot--danger  { background: var(--mark-serious); }
 
-.legend-swatch { width: 10px; height: 10px; border-radius: var(--r-xs); display: inline-block; flex: none; }
-.legend-swatch--strong { background: var(--data-strong); }
-.legend-swatch--soft   { background: var(--data-soft); }
+.legend-swatch { width: 10px; height: 10px; border-radius: var(--r-pill); display: inline-block; flex: none; }
+.legend-swatch--strong { background: linear-gradient(180deg, var(--mood-positive-light), var(--mood-positive-mid)); }
+.legend-swatch--soft   { background: linear-gradient(180deg, var(--mood-attention-light), var(--mood-attention-mid)); }
 
 /* ————————————————————————— Área de plotagem ————————————————————————— */
 
@@ -143,53 +143,68 @@
   min-width: 0;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
   padding: 0;
-  background: none;
   cursor: default;
-  border-radius: var(--r-xs) var(--r-xs) 0 0;
+  border-radius: var(--r-pill);
+  /* Trilho de pontos: a coluna inteira é a escala, e o ponto apagado diz
+     "aqui caberia mais". É fundo, não dado (≤ 1,2:1). */
+  background: radial-gradient(circle, var(--dot-off) 1.5px, transparent 1.8px) center bottom / 100% 8px repeat-y;
 }
 /* Foco de gráfico no mesmo azul do foco global e da barra sob o cursor. */
 .bars__col:focus-visible { outline: 2px solid var(--data-accent); outline-offset: 2px; }
 
 /* A barra nasce por `scaleY`: o valor define a altura final uma única vez e
    a entrada anima só o transform, sem recalcular o layout dos irmãos. */
+/* Cápsula em gradiente do sentido da série (volume por padrão). Cresce por
+   `scaleY` a partir da base, uma barra depois da outra (--i). */
+.bars { --bar-hi: var(--mood-volume-light); --bar-lo: var(--mood-volume-mid); --bar-glow: var(--mark-volume-soft); }
+.bars--positive { --bar-hi: var(--mood-positive-light); --bar-lo: var(--mood-positive-mid); --bar-glow: var(--mark-positive-soft); }
+.bars--attention { --bar-hi: var(--mood-attention-light); --bar-lo: var(--mood-attention-mid); --bar-glow: var(--mark-attention-soft); }
+.bars--clinical { --bar-hi: var(--mood-clinical-light); --bar-lo: var(--mood-clinical-mid); --bar-glow: var(--mark-clinical-soft); }
 .bars__fill {
   position: relative;
-  width: 100%;
-  min-height: 2px;
+  width: min(100%, 22px);
+  min-height: 4px;
   transform-origin: bottom;
-  background: var(--data-mid);
-  border-radius: var(--r-xs) var(--r-xs) 0 0;
-  transition: background-color var(--dur-2) var(--ease);
-  animation: bar-rise var(--dur-4) var(--ease) backwards;
+  background: linear-gradient(180deg, var(--bar-hi) 0%, var(--bar-lo) 100%);
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35);
+  transition: filter var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+  animation: bar-rise var(--dur-draw) var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
 }
-.bars__col.is-active .bars__fill { background: var(--data-accent); }
-/* Período inicial incompleto: a série de fundo, mais clara (--data-soft). */
-.bars__col.is-partial-start:not(.is-active) .bars__fill { background: var(--data-soft); }
-/* Sob o cursor ou com foco, TODA barra fica em --data-accent — inclusive a
-   listrada do período em curso. */
+/* Período inicial incompleto: a mesma cápsula, lavada. */
+.bars__col.is-partial-start:not(.is-active) .bars__fill { opacity: .45; }
+/* Sob o cursor ou com foco: a barra acende e ganha um halo da própria cor. */
 .bars__col.is-active .bars__fill,
-.bars__col:focus-visible .bars__fill { background: var(--data-accent); }
+.bars__col:focus-visible .bars__fill {
+  filter: saturate(1.15) brightness(1.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 0 0 4px var(--bar-glow);
+}
 .chart__note .chart__note-swatch.chart__note-swatch--partial { background: var(--data-soft); background-image: none; }
 /* Período em curso: listras neutras (--data-mid com --data-strong, ambas
    ≥ 3:1). Em azul, a barra de "hoje" gastava uma das três manchas de acento
    por tela para dizer uma coisa que não é destaque, é estado. A listra basta,
    e a nota abaixo diz o que ela significa. */
-.bars__col.is-current .bars__fill,
+/* Período em curso: listras brancas sobre a cápsula (ainda não fechou). */
+.bars__col.is-current .bars__fill {
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255, 255, 255, .38) 4px 8px),
+                    linear-gradient(180deg, var(--bar-hi) 0%, var(--bar-lo) 100%);
+}
 .chart__note-swatch {
-  background-color: var(--data-mid);
-  background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--ink-a12) 4px 8px);
+  background-color: var(--mark-volume);
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255, 255, 255, .38) 4px 8px);
 }
 /* A amostra é a própria marca: mesma listra, largura suficiente para dois
    períodos da listra aparecerem. */
 .chart__note .chart__note-swatch {
   display: inline-block;
-  background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--ink-a12) 4px 8px);
   width: 16px; height: 12px;
   vertical-align: -2px;
   margin-right: var(--s-1);
-  /* Mesma forma da barra: cantos arredondados só em cima. */
-  border-radius: var(--r-xs) var(--r-xs) 0 0;
+  /* Mesma forma da barra: cápsula. */
+  border-radius: var(--r-pill);
 }
 .chart__note .chart__note-swatch.chart__note-swatch--line {
   background: none; border-top: 2px dashed var(--data-strong); height: 0; vertical-align: middle; border-radius: 0;
@@ -217,9 +232,9 @@
   margin-bottom: var(--s-3);
 }
 .chart__summary strong {
-  font-size: var(--t-title);
-  line-height: var(--lh-title);
-  letter-spacing: var(--ls-title);
+  font-size: var(--t-h2);
+  line-height: 1;
+  letter-spacing: var(--ls-metric-lg);
   font-weight: var(--w-light);
   color: var(--ink-950);
 }
@@ -234,7 +249,7 @@
 /* Exceção: o período EM CURSO com zero precisa aparecer como em curso — sem
    isso a listra existia no Ano e sumia no Mês, para a mesma regra. A marca é
    um talo baixo e listrado, que ninguém lê como valor. */
-.bars__col.is-current .bars__fill.is-zero { min-height: 3px; background-image: none; background-color: var(--data-strong); }
+.bars__col.is-current .bars__fill.is-zero { min-height: 4px; background-image: none; background-color: var(--mood-volume-deep); }
 
 @keyframes bar-rise { from { transform: scaleY(0); } }
 
@@ -247,8 +262,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--s-1) var(--s-2);
-  border-radius: var(--r-xs);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
   background: var(--ink-900);
   color: var(--surface-raised);
   font-size: var(--t-body); line-height: var(--lh-body);
@@ -259,7 +275,7 @@
   animation: tip-in var(--dur-2) var(--ease);
 }
 .bars__tip > span { font-weight: var(--w-regular); color: var(--ink-100); }
-@keyframes tip-in { from { opacity: 0; } }
+@keyframes tip-in { from { opacity: 0; transform: translate(-50%, 4px) scale(.96); } }
 
 /* ————————————————————————— Caixa divergente ————————————————————————— */
 
@@ -272,17 +288,20 @@
   cursor: default;
   border-radius: var(--r-xs);
 }
-.flow__col.is-active { background: var(--blue-a08); }
+.flow__col.is-active { background: var(--ink-a04); }
 .flow__col:focus-visible { outline: 2px solid var(--data-accent); outline-offset: 2px; }
 
 .flow__up, .flow__down {
   position: absolute;
-  left: 0; right: 0;
-  animation: bar-rise var(--dur-4) var(--ease) backwards;
+  left: 50%;
+  width: min(100%, 18px);
+  translate: -50% 0;
+  animation: bar-rise var(--dur-draw) var(--ease) backwards;
 }
-.flow__up   { background: var(--data-mid);  border-radius: var(--r-xs) var(--r-xs) 0 0; transform-origin: bottom; }
-.flow__down { background: var(--data-soft); border-radius: 0 0 var(--r-xs) var(--r-xs); transform-origin: top; }
-.flow__col.is-active .flow__up { background: var(--data-accent); }
+.flow__up   { background: linear-gradient(180deg, var(--mood-positive-light), var(--mood-positive-mid)); border-radius: var(--r-pill) var(--r-pill) var(--r-xs) var(--r-xs); transform-origin: bottom; }
+.flow__down { background: linear-gradient(0deg, var(--mood-attention-light), var(--mood-attention-mid)); border-radius: var(--r-xs) var(--r-xs) var(--r-pill) var(--r-pill); transform-origin: top; }
+.flow__col.is-active .flow__up,
+.flow__col.is-active .flow__down { filter: saturate(1.15) brightness(1.05); }
 
 .flow__tip {
   position: absolute;
@@ -291,8 +310,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  padding: var(--s-2);
-  border-radius: var(--r-xs);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
   background: var(--ink-900);
   color: var(--ink-100);
   font-size: var(--t-micro); letter-spacing: var(--ls-micro);
@@ -310,48 +330,56 @@
 
 .line-svg { width: 100%; height: 100%; overflow: visible; }
 
-.grid-line { stroke: var(--ink-a06); stroke-width: 1; stroke-dasharray: 2 4; }
+.grid-line { stroke: var(--ink-a08); stroke-width: 1; stroke-dasharray: 1 6; stroke-linecap: round; }
 
-.line-cursor-band { fill: var(--blue-a08); }
+.line-cursor-band { fill: var(--mark-volume-soft); }
 
 .line-path {
   fill: none;
-  stroke: var(--data-strong);
-  stroke-width: 1.5;
+  stroke: var(--mark-volume);
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 2000;
   stroke-dashoffset: 0;
-  animation: draw var(--dur-4) var(--ease) backwards;
+  animation: draw var(--dur-draw) var(--ease) backwards;
 }
 @keyframes draw { from { stroke-dashoffset: 2000; } }
+.line-hatch-stroke { stroke: var(--mark-volume); stroke-width: 1; opacity: .38; }
+.line-area { animation: area-in var(--dur-draw) var(--ease) backwards; animation-delay: 160ms; }
+@keyframes area-in { from { opacity: 0; } }
 
 .line-path--forecast {
-  stroke: var(--data-soft);
-  stroke-dasharray: 4 4;
+  stroke: var(--mark-neutral);
+  stroke-dasharray: 4 6;
   animation: none;
 }
 
 .line-dot {
-  fill: var(--surface);
-  stroke: var(--data-strong);
-  stroke-width: 1.5;
+  fill: var(--surface-raised);
+  stroke: var(--mark-volume);
+  stroke-width: 2.5;
   transition: r var(--dur-1) var(--ease);
 }
+.line-dot.is-hot { filter: drop-shadow(0 0 6px var(--mark-volume-soft)); }
 
 .line-hit { position: absolute; inset: 0; display: flex; }
 .line-hit__zone { flex: 1; height: 100%; background: none; cursor: crosshair; }
 
+/* A dica é a pílula do CreditPros ("730"): número em cima, data embaixo. */
 .line-tip {
   position: absolute;
-  transform: translate(-50%, calc(-100% - 12px));
+  transform: translate(-50%, calc(-100% - 14px));
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0;
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-sm);
-  background: var(--surface-raised);
-  border: 1px solid var(--ink-a08);
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--card-glass);
+  border: 1px solid var(--card-glass-edge);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
   box-shadow: var(--e-3);
   font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
   color: var(--ink-400);
@@ -373,11 +401,11 @@
 
 /* ————————————————————————————— Sparkline ————————————————————————————— */
 
-.sparkline path { stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.sparkline--accent path  { stroke: var(--blue-500); }
-.sparkline--neutral path { stroke: var(--data-soft); }
-.sparkline--success path { stroke: var(--data-positive); }
-.sparkline--danger path  { stroke: var(--data-negative); }
+.sparkline path { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 400; animation: draw var(--dur-draw) var(--ease) backwards; }
+.sparkline--accent path  { stroke: var(--mark-volume); }
+.sparkline--neutral path { stroke: var(--mark-neutral); }
+.sparkline--success path { stroke: var(--mark-positive); }
+.sparkline--danger path  { stroke: var(--mark-serious); }
 
 .sparkline--empty {
   display: block;
@@ -394,15 +422,16 @@
   flex: 1;
   height: 100%;
   min-width: 1px;
-  background: var(--ink-a08);
+  max-width: 3px;
+  background: var(--dot-off);
   border-radius: var(--r-pill);
-  transition: background var(--dur-2) var(--ease);
+  transition: background var(--dur-3) var(--ease);
 }
-/* Azul é cursor e foco, não preenchimento de dado: a marca cheia é --data-mid. */
-.tickbars--accent  .tickbars__tick.is-on { background: var(--data-mid); }
-.tickbars--success .tickbars__tick.is-on { background: var(--data-positive); }
-.tickbars--warning .tickbars__tick.is-on { background: var(--data-caution); }
-.tickbars--danger  .tickbars__tick.is-on { background: var(--data-negative); }
+.tickbars { justify-content: space-between; }
+.tickbars--accent  .tickbars__tick.is-on { background: var(--mark-volume); }
+.tickbars--success .tickbars__tick.is-on { background: var(--mark-positive); }
+.tickbars--warning .tickbars__tick.is-on { background: var(--mark-attention); }
+.tickbars--danger  .tickbars__tick.is-on { background: var(--mark-serious); }
 
 .tickbars__labels {
   display: flex;
@@ -411,44 +440,7 @@
   color: var(--ink-300);
 }
 
-/* ————————————————————————————— Medidor ————————————————————————————— */
-
-.gauge { position: relative; }
-.gauge svg { overflow: visible; }
-
-.gauge__track {
-  fill: none;
-  stroke: var(--ink-a08);
-  stroke-width: 9;
-  stroke-linecap: round;
-}
-.gauge__arc {
-  fill: none;
-  stroke: var(--data-strong);  /* série principal; azul fica para cursor e foco */
-  stroke-width: 9;
-  stroke-linecap: round;
-  transition: stroke-dashoffset var(--dur-4) var(--ease);
-}
-
-.gauge__center {
-  position: absolute;
-  left: 0; right: 0;
-  bottom: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-.gauge__value {
-  font-size: var(--t-title);
-  font-weight: var(--w-light);
-  letter-spacing: var(--ls-title);
-  color: var(--ink-950);
-  display: flex;
-  align-items: baseline;
-}
-.gauge__suffix { font-size: var(--t-body); color: var(--ink-400); }
-.gauge__label { font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro); color: var(--ink-400); }
+/* Medidor: ver MEDIDOR DE TIQUES no fim do arquivo. */
 
 /* ————————————————————————————— Transferidor ————————————————————————————— */
 
@@ -472,22 +464,23 @@
 
 .ruler__tick {
   flex: 1;
-  height: 60%;
+  height: 55%;
   min-width: 1px;
-  background: var(--ink-a08);
-  border-radius: .5px;
+  background: var(--ink-a12);
+  border-radius: var(--r-pill);
 }
-.ruler__tick.is-marker { height: 100%; background: var(--blue-500); }
-.ruler--success .ruler__tick.is-marker { background: var(--data-positive); }
-.ruler--warning .ruler__tick.is-marker { background: var(--data-caution); }
-.ruler--danger  .ruler__tick.is-marker { background: var(--data-negative); }
+.ruler__tick:nth-child(5n + 1) { height: 75%; }
+.ruler__tick.is-marker { height: 100%; background: var(--mark-volume); box-shadow: 0 0 0 2px var(--mark-volume-soft); }
+.ruler--success .ruler__tick.is-marker { background: var(--mark-positive); }
+.ruler--warning .ruler__tick.is-marker { background: var(--mark-attention); }
+.ruler--danger  .ruler__tick.is-marker { background: var(--mark-serious); }
 
 .ruler__tip {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  padding: var(--s-1) var(--s-2);
-  border-radius: var(--r-xs);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
   background: var(--blue-050);
   color: var(--blue-600);
   font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
@@ -510,24 +503,24 @@
 
 .ratio-bar {
   display: flex;
-  gap: var(--data-gap);
+  gap: 4px;
   width: 100%;
-  height: 12px;
+  height: 14px;
+  animation: ratio-in var(--dur-draw) var(--ease) backwards;
+  transform-origin: left;
 }
-.ratio-bar--empty { height: 12px; border-radius: var(--r-pill); background: var(--data-track); }
+@keyframes ratio-in { from { clip-path: inset(0 100% 0 0 round var(--r-pill)); } to { clip-path: inset(0 0 0 0 round var(--r-pill)); } }
+.ratio-bar--empty { height: 14px; border-radius: var(--r-pill); background: var(--data-track); }
 
-.ratio-bar__seg { flex-basis: 0; min-width: 4px; }
-.ratio-bar__seg:first-child { border-radius: var(--r-pill) 0 0 var(--r-pill); }
-.ratio-bar__seg:last-child  { border-radius: 0 var(--r-pill) var(--r-pill) 0; }
-.ratio-bar__seg:only-child  { border-radius: var(--r-pill); }
-.ratio-bar__seg--accent  { background: var(--data-accent); }
-.ratio-bar__seg--strong  { background: var(--data-strong); }
-.ratio-bar__seg--mid     { background: var(--data-mid); }
+.ratio-bar__seg { flex-basis: 0; min-width: 6px; border-radius: var(--r-pill); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3); }
+.ratio-bar__seg--accent  { background: linear-gradient(90deg, var(--mood-volume-mid), var(--mood-volume-light)); }
+.ratio-bar__seg--strong  { background: linear-gradient(90deg, var(--mood-volume-deep), var(--mood-volume-mid)); }
+.ratio-bar__seg--mid     { background: linear-gradient(90deg, var(--mood-positive-mid), var(--mood-positive-light)); }
 .ratio-bar__seg--soft,
-.ratio-bar__seg--neutral { background: var(--data-soft); }
-.ratio-bar__seg--success { background: var(--data-positive); }
-.ratio-bar__seg--warning { background: var(--data-caution); }
-.ratio-bar__seg--danger  { background: var(--data-negative); }
+.ratio-bar__seg--neutral { background: var(--mark-neutral); }
+.ratio-bar__seg--success { background: linear-gradient(90deg, var(--mood-positive-mid), var(--mood-positive-light)); }
+.ratio-bar__seg--warning { background: linear-gradient(90deg, var(--mood-attention-mid), var(--mood-attention-light)); }
+.ratio-bar__seg--danger  { background: linear-gradient(90deg, var(--mark-serious), var(--mood-clinical-light)); }
 
 .ratio-bar__legend {
   display: flex;
@@ -540,6 +533,8 @@
 /* Legenda da barra de proporção = o segmento em miniatura: mesma altura
    (12 px) e a mesma ponta arredondada. */
 .ratio-bar__legend .legend-dot { width: 16px; height: 12px; border-radius: var(--r-pill); }
+.ratio-bar__legend .legend-dot--mid { background: linear-gradient(90deg, var(--mood-positive-mid), var(--mood-positive-light)); }
+.ratio-bar__legend .legend-dot--danger { background: linear-gradient(90deg, var(--mark-serious), var(--mood-clinical-light)); }
 .ratio-bar__legend strong { color: var(--ink-900); font-weight: var(--w-medium); }
 .ratio-bar__count { color: var(--ink-400); }
 
@@ -614,12 +609,12 @@
 .heatgrid__row-label { justify-content: flex-end; padding-right: var(--s-2); }
 
 .heatgrid__cell {
-  height: 28px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-2);
-  border-radius: var(--r-xs);
+  border-radius: var(--r-sm);
   /* A célula é só o lugar: o mesmo contorno com ou sem agendamento. Quem
      carrega o dado é o ponto (tamanho) e o número. Um fundo de trilho a mais
      nas células ocupadas era dado desenhado a 1,13:1. */
@@ -636,8 +631,10 @@
   display: inline-block;
   flex: none;
   border-radius: var(--r-circle);
-  background: var(--data-mid);
+  background: radial-gradient(circle at 35% 30%, var(--mood-volume-light), var(--mood-volume-mid));
+  animation: dot-pop var(--dur-3) var(--ease-spring) backwards;
 }
+@keyframes dot-pop { from { transform: scale(0); } }
 .heat-dot--1 { width: 4px;  height: 4px; }
 .heat-dot--2 { width: 8px;  height: 8px; }
 .heat-dot--3 { width: 12px; height: 12px; }
@@ -664,29 +661,34 @@
    esquerda — no SVG, animar o atributo `width` reavalia a geometria do
    elemento; `transform` não. */
 .hatch-progress__fill {
-  fill: var(--data-strong);
+  fill: var(--mark-volume);
   transform-origin: left;
   transition: transform var(--dur-4) var(--ease);
 }
-.hatch-progress__goal { fill: var(--data-strong); }
+.hatch-progress__goal { fill: var(--ink-900); }
 
 /* ————————————————————————————— Escala de pontos ————————————————————————— */
 
 .dot-scale { display: inline-flex; gap: var(--s-1); align-items: center; }
 .dot-scale__dot { border-radius: var(--r-circle); background: var(--ink-a12); }
-.dot-scale--accent  .dot-scale__dot.is-on { background: var(--blue-500); }
-.dot-scale--success .dot-scale__dot.is-on { background: var(--data-positive); }
-.dot-scale--warning .dot-scale__dot.is-on { background: var(--data-caution); }
-.dot-scale--danger  .dot-scale__dot.is-on { background: var(--data-negative); }
+.dot-scale--accent  .dot-scale__dot.is-on { background: var(--mark-volume); }
+.dot-scale--success .dot-scale__dot.is-on { background: var(--mark-positive); }
+.dot-scale--warning .dot-scale__dot.is-on { background: var(--mark-attention); }
+.dot-scale--danger  .dot-scale__dot.is-on { background: var(--mark-serious); }
 
 /* ————————————————————— Comparação acumulada ————————————————————— */
 
 .compare__svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.compare__line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.compare__line--strong   { stroke: var(--data-strong); }
-.compare__line--negative { stroke: var(--data-negative); }
-.compare__line--mid      { stroke: var(--data-mid); }
-.compare__line--soft     { stroke: var(--data-soft); }
+.compare__line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.compare__line--strong   { stroke: var(--mark-positive); }
+.compare__line--negative { stroke: var(--mark-serious); }
+.compare__line--mid      { stroke: var(--mark-volume); }
+.compare__line--soft     { stroke: var(--mark-attention); }
+.compare__svg polyline:not(.is-current) { stroke-dasharray: 3000; animation: draw-long var(--dur-draw) var(--ease) backwards; }
+@keyframes draw-long { from { stroke-dashoffset: 3000; } }
+/* Área hachurada sob a série principal (Modern CRM): o acumulado tem massa. */
+.compare__area { fill: url(#compare-hatch); opacity: .9; animation: area-in var(--dur-draw) var(--ease) backwards; animation-delay: 200ms; }
+.compare__hatch-line { stroke: var(--mark-positive); stroke-width: 1; opacity: .34; }
 .compare__cursor { stroke: var(--ink-a20); stroke-width: 1; }
 /* Trecho do período antes do primeiro registro: fundo de trilho, sem linha. */
 .compare__void {
@@ -721,8 +723,9 @@
 }
 .compare__end.is-below { transform: translateY(calc(100% - var(--s-1))); }
 .compare__end strong { font-size: var(--t-body); line-height: var(--lh-body); font-weight: var(--w-semibold); }
-.compare__end--strong strong   { color: var(--ink-950); }
+.compare__end--strong strong   { color: var(--signal-green-ink); }
 .compare__end--negative strong { color: var(--signal-red-ink); }
+.compare__end--soft strong     { color: var(--mood-attention-deep); }
 .compare__end--mid strong      { color: var(--ink-950); }
 
 /* Período em curso: traço curto interrompido, o par da barra listrada. */
@@ -740,8 +743,9 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: var(--s-2);
-  border-radius: var(--r-xs);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
   background: var(--ink-900);
   color: var(--ink-100);
   font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro);
@@ -773,244 +777,261 @@
 }
 
 /* ==========================================================================
-   SKYLINE DE PRODUÇÃO — mapa de calor que se dobra em horizonte isométrico
-   O canvas lê a escada de azuis da paleta (--blue-200 → --blue-700); o dia sob
-   o cursor ou o foco vai para a tinta. Reduced-motion já é
-   zerado globalmente em base.css.
+   MATRIZ DE PONTOS — o número do card de destaque (Metria, Veri, Superpower)
+   A altura da matriz segue o corpo do número (1em = --t-metric-lg). Os pontos
+   acendem em onda (--d por coluna); o apagado fica como textura de LED.
    ========================================================================== */
 
-.skyline__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-2) var(--s-4);
-}
-.skyline__head .chart__summary { margin-bottom: var(--s-3); }
-/* O seletor de visão é do tamanho do corpo, não da linha do número. */
-.skyline__head .tabs { align-self: center; margin-bottom: var(--s-3); }
-
-.skyline__scene { position: relative; }
-
-.skyline__stage {
-  position: relative;
-  width: 100%;
-  height: 150px;               /* o laço de desenho assume a altura real na primeira medida */
-  overflow: hidden;
-  border-radius: var(--r-sm);
-}
-.skyline__stage:has(.skyline__canvas:focus-visible) {
-  outline: 2px solid var(--blue-500);
-  outline-offset: 4px;
-}
-
-.skyline__canvas {
-  position: absolute;
-  top: 0; left: 0;
+.dotnum { display: inline-flex; align-items: flex-end; line-height: 1; }
+.dotnum__svg {
   display: block;
-  max-width: none;
-  outline: none;
-  touch-action: auto;
+  height: .86em;
+  width: auto;
+  overflow: visible;
 }
-.skyline__canvas.is-orbit { touch-action: pan-y; }
-
-/* ——————————————— Dica: a mesma pílula escura das barras ——————————————— */
-
-.skyline__tip {
-  position: absolute;
-  top: 0; left: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--s-1) var(--s-2);
-  border-radius: var(--r-xs);
-  background: var(--ink-900);
-  color: var(--surface-raised);
-  font-size: var(--t-body); line-height: var(--lh-body);
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-1) var(--ease);
+.dotnum__on {
+  fill: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dot-light var(--dur-dots) var(--ease-spring) backwards;
+  animation-delay: var(--d, 0ms);
 }
-.skyline__tip.is-on { opacity: 1; }
-.skyline__tip-date { font-weight: var(--w-regular); color: var(--ink-100); }
-.skyline__tip strong { font-weight: var(--w-semibold); }
-.skyline__tip-arrow {
-  position: absolute;
-  top: 100%;
-  left: var(--arrow, 50%);
-  margin-left: -5px;
-  width: 0; height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 5px solid var(--ink-900);
+.dotnum__off { display: none; }
+.metric.is-featured[data-mood] .dotnum__off { display: none; }
+@keyframes dot-light {
+  0%   { opacity: 0; transform: scale(.2); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); }
 }
-
-/* ——————— Números do ano: nos cantos do skyline, em linha no mapa ——————— */
-
-.skyline-stat { min-width: 0; }
-.skyline-stat__label,
-.skyline-stat__sub {
-  font-size: var(--t-body); line-height: var(--lh-body);
-  color: var(--ink-400);
-}
-.skyline-stat__value {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
-  margin: var(--s-1) 0;
-}
-.skyline-stat__value strong {
-  font-size: var(--t-h2); line-height: var(--lh-h2); letter-spacing: var(--ls-h2);
-  font-weight: var(--w-light);
-  color: var(--ink-950);
-}
-.skyline-stat__value span {
-  font-size: var(--t-body); line-height: var(--lh-body);
-  color: var(--ink-900);
-}
-
-.skyline__corner {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-5);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-3) var(--ease-in-out), transform var(--dur-3) var(--ease-in-out);
-}
-.skyline__corner--tr { top: var(--s-1); right: var(--s-1); align-items: flex-end; text-align: right; transform: translateY(calc(var(--s-3) * -1)); }
-.skyline__corner--bl { bottom: var(--s-1); left: var(--s-1); align-items: flex-start; transform: translateY(var(--s-3)); }
-.skyline__corner--tr .skyline-stat__value { justify-content: flex-end; }
-.skyline__corner.is-on { opacity: 1; transform: translateY(0); }
-
-.skyline__stats {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition-property: grid-template-rows, opacity;
-  transition-timing-function: var(--ease-in-out);
-}
-.skyline__stats.is-open { grid-template-rows: 1fr; opacity: 1; }
-.skyline__stats-clip { min-height: 0; overflow: hidden; }
-.skyline__stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-4);
-  padding-top: var(--s-4);
-}
-@media (min-width: 900px) {
-  .skyline__stats-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-
-/* ——————————————————————— Dica de uso e legenda ——————————————————————— */
-
-.skyline__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2) var(--s-4);
-  margin-top: var(--s-3);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--ink-a06);
-  font-size: var(--t-body); line-height: var(--lh-body);
-  color: var(--ink-400);
-}
-.skyline__hint { position: relative; display: grid; flex: 1 1 240px; min-width: 0; }
-.skyline__hint > span { grid-area: 1 / 1; transition: opacity var(--dur-4) var(--ease-in-out); }
-
-.skyline__legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
-/* O alvo de toque é maior que a marca (40 px em tela de toque, ≤768 px). */
-.skyline__swatch {
-  position: relative;
-  width: 12px; height: 12px;
-  padding: 0;
-  border: 0;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
-}
-.skyline__swatch::after { content: ''; position: absolute; inset: -6px; }
-.skyline__swatch:hover { transform: scale(1.25); }
-.skyline__swatch[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink-900); }
-.skyline__swatch--0 { background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--ink-a08); }
-.skyline__swatch--0[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink-900); }
-.skyline__swatch--1 { background: var(--blue-200); }
-.skyline__swatch--2 { background: var(--blue-300); }
-.skyline__swatch--3 { background: var(--blue-500); }
-.skyline__swatch--4 { background: var(--blue-700); }
-@media (max-width: 768px) {
-  .skyline__swatch::after { inset: -14px -4px; }
-}
-
-.skyline__data { max-height: 280px; overflow: auto; margin-top: var(--s-2); }
-.skyline__data .chart-data-table { margin-top: 0; width: 100%; }
-
-/* ——— Modo mês: chave de "hoje" e de "ainda não aconteceu" ao lado da legenda ——— */
-.skyline__keys { display: inline-flex; align-items: center; gap: var(--s-3); margin-right: var(--s-4); }
-.skyline__key { display: inline-flex; align-items: center; gap: var(--s-1); }
-.skyline__key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
-.skyline__key-today { background: var(--blue-300); box-shadow: 0 0 0 2px var(--ink-900); margin: 2px; }
-.skyline__key-future { background: var(--surface-sunken); opacity: .55; box-shadow: inset 0 0 0 1px var(--ink-a12); }
 
 /* ==========================================================================
-   ROSCA PONTILHADA — situação dos atendimentos (canvas + legenda focável)
-   A cor de cada fatia é um token; o canvas o lê por getComputedStyle.
+   RÉGUA DE TIQUES — situação dos atendimentos (hero da Visão geral)
    ========================================================================== */
 
-.donut { margin: 0; display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
-.donut__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3) var(--s-4); }
-.donut__title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.donut__title strong { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
-.donut__title span { font-size: var(--t-body); color: var(--ink-400); }
+.tick-ruler { margin: 0; display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
+.tick-ruler__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3) var(--s-4); }
+.tick-ruler__title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tick-ruler__title strong { font-size: calc(var(--t-body) + 2px); font-weight: var(--w-medium); color: var(--ink-950); letter-spacing: -.01em; }
+.tick-ruler__title span { font-size: var(--t-body); color: var(--ink-400); }
 
-.donut__body { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-6) var(--s-8); }
-.donut__stage { position: relative; flex: none; width: 240px; height: 240px; }
-.donut__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
-.donut__center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0 var(--s-8);
-  text-align: center;
-  pointer-events: none;
-}
-.donut__center strong {
-  font-size: 44px;
-  line-height: 1;
-  font-weight: var(--w-light);
-  letter-spacing: -.045em;
-  color: var(--ink-950);
-}
-.donut__center span { font-size: var(--t-body); line-height: 1.25; color: var(--ink-400); }
+.tick-ruler__total { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--s-2) var(--s-3); min-height: 64px; }
+.tick-ruler__number { font-size: 64px; line-height: 1; color: var(--ink-950); }
+.tick-ruler__zero { font-weight: var(--w-light); letter-spacing: -.04em; color: var(--ink-400); }
+.tick-ruler__caption { display: inline-flex; align-items: center; gap: var(--s-2); padding-bottom: 6px; font-size: var(--t-body); color: var(--ink-400); }
+.tick-ruler__caption i { width: 10px; height: 10px; border-radius: var(--r-circle); }
 
-.donut__list { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); margin: 0; padding: 0; list-style: none; }
-.donut__row {
+/* A régua: TICKS colunas, cada tique uma cápsula fina. Cor = a fatia dona do
+   tique; vão = tique transparente. Entram crescendo da base em onda; trocar o
+   período recolore em onda (transição com atraso por índice). */
+.tick-ruler__scale {
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto 44px;
+  grid-template-columns: repeat(var(--ticks), minmax(0, 1fr));
+  align-items: end;
+  height: 96px;
+  padding: var(--s-3) 0 0;
+}
+.tick-ruler__tick {
+  justify-self: center;
+  width: clamp(2px, 46%, 5px);
+  height: 72%;
+  border-radius: var(--r-pill);
+  background: var(--c, var(--dot-off));
+  transform-origin: bottom;
+  transition: background-color var(--dur-4) var(--ease) calc(var(--i) * 7ms),
+              height var(--dur-3) var(--ease-spring),
+              opacity var(--dur-3) var(--ease);
+  animation: tick-grow var(--dur-draw) var(--ease) backwards;
+  animation-delay: calc(var(--i) * 9ms);
+}
+.tick-ruler__tick:nth-child(6n + 1) { height: 84%; }
+.tick-ruler__tick.is-gap { background: transparent; }
+.tick-ruler.is-focused .tick-ruler__tick:not(.is-hot) { opacity: .18; }
+.tick-ruler.is-focused .tick-ruler__tick.is-hot { height: 100%; }
+@keyframes tick-grow { from { transform: scaleY(0); opacity: 0; } }
+
+.tick-ruler__ends { display: flex; justify-content: space-between; margin-top: calc(var(--s-2) * -1); font-size: var(--t-micro); letter-spacing: var(--ls-micro); color: var(--ink-400); font-variant-numeric: tabular-nums; }
+
+.tick-ruler__list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.tick-ruler__row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto 48px;
   align-items: center;
   gap: var(--s-3);
   padding: var(--s-2) var(--s-3);
-  border: 1px solid transparent;
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   cursor: pointer;
-  transition: background var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+  transition: background var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-spring);
 }
-.donut__row:hover,
-.donut__row.is-hot { background: var(--ink-a04); border-color: var(--ink-a08); }
-.donut__row:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
-.donut__dot { width: 10px; height: 10px; border-radius: var(--r-circle); }
-.donut__label { font-size: var(--t-body); color: var(--ink-900); }
-.donut__value { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
-.donut__pct { font-size: var(--t-body); color: var(--ink-400); text-align: right; }
+.tick-ruler__row:hover,
+.tick-ruler__row.is-hot { background: var(--surface-raised); box-shadow: var(--e-1); transform: translateX(2px); }
+.tick-ruler__row:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.tick-ruler__row.is-empty { opacity: .62; }
+.tick-ruler__dot { width: 10px; height: 10px; border-radius: var(--r-circle); box-shadow: 0 0 0 3px var(--surface-raised); }
+.tick-ruler__label { font-size: var(--t-body); color: var(--ink-900); }
+.tick-ruler__value { font-size: var(--t-body); font-weight: var(--w-semibold); color: var(--ink-950); }
+.tick-ruler__pct { font-size: var(--t-body); color: var(--ink-400); text-align: right; }
 
 @media (max-width: 640px) {
-  .donut__stage { width: 200px; height: 200px; margin-inline: auto; }
-  .donut__center strong { font-size: 36px; }
+  .tick-ruler__number { font-size: 52px; }
+  .tick-ruler__scale { height: 80px; }
 }
+
+/* ==========================================================================
+   CALENDÁRIO DE PONTOS — produção dos últimos 12 meses (Relatórios)
+   Nível = tamanho E tom (rampa verde dos concluídos). Antes do primeiro
+   registro: anel vazio ("sem registro"); fora do período: esmaecido.
+   ========================================================================== */
+
+.dotcal { margin: 0; display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
+.dotcal__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s-4) var(--s-8); }
+.dotcal__summary { margin: 0; }
+.dotcal__summary strong { font-size: var(--t-metric-lg); }
+.dotcal__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  gap: var(--s-2);
+  margin: 0;
+}
+.dotcal__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  box-shadow: var(--e-1);
+}
+.dotcal__stat dt { font-size: var(--t-body); color: var(--ink-400); }
+.dotcal__stat dd { margin: 0; display: flex; align-items: baseline; gap: var(--s-1); font-size: var(--t-body); color: var(--ink-900); }
+.dotcal__stat dd strong { font-size: var(--t-title); font-weight: var(--w-light); letter-spacing: var(--ls-title); color: var(--ink-950); }
+.dotcal__stat .dotcal__stat-sub { font-size: var(--t-micro); letter-spacing: var(--ls-micro); color: var(--ink-400); }
+
+.dotcal__scroll { overflow-x: auto; overflow-y: visible; padding-top: var(--s-3); padding-bottom: var(--s-2); }
+.dotcal__frame {
+  display: grid;
+  grid-template-columns: 28px minmax(calc(var(--weeks) * 13px), 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--s-2);
+  row-gap: var(--s-2);
+}
+.dotcal__months {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); color: var(--ink-400);
+  text-transform: lowercase;
+}
+.dotcal__weekdays {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  align-items: center;
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); color: var(--ink-400);
+}
+.dotcal__grid {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+  grid-template-rows: repeat(7, 16px);
+  row-gap: 3px;
+}
+.dotcal__cell { display: grid; place-items: center; cursor: crosshair; }
+.dotcal__cell i {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-circle);
+  background: var(--dot-off);
+  transition: transform var(--dur-2) var(--ease-spring), opacity var(--dur-3) var(--ease);
+  animation: dot-pop var(--dur-3) var(--ease-spring) backwards;
+  animation-delay: calc(var(--w, 0) * 10ms);
+}
+.dotcal__cell.lvl-1 i { width: 6px;  height: 6px;  background: var(--seqp-2); }
+.dotcal__cell.lvl-2 i { width: 8px;  height: 8px;  background: var(--seqp-3); }
+.dotcal__cell.lvl-3 i { width: 10px; height: 10px; background: var(--seqp-4); }
+.dotcal__cell.lvl-4 i { width: 12px; height: 12px; background: var(--seqp-5); }
+.dotcal__cell.is-before i { width: 6px; height: 6px; background: transparent; box-shadow: inset 0 0 0 1px var(--ink-a20); }
+.dotcal__cell.is-out i { opacity: .28; }
+.dotcal__cell.is-hot i { transform: scale(1.6); opacity: 1; box-shadow: 0 0 0 3px var(--surface-raised), 0 0 0 4px var(--ink-900); }
+
+.dotcal__tip {
+  position: absolute;
+  left: clamp(84px, calc(var(--tx) * 100%), calc(100% - 84px));
+  top: calc(var(--ty) * 19px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  border: 1px solid var(--ink-a08);
+  box-shadow: 0 4px 16px -4px rgba(15, 16, 18, 0.16), 0 2px 6px -2px rgba(15, 16, 18, 0.08);
+  font-size: var(--t-micro); letter-spacing: var(--ls-micro); color: var(--ink-400);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+  animation: tip-in var(--dur-2) var(--ease);
+}
+.dotcal__tip.is-above {
+  transform: translate(-50%, calc(-100% - 12px));
+}
+.dotcal__tip.is-below {
+  top: calc(var(--ty) * 19px + 18px);
+  transform: translate(-50%, 8px);
+}
+.dotcal__tip strong { font-size: var(--t-body); color: var(--ink-950); font-weight: var(--w-semibold); }
+.dotcal__tip em { font-style: normal; color: var(--signal-amber-ink); font-weight: var(--w-medium); }
+
+.dotcal__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); }
+.dotcal__foot .chart__data-toggle { margin-top: 0; }
+.dotcal__legend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-body); color: var(--ink-400); }
+.dotcal__legend-cell { display: inline-grid; place-items: center; width: 14px; height: 14px; }
+.dotcal__legend-cell i { display: block; width: 4px; height: 4px; border-radius: var(--r-circle); background: var(--dot-off); }
+.dotcal__legend-cell.lvl-1 i { width: 6px;  height: 6px;  background: var(--seqp-2); }
+.dotcal__legend-cell.lvl-2 i { width: 8px;  height: 8px;  background: var(--seqp-3); }
+.dotcal__legend-cell.lvl-3 i { width: 10px; height: 10px; background: var(--seqp-4); }
+.dotcal__legend-cell.lvl-4 i { width: 12px; height: 12px; background: var(--seqp-5); }
+.dotcal__legend-cell.is-before i { width: 6px; height: 6px; background: transparent; box-shadow: inset 0 0 0 1px var(--ink-a20); }
+.dotcal__legend-sep { width: 1px; height: 14px; margin: 0 var(--s-2); background: var(--ink-a12); }
+
+@media (max-width: 900px) {
+  .dotcal__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+}
+
+/* ==========================================================================
+   MEDIDOR DE TIQUES — arco de tiques radiais (Dynamics 365 "Lead Score")
+   ========================================================================== */
+
+.gauge { position: relative; margin-inline: auto; }
+.gauge svg { overflow: visible; }
+.gauge__tick { stroke: var(--dot-off); stroke-width: 3; stroke-linecap: round; }
+.gauge__tick.is-on {
+  stroke: var(--gauge-c, var(--mark-positive));
+  animation: gauge-tick var(--dur-3) var(--ease) backwards;
+  animation-delay: calc(var(--i) * 18ms);
+}
+@keyframes gauge-tick { from { opacity: 0; } }
+.gauge__center {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.gauge__value {
+  font-size: var(--t-h2);
+  line-height: 1;
+  font-weight: var(--w-light);
+  letter-spacing: var(--ls-metric-lg);
+  color: var(--ink-950);
+  display: flex;
+  align-items: baseline;
+}
+.gauge__suffix { font-size: var(--t-body); color: var(--ink-400); }
+.gauge__label { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-400); }

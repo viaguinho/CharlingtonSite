@@ -19,7 +19,10 @@
      4,5:1, e ambos reprovam. Os tokens de TEXTO foram escurecidos até o
      limite do AA; os originais da marca continuam disponíveis abaixo, para
      ícone e texto grande, onde 3:1 basta. */
-  --ink-400: #6b6c6f;   /* texto secundário — 4,70:1 no canvas */
+  /* Redesign (vidro): o canvas ficou um tom mais frio e escuro (#eef0f3) e a
+     aurora atrás dele ainda tinge o fundo; o secundário desceu um degrau para
+     manter 4,5:1 mesmo sobre a mancha mais clara. */
+  --ink-400: #636468;   /* texto secundário — 4,93:1 no canvas novo */
   --ink-300: #6e6e6e;   /* legendas e notas de rodapé — 4,56:1 no canvas */
   --ink-200: #a9aaad;   /* placeholder e traço de gráfico — só não-texto */
   --ink-100: #dcdde0;
@@ -37,7 +40,7 @@
   --ink-a60: rgba(15, 16, 18, .60);
 
   /* ————————————————————————————— Superfícies ————————————————————————————— */
-  --canvas: #f2f2f4;          /* Ghost White — fundo do aplicativo */
+  --canvas: #eef0f3;          /* cinza frio sob a aurora — fundo do aplicativo */
   --surface: #fdfdfd;         /* Canvas — cards */
   --surface-raised: #ffffff;  /* modais, popovers, dropdowns */
   --surface-sunken: #ececed;  /* poços, campos, trilhos */
@@ -98,8 +101,10 @@
   --data-gap: 2px;                 /* vão entre segmentos vizinhos */
 
   /* ————————————————————————————— Tipografia ————————————————————————————— */
-  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          'Segoe UI', Roboto, sans-serif;
+  /* Urbanist no painel inteiro (redesign de 14/10). A Inter fica de reserva
+     para glifos fora do Latin estendido. */
+  --font: 'Urbanist', 'Inter', ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
 
   --w-light: 300;
@@ -121,15 +126,20 @@
      filtro, sobrelinha. Nunca a informação principal de um bloco, e nunca o
      que qualifica um número (nota sob KPI, nota de gráfico, data de item de
      lista): isso é corpo, em --ink-400. */
-  --t-micro: 10px;       --lh-micro: 1.3;      --ls-micro: .01em;
-  --ls-eyebrow: .06em;   /* texto curto em caixa alta: sobrelinha e cabeçalho de tabela */
-  --t-body: 13px;        --lh-body: 1.5;
+  /* Urbanist tem olho menor que a Inter: 14 px de Urbanist ocupam a largura
+     de 13 px de Inter e leem como eles. A escala subiu um degrau inteiro, a
+     hierarquia é a mesma. */
+  --t-micro: 11px;       --lh-micro: 1.3;      --ls-micro: .01em;
+  --ls-eyebrow: .08em;   /* texto curto em caixa alta: sobrelinha e cabeçalho de tabela */
+  --t-body: 14px;        --lh-body: 1.5;
   --t-small: var(--t-body);    --lh-small: 1.45;
   --t-caption: var(--t-body);  --lh-caption: 1.45;  --ls-caption: 0em;
   --t-base: var(--t-body);     --lh-base: 1.5;
-  --t-title: 20px;       --lh-title: 1.25;     --ls-title: -.02em;
-  --t-h2: 27px;          --lh-h2: 1.2;         --ls-h2: -.02em;
-  --t-metric-lg: 48px;   --lh-metric-lg: 1;    --ls-metric-lg: -.035em;
+  --t-title: 22px;       --lh-title: 1.25;     --ls-title: -.02em;
+  --t-page: 32px;        --lh-page: 1.1;       --ls-page: -.03em;   /* título de tela */
+  --t-display: 40px;     --lh-display: 1.05;   --ls-display: -.035em; /* saudação da tela inicial */
+  --t-h2: 28px;          --lh-h2: 1.2;         --ls-h2: -.02em;
+  --t-metric-lg: 52px;   --lh-metric-lg: 1;    --ls-metric-lg: -.035em;
 
   /* ——————————————————————————— Espaço (base 4) ——————————————————————————— */
   --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;  --s-5: 20px;
@@ -137,15 +147,17 @@
   --s-16: 64px; --s-20: 80px;
 
   /* ————————————————————————————————— Raio ————————————————————————————————— */
-  --r-xs: 6px;  --r-sm: 10px; --r-md: 14px; --r-lg: 20px;
-  --r-xl: 26px; --r-pill: 999px; --r-circle: 50%;
+  /* Cantos de aparelho Apple: o card grande pede raio grande, e os de dentro
+     descem em degraus para o raio interno acompanhar o externo menos o padding. */
+  --r-xs: 8px;  --r-sm: 12px; --r-md: 18px; --r-lg: 26px;
+  --r-xl: 32px; --r-pill: 999px; --r-circle: 50%;
 
-  /* ——————————— Elevação — planaridade primeiro: borda antes de sombra ——————— */
+  /* ——————————— Elevação — sombra longa e difusa, nunca dura ——————————— */
   --e-0: none;
-  --e-1: 0 1px 2px rgba(15, 16, 18, .04);
-  --e-2: 0 4px 16px rgba(15, 16, 18, .05);
-  --e-3: 0 12px 32px rgba(15, 16, 18, .07);
-  --e-4: 0 24px 56px rgba(15, 16, 18, .10);
+  --e-1: 0 1px 2px rgba(15, 16, 18, .04), 0 10px 28px -14px rgba(15, 16, 18, .12);
+  --e-2: 0 2px 6px rgba(15, 16, 18, .04), 0 18px 40px -16px rgba(15, 16, 18, .16);
+  --e-3: 0 4px 12px rgba(15, 16, 18, .05), 0 28px 60px -22px rgba(15, 16, 18, .22);
+  --e-4: 0 8px 24px rgba(15, 16, 18, .08), 0 44px 100px -30px rgba(15, 16, 18, .32);
 
   /* ————————————————————————————————— Vidro ———————————————————————————————— */
   --glass: rgba(253, 253, 253, .72);
@@ -153,18 +165,103 @@
   --blur: blur(20px);
   --blur-strong: blur(28px);
 
-  /* ——————— Visão geral (referência Luma) — vidro claro, azul no lugar do lima ———————
-     Urbanist e superfícies de vidro com brilho interno só na tela inicial. */
-  --font-luma: 'Urbanist', var(--font);
+  /* ——————————— Vidro claro — a superfície de todo card (redesign 14/10) ———————————
+     Branco translúcido sobre a aurora do fundo, com borda de luz em cima e
+     sombra longa embaixo (referências Superpower, Metria, CreditPros). */
+  --font-luma: var(--font);
   --r-card: 28px;
-  --card-glass: linear-gradient(180deg, rgba(255, 255, 255, .94) 0%, rgba(255, 255, 255, .72) 100%);
-  --card-glass-soft: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .30) 100%);
-  --card-glass-edge: rgba(255, 255, 255, .95);
-  --e-glass: inset 0 1px 0 rgba(255, 255, 255, .95), 0 18px 44px rgba(15, 16, 18, .05), 0 1px 3px rgba(15, 16, 18, .04);
-  --e-glass-hover: inset 0 1px 0 rgba(255, 255, 255, .95), 0 24px 56px rgba(15, 16, 18, .08), 0 1px 3px rgba(15, 16, 18, .05);
+  --card-glass: linear-gradient(180deg, rgba(255, 255, 255, .86) 0%, rgba(255, 255, 255, .64) 100%);
+  --card-glass-soft: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .34) 100%);
+  --card-glass-edge: rgba(255, 255, 255, .92);
+  --card-glass-hairline: transparent;
+  --glass-filter: blur(24px) saturate(160%);
+  --e-glass: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 2px rgba(15, 16, 18, .04), 0 16px 40px -18px rgba(15, 16, 18, .14);
+  --e-glass-hover: inset 0 1px 0 rgba(255, 255, 255, .95), 0 2px 6px rgba(15, 16, 18, .05), 0 26px 56px -20px rgba(15, 16, 18, .22);
+  /* Reflexo que segue o cursor: luz branca no vidro, luz quente no gradiente. */
+  --glare: rgba(255, 255, 255, .75);
+  --glare-mood: transparent;
   --wash-a: rgba(0, 113, 227, .11);
   --wash-b: rgba(159, 201, 247, .26);
   --chip-blue: linear-gradient(180deg, #d6e8fb 0%, #e8f2fd 100%);
+
+  /* Aurora — manchas de cor viva atrás do vidro. Ficam nas bordas da tela,
+     longe do texto, e o vidro as reduz a um tingimento. */
+  --aurora-peach: rgba(255, 176, 120, .50);
+  --aurora-lime: rgba(205, 238, 96, .42);
+  --aurora-sky: rgba(104, 178, 255, .42);
+  --aurora-pink: rgba(255, 140, 196, .32);
+  --aurora-mint: rgba(96, 226, 190, .30);
+
+  /* ————————— Humor do número — a cor do card de destaque diz o sentido —————————
+     positivo (verde→lima) · atenção (laranja→pêssego) · volume (azul→ciano) ·
+     clínico (rosa→magenta). Texto branco: o tom profundo fica do lado do texto
+     (esquerda e base, ≥ 4,5:1) e o claro do lado oposto, onde mora o desenho. */
+  --mood-positive-deep: #0b6a3a;
+  --mood-positive-mid: #138a49;
+  --mood-positive-light: #59c454;
+  --mood-positive-glow: #c9f25c;
+  --mood-attention-deep: #a8330b;
+  --mood-attention-mid: #c84614;
+  --mood-attention-light: #ef7a2e;
+  --mood-attention-glow: #ffc08f;
+  --mood-volume-deep: #0a3aa6;
+  --mood-volume-mid: #0b5fd0;
+  --mood-volume-light: #1f8ff0;
+  --mood-volume-glow: #5fdcff;
+  --mood-clinical-deep: #86124b;
+  --mood-clinical-mid: #b01f66;
+  --mood-clinical-light: #e0498f;
+  --mood-clinical-glow: #ff9fcf;
+
+  --mood-positive: radial-gradient(120% 90% at 100% 0%, var(--mood-positive-glow) 0%, transparent 52%),
+                   radial-gradient(90% 80% at 85% 100%, var(--mood-positive-light) 0%, transparent 60%),
+                   linear-gradient(118deg, var(--mood-positive-deep) 0%, var(--mood-positive-mid) 55%, var(--mood-positive-light) 100%);
+  --mood-attention: radial-gradient(120% 90% at 100% 0%, var(--mood-attention-glow) 0%, transparent 52%),
+                    radial-gradient(90% 80% at 85% 100%, var(--mood-attention-light) 0%, transparent 60%),
+                    linear-gradient(118deg, var(--mood-attention-deep) 0%, var(--mood-attention-mid) 55%, var(--mood-attention-light) 100%);
+  --mood-volume: radial-gradient(120% 90% at 100% 0%, var(--mood-volume-glow) 0%, transparent 52%),
+                 radial-gradient(90% 80% at 85% 100%, var(--mood-volume-light) 0%, transparent 60%),
+                 linear-gradient(118deg, var(--mood-volume-deep) 0%, var(--mood-volume-mid) 55%, var(--mood-volume-light) 100%);
+  --mood-clinical: radial-gradient(120% 90% at 100% 0%, var(--mood-clinical-glow) 0%, transparent 52%),
+                   radial-gradient(90% 80% at 85% 100%, var(--mood-clinical-light) 0%, transparent 60%),
+                   linear-gradient(118deg, var(--mood-clinical-deep) 0%, var(--mood-clinical-mid) 55%, var(--mood-clinical-light) 100%);
+  --on-mood: #ffffff;
+  --on-mood-soft: rgba(255, 255, 255, .84);
+  --on-mood-faint: rgba(255, 255, 255, .28);
+  --on-mood-hairline: transparent;
+
+  /* Marca de dado em cada humor, sobre vidro branco (≥ 3:1 medido contra
+     #ffffff) — barra, traço e ponto. O texto que acompanha fica em tinta. */
+  --mark-positive: #15924a;   /* 3,94:1 */
+  --mark-attention: #e36a10;  /* ≥ 3:1 — validado (CVD ΔE 16,9 contra faltas) */
+  --mark-volume: #0071e3;     /* 4,62:1 */
+  --mark-clinical: #c92a72;   /* 4,93:1 */
+  --mark-serious: #b8234a;    /* faltas e perda — carmim, separado do laranja até em deuteranopia */
+  --mark-neutral: #868a91;    /* 3,47:1 — cancelado, fora do recorte */
+  --mark-positive-soft: rgba(21, 146, 74, .14);
+  --mark-attention-soft: rgba(227, 106, 16, .14);
+  --mark-volume-soft: rgba(0, 113, 227, .13);
+  --mark-clinical-soft: rgba(201, 42, 114, .13);
+  --mark-serious-soft: rgba(184, 35, 74, .12);
+  --mark-neutral-soft: rgba(134, 138, 145, .16);
+  /* Rampa sequencial de um matiz só (volume) para grade de pontos e calor. */
+  --seq-1: #cfe3fb;
+  --seq-2: #8fbff5;
+  --seq-3: #3f93ec;
+  --seq-4: #0b6fdc;
+  --seq-5: #0a47a8;
+  /* Rampa sequencial positiva (concluídos por dia). */
+  --seqp-1: #cdeed6;
+  --seqp-2: #8cd6a2;
+  --seqp-3: #3fb767;
+  --seqp-4: #15924a;
+  --seqp-5: #0b6a3a;
+  --dot-off: rgba(15, 16, 18, .10);   /* ponto apagado da matriz e da trilha */
+
+  /* Logo em metal líquido do login (shader lê estes valores na montagem):
+     fundo transparente e o reflexo azul-gelo do "warm chrome". */
+  --liquid-back: rgba(0, 0, 0, 0);
+  --liquid-tint: #cfe4ff;
 
   /* ———————————————————————————————— Movimento ——————————————————————————————— */
   --dur-1: 120ms;
@@ -179,6 +276,11 @@
   --stagger: 40ms;       /* passo da entrada escalonada dos cards */
   --ease: cubic-bezier(.22, 1, .36, 1);
   --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  /* Mola curta: só em toque e troca de estado pequena (pílula, indicador de
+     aba). Entrada de tela e card continua em --ease, sem quique. */
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --dur-draw: 900ms;     /* desenho de linha e crescimento de barra na entrada */
+  --dur-dots: 640ms;     /* acendimento da matriz de pontos */
 
   /* ————————————————————————————————— Layout ————————————————————————————————— */
   --row-min: 44px;   /* alvo mínimo de linha de lista */

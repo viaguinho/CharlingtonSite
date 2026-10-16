@@ -81,7 +81,7 @@ const monthLabel = (iso) => {
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const isEvent = (a) => a.tipo === APPOINTMENT_TYPES.EVENT || !!a.titulo;
 
-export default function AgendaPanel({ appointments, patients, rooms = [], consents = [], confirmations, onChanged }) {
+export default function AgendaPanel({ appointments, patients, rooms = [], consents = [], confirmations, onChanged, span = 12 }) {
   const navigate = useNavigate();
   const { can } = useSession();
   const canWrite = !!can?.write?.('agenda');
@@ -241,7 +241,7 @@ export default function AgendaPanel({ appointments, patients, rooms = [], consen
 
   return (
     <NoTeleConsent.Provider value={lacksTeleConsent}>
-      <Card span={7} rows={2} className="agenda-panel" style={{ alignSelf: 'start' }}>
+      <Card span={span} className="agenda-panel">
         <header className="agenda-panel__head">
           <div className="card__heading">
             <h3 className="card__title">{anchor === today && view === 'dia' ? 'Sua agenda de hoje' : 'Sua agenda'}</h3>
@@ -357,6 +357,7 @@ export default function AgendaPanel({ appointments, patients, rooms = [], consen
         request={booking}
         patients={patients}
         rooms={bookingRooms}
+        appointments={appointments}
         onClose={() => setBooking(null)}
         onSaved={() => { setBooking(null); onChanged?.(); }}
       />

@@ -263,6 +263,7 @@ function IssuedTab({ plaza, pendingCount }) {
       <MetricStrip>
         <Metric
           featured
+          mood="clinical"
           label="Documentos emitidos"
           value={documents.length}
           target={pendingCount ? `${pendingCount} ${pendingCount === 1 ? 'laudo ainda a emitir' : 'laudos ainda a emitir'}` : 'Nenhum laudo pendente'}

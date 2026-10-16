@@ -78,38 +78,52 @@
 }
 .day-grid__empty:hover { background: var(--blue-050); color: var(--blue-600); }
 
+/* Bloco de consulta à moda do Calendário da Apple: cápsula de vidro com a
+   cor do estado numa barrinha arredondada à esquerda (--slot-c) e um fundo
+   bem leve da mesma cor. A borda esquerda reta não acompanhava o canto. */
 .slot {
+  --slot-c: var(--ink-a20);
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-2);
-  border-radius: var(--r-xs);
-  background: var(--ink-a04);
-  border-left: 2px solid var(--ink-a12);
+  padding: var(--s-2) var(--s-3) var(--s-2) calc(var(--s-3) + 4px);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .78);
+  box-shadow: inset 0 0 0 1px var(--ink-a06), 0 2px 8px -4px rgba(15, 16, 18, .12);
   text-align: left;
-  transition: background var(--dur-1) var(--ease);
+  transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2) var(--ease), background var(--dur-2) var(--ease);
 }
-.slot:hover { background: var(--ink-a08); }
+.slot::before,
+.week-slot::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--slot-c);
+}
+.slot:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px var(--ink-a08), var(--e-2); }
 /* Na grade do dia a linha da hora tem sempre 72 px: o horário das 09:30 é
    desenhado meia linha abaixo, sobre a metade de cima da hora seguinte (a
    consulta dura 40 min e ocupa esse intervalo de fato). */
 .day-grid__cell .slot { position: absolute; left: var(--s-1); right: var(--s-1); z-index: 1; overflow: hidden; }
 /* Confirmado é estado, não destaque: tinta forte, texto diz o status. */
 /* Cancelada: a mesma aparência da Semana — traço apagado, nome riscado. */
-.slot--muted { background: transparent; border-left-color: var(--ink-a12); }
+.slot--muted { --slot-c: var(--ink-a12); background: rgba(255, 255, 255, .35); }
 .slot--muted .slot__name { color: var(--ink-400); text-decoration: line-through; }
 /* Confirmado é "ainda vai acontecer": contorno, como a etiqueta da Lista.
    Concluído fica preenchido. Os dois eram idênticos no grid. */
-.slot--info    { background: transparent; border: 1px solid var(--ink-a12); border-left: 2px solid var(--ink-a12); }
-.slot--success { background: var(--signal-green-bg); border-left-color: var(--signal-green-ink); }
-.slot--warning { background: var(--signal-amber-bg); border-left-color: var(--signal-amber-ink); }
-.slot--danger  { background: var(--signal-red-bg); border-left-color: var(--signal-red-ink); }
+.slot--info    { --slot-c: var(--mark-volume); background: var(--surface-raised); }
+.slot--success { --slot-c: var(--mark-positive); background: var(--mark-positive-soft); }
+.slot--warning { --slot-c: var(--mark-attention); background: var(--mark-attention-soft); }
+.slot--danger  { --slot-c: var(--mark-serious); background: var(--mark-serious-soft); }
 .slot--event, .week-slot--event {
+  --slot-c: var(--blue-500);
   background: var(--blue-050) !important;
-  border-color: var(--blue-200) !important;
-  border-left-color: var(--blue-500) !important;
-  border-left-width: 3px !important;
 }
 .slot--event .slot__name, .week-slot--event span {
   color: var(--blue-700);
@@ -130,7 +144,7 @@
 /* Bloco curto: uma linha só, alinhada à esquerda como a de cima. */
 /* Bloco curto (40 min = 48 px): duas linhas em vez de uma. Na mesma linha o selo de situação
    (145 px) deixava o nome com 3 px e ele quebrava letra por letra. */
-.slot.is-compact { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; align-items: center; column-gap: var(--s-2); row-gap: 0; padding: 0 var(--s-2); }
+.slot.is-compact { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; align-items: center; column-gap: var(--s-2); row-gap: 0; padding: 0 var(--s-2) 0 calc(var(--s-3) + 4px); }
 .slot.is-compact .slot__name { font-size: var(--t-body); line-height: var(--lh-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot.is-compact .slot__state { grid-column: 2; margin-left: 0; }
 .slot__flag { color: var(--signal-amber-ink); flex: none; }
@@ -198,14 +212,17 @@
 .week-slot {
   /* O mesmo bloco de consulta da vista Dia: fundo do tom, horário em corpo
      --ink-400, nome em corpo 500. Uma aparência por conceito. */
+  --slot-c: var(--ink-a20);
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0;
   width: 100%;
-  padding: var(--s-2);
-  border-radius: var(--r-xs);
-  background: var(--ink-a04);
-  border-left: 2px solid var(--ink-a12);
+  padding: var(--s-2) var(--s-2) var(--s-2) calc(var(--s-3) + 4px);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .78);
+  box-shadow: inset 0 0 0 1px var(--ink-a06);
+  transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2) var(--ease);
   text-align: left;
   font-size: var(--t-body); line-height: var(--lh-body);
   color: var(--ink-400);
@@ -220,21 +237,21 @@
      sobrenome que distingue duas crianças com o mesmo primeiro nome. */
   overflow-wrap: anywhere;
 }
-.week-slot:hover { background: var(--ink-a08); }
+.week-slot:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px var(--ink-a08), var(--e-2); }
 /* Cancelado: marca em --ink-a12, fundo neutro, nome riscado. */
-.week-slot--muted { border-left-color: var(--ink-a12); background: transparent; }
+.week-slot--muted { --slot-c: var(--ink-a12); background: rgba(255, 255, 255, .35); }
 .week-slot--muted span { color: var(--ink-400); }
 .week-slot--muted span:nth-child(2) { color: var(--ink-400); text-decoration: line-through; }
-.week-slot--info    { background: transparent; border: 1px solid var(--ink-a12); border-left: 2px solid var(--ink-a12); }
-.week-slot--success { background: var(--signal-green-bg); border-left-color: var(--signal-green-ink); }
-.week-slot--warning { background: var(--signal-amber-bg); border-left-color: var(--signal-amber-ink); }
-.week-slot--danger  { background: var(--signal-red-bg); border-left-color: var(--signal-red-ink); }
+.week-slot--info    { --slot-c: var(--mark-volume); background: var(--surface-raised); }
+.week-slot--success { --slot-c: var(--mark-positive); background: var(--mark-positive-soft); }
+.week-slot--warning { --slot-c: var(--mark-attention); background: var(--mark-attention-soft); }
+.week-slot--danger  { --slot-c: var(--mark-serious); background: var(--mark-serious-soft); }
 /* Registro que falta (atrasado sem chegada, sem desfecho) é o mesmo vermelho de
    "Faltou", mas tracejado: a falta aconteceu; aqui falta registrar o que houve. */
 /* Registro pendente é o que a tela manda resolver: trilho vermelho cheio.
    Tracejado o deixava mais fraco que os estados de repouso ao redor. */
 .slot.is-pending-record,
-.week-slot.is-pending-record { border-left-style: solid; }
+.week-slot.is-pending-record { box-shadow: inset 0 0 0 1px var(--mark-serious-soft), 0 2px 8px -4px rgba(15, 16, 18, .12); }
 
 @media (max-width: 1024px) {
   .week-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
@@ -1115,7 +1132,7 @@
   min-height: var(--row-min);
   padding-block: var(--s-1);
 }
-.category-bars li + li { border-top: 1px solid var(--ink-a04); }
+.category-bars li + li { border-top: 1px dashed var(--ink-a08); }
 .category-bars__label {
   width: 40%;
   flex: none;
@@ -1127,28 +1144,31 @@
   overflow-wrap: anywhere;
 }
 .category-bars__label strong { color: var(--ink-900); font-weight: var(--w-medium); }
+/* Medidor de tiques (Clerio): a trilha é uma fileira de tiques apagados e o
+   valor acende os tiques da esquerda. O corte é por `clip-path` (escalar
+   deformaria a largura de cada tique), e a cor é uma só por barra. */
 .category-bars__track {
+  position: relative;
   flex: 1;
-  height: 8px;
-  border-radius: var(--r-pill);
-  background: var(--data-track);
-  overflow: hidden;
+  height: 16px;
+  background: repeating-linear-gradient(90deg, var(--dot-off) 0 2px, transparent 2px 6px);
+  border-radius: 1px;
 }
-/* Cresce por `scaleX`, não por `width`: roda no compositor. Sólido, sem
-   degradê — ao escalar, o degradê faria a cor codificar o comprimento. */
 .category-bars__fill {
+  position: absolute;
+  inset: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: var(--data-mid);
-  transform: scaleX(var(--fill, 0));
-  transform-origin: left;
-  transition: transform var(--dur-4) var(--ease);
+  background: repeating-linear-gradient(90deg, var(--cat-c, var(--mark-volume)) 0 2px, transparent 2px 6px);
+  clip-path: inset(0 calc((1 - var(--fill, 0)) * 100%) 0 0);
+  transition: clip-path var(--dur-draw) var(--ease);
+  animation: cat-fill var(--dur-draw) var(--ease) backwards;
 }
-.category-bars__fill--top    { background: var(--data-strong); }
-.category-bars__fill--danger { background: var(--data-negative); }
-.category-bars__fill--accent { background: var(--data-accent); }
+@keyframes cat-fill { from { clip-path: inset(0 100% 0 0); } }
+.category-bars__fill--top    { --cat-c: var(--mood-volume-deep); }
+.category-bars__fill--danger { --cat-c: var(--mark-serious); }
+.category-bars__fill--accent { --cat-c: var(--mark-volume); }
+.category-bars__fill--plain  { --cat-c: var(--mark-volume); }
+.category-bars li:hover .category-bars__fill { filter: saturate(1.2) brightness(1.08); }
 .category-bars__value {
   flex: none;
   /* Largura fixa: as trilhas terminam todas no mesmo x, qualquer que seja o

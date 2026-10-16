@@ -105,12 +105,12 @@
 .agenda-filter__clear:hover { color: var(--ink-900); }
 
 /* Amostra do estado: as mesmas marcas do trilho da consulta. */
-.agenda-swatch { flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--data-soft); }
-.agenda-swatch--info    { background: transparent; border: 1px solid var(--ink-a20); }
+.agenda-swatch { flex: none; width: 10px; height: 10px; border-radius: var(--r-circle); background: var(--mark-neutral); }
+.agenda-swatch--info    { background: var(--mark-volume); }
 .agenda-swatch--muted   { background: var(--ink-100); }
-.agenda-swatch--success { background: var(--signal-green-ink); }
-.agenda-swatch--warning { background: var(--signal-amber); }
-.agenda-swatch--danger  { background: var(--signal-red); }
+.agenda-swatch--success { background: var(--mark-positive); }
+.agenda-swatch--warning { background: var(--mark-attention); }
+.agenda-swatch--danger  { background: var(--mark-serious); }
 .agenda-swatch--event   { background: var(--blue-500); }
 
 .agenda-panel__active { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
@@ -152,28 +152,40 @@
   gap: var(--s-3);
   width: 100%;
   min-width: 0;
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-xs);
-  background: var(--ink-a04);
-  border-left: 2px solid var(--ink-a12);
+  --slot-c: var(--ink-a20);
+  position: relative;
+  padding: var(--s-2) var(--s-3) var(--s-2) calc(var(--s-3) + 4px);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .78);
+  box-shadow: inset 0 0 0 1px var(--ink-a06), 0 2px 8px -4px rgba(15, 16, 18, .12);
   text-align: left;
-  transition: background var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
+  transition: transform var(--dur-2) var(--ease-spring), background var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
 }
-.agenda-event:hover { background: var(--ink-a08); }
+/* A mesma barrinha de estado dos blocos da Agenda (modules.css). */
+.agenda-event::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--slot-c);
+}
+.agenda-event:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px var(--ink-a08), var(--e-2); }
 .agenda-event:focus-visible { outline: 2px solid var(--blue-300); outline-offset: 1px; }
 .agenda-event.is-movable { cursor: grab; }
 .agenda-event.is-movable:active { cursor: grabbing; }
 .agenda-event.is-dragged { opacity: .45; }
 
-.agenda-event--muted   { background: transparent; border-left-color: var(--ink-a12); }
+.agenda-event--muted   { --slot-c: var(--ink-a12); background: rgba(255, 255, 255, .35); }
 .agenda-event--muted .agenda-event__name,
 .agenda-event--muted .agenda-event__text strong { color: var(--ink-400); text-decoration: line-through; }
-.agenda-event--info    { background: transparent; border: 1px solid var(--ink-a12); border-left: 2px solid var(--ink-a12); }
-.agenda-event--info:hover { background: var(--ink-a04); }
-.agenda-event--success { background: var(--signal-green-bg); border-left-color: var(--signal-green-ink); }
-.agenda-event--warning { background: var(--signal-amber-bg); border-left-color: var(--signal-amber-ink); }
-.agenda-event--danger  { background: var(--signal-red-bg); border-left-color: var(--signal-red-ink); }
-.agenda-event--event   { background: var(--blue-050); border: 1px solid var(--blue-200); border-left: 3px solid var(--blue-500); }
+.agenda-event--info    { --slot-c: var(--mark-volume); background: var(--surface-raised); }
+.agenda-event--success { --slot-c: var(--mark-positive); background: var(--mark-positive-soft); }
+.agenda-event--warning { --slot-c: var(--mark-attention); background: var(--mark-attention-soft); }
+.agenda-event--danger  { --slot-c: var(--mark-serious); background: var(--mark-serious-soft); }
+.agenda-event--event   { --slot-c: var(--blue-500); background: var(--blue-050); }
 .agenda-event--event .agenda-event__name,
 .agenda-event--event .agenda-event__text strong { color: var(--blue-700); }
 

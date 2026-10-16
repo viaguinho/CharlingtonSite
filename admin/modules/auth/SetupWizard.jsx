@@ -6,6 +6,8 @@ import { ROLES, PLAZAS, PLAZA_LABELS, ROLE_LABELS } from '../../core/rbac.js';
 import { Button } from '../../components/primitives.jsx';
 import { TextField, PasswordField, Checkbox, Select } from '../../components/Field.jsx';
 import Icon from '../../components/Icon.jsx';
+import LiquidLogo from '../../components/LiquidLogo.jsx';
+import { ShaderBackground } from '@/components/ui/blue-waves';
 import {
   validateEmail, validatePassword, validateCNPJ, validateCRM, required, validate, isValid,
 } from '../../core/validators.js';
@@ -163,9 +165,10 @@ export function SetupWizard({ onComplete }) {
 
   return (
     <div className="setup">
+      <ShaderBackground className="setup__bg" />
       <aside className="setup__side">
         <div className="setup__brand">
-          <img src="/assets/logo.svg" alt="" width="34" height="34" />
+          <LiquidLogo size={64} />
           <span>Configuração inicial</span>
         </div>
 

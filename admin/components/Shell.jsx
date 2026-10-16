@@ -1,11 +1,12 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { NavLink, useLocation, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import Icon from './Icon.jsx';
 import { IconButton, Avatar, Badge, Chip } from './primitives.jsx';
 import { useSession } from '../core/session.jsx';
 import { PLAZA_LABELS, ROLE_LABELS } from '../core/rbac.js';
 import { dateLong } from '../core/format.js';
 import { FloatingDock } from '@/components/ui/floating-dock';
+import { ShaderBackground } from '@/components/ui/blue-waves';
 import * as repo from '../data/repository.js';
 
 // Aviso de dados de demonstração: só no build de desenvolvimento, em modo local.
@@ -29,18 +30,6 @@ function Rail({ expanded, onToggle }) {
 
   return (
     <nav className={`rail ${expanded ? 'is-expanded' : ''}`} aria-label="Navegação principal">
-      <div className="rail__brand">
-        <Link to="/" className="rail__logo" aria-label="Início" title="Início — Dr. Charlington">
-          <img src="/assets/logo.svg" alt="Dr. Charlington Cavalcante" width="30" height="30" />
-        </Link>
-        {expanded ? (
-          <span className="rail__brand-text">
-            <strong>Gestão Clínica</strong>
-            <span>Dr. Charlington Cavalcante</span>
-          </span>
-        ) : null}
-      </div>
-
       <div className="rail__dock-container">
         <FloatingDock
           items={dockItems}
@@ -87,29 +76,13 @@ function Rail({ expanded, onToggle }) {
 function Topbar({ breadcrumb, onSearch, pending = 0 }) {
   const { user, plaza, switchPlaza } = useSession();
   const [plazaOpen, setPlazaOpen] = useState(false);
-  const location = useLocation();
 
   const plazas = user?.plazas ?? [];
-  const isDashboard = location.pathname === '/' || location.pathname === '';
 
   return (
     <header className="topbar">
       <div className="topbar__container">
-        <div className="topbar__left">
-          <Link
-            to="/"
-            className={`explore-pill ${isDashboard ? 'is-active' : ''}`}
-            aria-label={isDashboard ? 'Dashboard (tela principal)' : 'Voltar ao Dashboard'}
-            aria-current={isDashboard ? 'page' : undefined}
-            title={isDashboard ? 'Dashboard (tela principal)' : 'Voltar ao Dashboard'}
-          >
-            <Icon name="home" size={14} />
-            <span className="explore-pill-text">
-              <span>Dashboard</span>
-              <span aria-hidden="true">Dashboard</span>
-            </span>
-          </Link>
-        </div>
+        <div className="topbar__left" />
 
         <div className="topbar__right">
           <button type="button" className="search-trigger" onClick={onSearch}>
@@ -282,11 +255,12 @@ export function Shell({ breadcrumb, onSearch, pending, children }) {
 
   return (
     <div className={`shell ${expanded ? 'shell--expanded' : ''}`}>
+      <ShaderBackground className="shell__bg" variant="dashboard" />
       <a href="#conteudo" className="skip-link">Ir para o conteúdo</a>
       <Rail expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
       <div className="shell__main">
-        <Topbar breadcrumb={breadcrumb} onSearch={onSearch} pending={pending} />
         <main id="conteudo" className="shell__content" tabIndex={-1}>
+          <Topbar breadcrumb={breadcrumb} onSearch={onSearch} pending={pending} />
           <div className="shell__container">{children}</div>
         </main>
       </div>

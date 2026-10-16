@@ -23,6 +23,8 @@
   background: var(--surface);
   border: 1px solid var(--ink-a06);
   border-radius: var(--r-md);
+  position: relative;
+  overflow: hidden;
   transition: border-color var(--dur-2) var(--ease),
               box-shadow var(--dur-2) var(--ease),
               transform var(--dur-2) var(--ease);
@@ -56,16 +58,23 @@
 .patient-card__foot {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--s-2);
+  row-gap: var(--s-2);
   padding-top: var(--s-3);
   border-top: 1px solid var(--ink-a06);
 }
+.patient-card__foot .situation-chips {
+  min-width: 0;
+  max-width: 100%;
+}
 .patient-card__foot .spacer { flex: 1; }
-/* Celular: o selo de situação ("Teleconsulta sem consentimento") e as ações não cabem lado a lado; as ações descem em vez de sair do cartão. */
-@media (max-width: 640px) {
-  .patient-card__foot { flex-wrap: wrap; row-gap: var(--s-2); }
-  .patient-card__foot .situation-chips { min-width: 0; max-width: 100%; }
-  .patient-card__foot > .icon-btn:first-of-type { margin-left: auto; }
+.patient-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* ═══════════════════ Cabeçalho do paciente (REF 3) ═══════════════════ */
@@ -726,24 +735,39 @@
 
 /* ═══════════════════ Consentimentos ═══════════════════ */
 
+/* Aviso: faixa de vidro com tinta do sentido (âmbar = atenção, vermelho =
+   perda) e o ícone num círculo branco à esquerda, como as notificações do
+   iOS. A cor de fundo é suave; o texto continua na tinta escura do sinal. */
 .consent-warning,
 .ops-alert {
   display: flex;
   align-items: flex-start;
   gap: var(--s-3);
   margin: 0 var(--s-5) var(--s-4);
-  padding: var(--s-4);
-  border-radius: var(--r-sm);
-  background: var(--signal-amber-bg);
+  padding: var(--s-4) var(--s-5) var(--s-4) var(--s-4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--card-glass-edge);
+  background: linear-gradient(100deg, rgba(255, 236, 200, .92) 0%, rgba(255, 246, 228, .78) 100%);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
   color: var(--signal-amber-ink);
 }
 .ops-alert { margin: 0; align-items: center; } /* com altura na linha-base, o texto fica no centro da faixa */
 .consent-warning svg, .ops-alert svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.ops-alert > svg {
+  box-sizing: content-box;
+  margin-top: 0;
+  padding: 8px;
+  border-radius: var(--r-circle);
+  background: var(--surface-raised);
+  box-shadow: var(--e-1);
+}
 .consent-warning p, .ops-alert p { font-size: var(--t-small); line-height: var(--lh-body); }
 .ops-alert p { flex: 1; min-width: 0; }
 .ops-alert > .btn { flex: none; align-self: center; }
 /* Vencido é dinheiro que já deveria ter entrado: tom de perda, não de aviso. */
-.ops-alert--danger { background: var(--signal-red-bg); color: var(--signal-red-ink); }
+.ops-alert--danger { background: linear-gradient(100deg, rgba(255, 222, 222, .92) 0%, rgba(255, 240, 240, .78) 100%); color: var(--signal-red-ink); }
 
 .consents { display: flex; flex-direction: column; gap: var(--s-2); padding: 0 var(--s-5) var(--s-4); }
 

@@ -12,8 +12,9 @@ import { CidCode } from '../components/primitives.jsx';
  *     não a tendência.
  *  2. Cor nunca é o único portador de informação. Toda série tem rótulo, e o
  *     dado completo está acessível em tabela pelo botão "ver dados".
- *  3. A única cor saturada é o azul do design system. Verde, âmbar e vermelho
- *     aparecem apenas quando o dado tem significado clínico ou financeiro.
+ *  3. Cor pelo sentido (redesign de 14/10): volume em azul, positivo em verde,
+ *     atenção em laranja, perda em carmim. A paleta das marcas foi validada
+ *     para daltonismo; a cor nunca anda sem rótulo, vão ou legenda.
  */
 
 const MIN_POINTS_FOR_TREND = 3;
@@ -149,6 +150,8 @@ export function BarChart({
   // domingo vazio no começo da semana é só um domingo.
   historyBefore = true,
   firstRecordLabel,
+  // Sentido da série: 'volume' (padrão), 'positive', 'attention', 'clinical'.
+  tone = 'volume',
 }) {
   const id = useId();
   const [hovered, setHovered] = useState(null);
@@ -216,7 +219,7 @@ export function BarChart({
           {ticks.map((t) => (
             <span key={t} className="plot__grid" style={{ bottom: `${(t / top) * 100}%` }} />
           ))}
-          <div className="bars" style={{ gap }}>
+          <div className={`bars bars--${tone}`} style={{ gap }}>
             {data.map((d, index) => {
               const value = Number(d.value) || 0;
               const isActive = index === active;
@@ -224,6 +227,7 @@ export function BarChart({
                 <button
                   key={d.label ?? index}
                   type="button"
+                  style={{ '--i': index }}
                   className={`bars__col ${isActive ? 'is-active' : ''} ${d.current ? 'is-current' : ''} ${d.partialStart ? 'is-partial-start' : ''}`}
                   onMouseEnter={() => setHovered(index)}
                   onMouseLeave={() => setHovered(null)}
@@ -341,6 +345,32 @@ export function ComparisonChart({
             </span>
           ) : null}
           <svg className="compare__svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <pattern id="compare-hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="6" className="compare__hatch-line" />
+              </pattern>
+            </defs>
+            {/* Área hachurada sob a primeira série (o recebido): mesmo degrau da
+                linha, fechado na base. A segunda série fica só no traço. */}
+            {series[0] && labels.length > 1 ? (
+              <polygon
+                className="compare__area"
+                points={[
+                  ...series[0].points.flatMap((p, i) => {
+                    if (i < startIndex) return [];
+                    if (currentLast && i === labels.length - 1) {
+                      const prev = Number(series[0].points[i - 1].value) || 0;
+                      return [`${x(i)},${y(prev)}`, `${x(i)},${y(Number(p.value) || 0)}`];
+                    }
+                    const v = y(Number(p.value) || 0);
+                    if (i === startIndex) return [`${x(i)},${v}`];
+                    return [`${x(i)},${y(Number(series[0].points[i - 1].value) || 0)}`, `${x(i)},${v}`];
+                  }),
+                  `${x(labels.length - 1)},${H}`,
+                  `${x(startIndex)},${H}`,
+                ].join(' ')}
+              />
+            ) : null}
             {hovered != null ? (
               <line x1={x(hovered)} x2={x(hovered)} y1="0" y2={H} className="compare__cursor" vectorEffect="non-scaling-stroke" />
             ) : null}
@@ -607,9 +637,12 @@ export function LineChart({
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="line-svg" role="presentation">
           <defs>
             <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--blue-500)" stopOpacity=".16" />
-              <stop offset="100%" stopColor="var(--blue-500)" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--mark-volume)" stopOpacity=".18" />
+              <stop offset="100%" stopColor="var(--mark-volume)" stopOpacity="0" />
             </linearGradient>
+            <pattern id={`${id}-hatch`} width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="0" x2="0" y2="6" className="line-hatch-stroke" />
+            </pattern>
           </defs>
 
           {[0.25, 0.5, 0.75].map((r) => (
@@ -622,7 +655,12 @@ export function LineChart({
             <rect x={cursor.x - 14} y={PAD.top} width="28" height={innerH} className="line-cursor-band" rx="4" />
           ) : null}
 
-          {areaPath ? <path d={areaPath} fill={`url(#${id}-fill)`} /> : null}
+          {areaPath ? (
+            <g className="line-area">
+              <path d={areaPath} fill={`url(#${id}-fill)`} />
+              <path d={areaPath} fill={`url(#${id}-hatch)`} />
+            </g>
+          ) : null}
 
           {forecastPoints && !sparse ? (
             <path d={buildPath(forecastPoints)} className="line-path line-path--forecast" vectorEffect="non-scaling-stroke" />
@@ -636,8 +674,8 @@ export function LineChart({
             <circle
               key={p.label ?? i}
               cx={p.x} cy={p.y}
-              r={sparse || hovered === i ? 4 : 0}
-              className="line-dot"
+              r={hovered === i ? 6 : sparse ? 4 : 0}
+              className={`line-dot ${hovered === i ? 'is-hot' : ''}`}
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -733,28 +771,41 @@ export function TickBars({ ratio = 0, ticks = 28, height = 22, startLabel, endLa
   );
 }
 
-/* ═══════════════════════════ Medidor semicircular ═══════════════════════════
-   Arco de 180° com trilho neutro e progresso em gradiente azul (REF 6).     */
+/* ═══════════════════════════ Medidor de tiques ═══════════════════════════
+   Arco de 180° feito de tiques radiais (Dynamics 365 "Lead Score"): os
+   acesos são a fração, em verde (concluído é positivo); os apagados, o que
+   falta. Os tiques acendem em sequência da esquerda para a direita.        */
 
-export function Gauge({ value = 0, max = 100, size = 140, label, suffix = '', formatValue }) {
-  const id = useId();
+const GAUGE_TICKS = 31;
+
+export function Gauge({ value = 0, max = 100, size = 180, label, suffix = '', formatValue, tone = 'positive' }) {
   const ratio = Math.min(Math.max(max ? value / max : 0, 0), 1);
-  const radius = 54;
-  const circumference = Math.PI * radius;
-  const W = 140;
-  const H = 82;
+  const on = Math.round(ratio * GAUGE_TICKS);
+  const W = 180;
+  const H = 104;
+  const cx = W / 2;
+  const cy = 92;
+  const color = { positive: 'var(--mark-positive)', volume: 'var(--mark-volume)', attention: 'var(--mark-attention)' }[tone];
 
   return (
-    <div className="gauge" style={{ width: size }}>
+    <div className="gauge" style={{ width: size, '--gauge-c': color }}>
       <svg viewBox={`0 0 ${W} ${H}`} width={size} height={size * (H / W)} role="img"
         aria-label={`${label ?? 'Medidor'}: ${value} de ${max}`}>
-        <path d={`M 16 70 A ${radius} ${radius} 0 0 1 124 70`} className="gauge__track" />
-        <path
-          d={`M 16 70 A ${radius} ${radius} 0 0 1 124 70`}
-          className="gauge__arc"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - ratio)}
-        />
+        {Array.from({ length: GAUGE_TICKS }, (_, i) => {
+          const a = Math.PI - (i / (GAUGE_TICKS - 1)) * Math.PI;
+          const long = i % 5 === 0;
+          const r1 = long ? 66 : 70;
+          const r2 = 84;
+          return (
+            <line
+              key={i}
+              x1={cx + r1 * Math.cos(a)} y1={cy - r1 * Math.sin(a)}
+              x2={cx + r2 * Math.cos(a)} y2={cy - r2 * Math.sin(a)}
+              className={`gauge__tick ${i < on ? 'is-on' : ''}`}
+              style={{ '--i': i }}
+            />
+          );
+        })}
       </svg>
       <div className="gauge__center">
         <span className="gauge__value num">

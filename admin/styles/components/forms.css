@@ -18,13 +18,16 @@
 
 .field__control { position: relative; display: flex; align-items: center; }
 
+/* Campo de vidro: branco quase opaco sobre o card, cantos de 14 px e um
+   anel azul suave no foco (Apple). */
 .input {
   width: 100%;
-  height: 40px;
-  padding: 0 var(--s-3);
-  border-radius: var(--r-sm);
+  height: 44px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
   border: 1px solid var(--ink-a08);
-  background: var(--surface);
+  background: rgba(255, 255, 255, .82);
+  box-shadow: inset 0 1px 2px rgba(15, 16, 18, .03);
   color: var(--ink-900);
   font-size: var(--t-body);
   transition: border-color var(--dur-2) var(--ease),
@@ -39,7 +42,7 @@
 .input:focus {
   outline: none;
   border-color: var(--blue-300);
-  box-shadow: 0 0 0 3px var(--blue-a08);
+  box-shadow: 0 0 0 4px var(--blue-a16);
   background: var(--surface-raised);
 }
 
@@ -212,25 +215,28 @@ input[type="number"] {
 .switch__control {
   position: relative;
   flex: none;
-  width: 40px; height: 23px;
+  width: 44px; height: 26px;
   border-radius: var(--r-pill);
   background: var(--ink-a12);
+  box-shadow: inset 0 1px 2px rgba(15, 16, 18, .08);
   cursor: pointer;
-  transition: background var(--dur-2) var(--ease);
+  transition: background var(--dur-3) var(--ease);
 }
-.switch__control.is-on { background: var(--blue-500); }
+.switch__control.is-on { background: var(--mood-positive-mid); }
 .switch__control:disabled { opacity: .45; cursor: not-allowed; }
 
 .switch__thumb {
   position: absolute;
-  top: 2.5px; left: 2.5px;
-  width: 18px; height: 18px;
+  top: 3px; left: 3px;
+  width: 20px; height: 20px;
   border-radius: var(--r-circle);
   background: var(--surface-raised);
-  box-shadow: var(--e-1);
-  transition: transform var(--dur-2) var(--ease);
+  box-shadow: 0 2px 6px rgba(15, 16, 18, .22);
+  transition: transform var(--dur-3) var(--ease-spring);
 }
-.switch__control.is-on .switch__thumb { transform: translateX(17px); }
+.switch__control.is-on .switch__thumb { transform: translateX(18px); }
+.switch__control:active:not(:disabled) .switch__thumb { width: 24px; }
+.switch__control.is-on:active:not(:disabled) .switch__thumb { transform: translateX(14px); }
 
 /* ————————————————————————————— Radio ————————————————————————————— */
 
@@ -277,9 +283,10 @@ input[type="number"] {
 }
 
 .form-section {
-  border: 1px solid var(--ink-a06);
-  border-radius: var(--r-md);
-  background: var(--surface);
+  border: 1px solid var(--card-glass-edge);
+  border-radius: var(--r-lg);
+  background: var(--card-glass);
+  box-shadow: var(--e-glass);
   overflow: hidden;
 }
 

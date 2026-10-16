@@ -9,6 +9,7 @@ import SetupWizard from './modules/auth/SetupWizard.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { useBaselineRhythm } from './core/useBaselineRhythm.js';
+import { useGlare } from './core/useGlare.js';
 
 /* Cada módulo entra em seu próprio pedaço de bundle: abrir o painel não
    deve custar o download do financeiro inteiro. */
@@ -31,7 +32,7 @@ const Settings      = lazy(() => import('./modules/settings/SettingsScreen.jsx')
 const ROUTE_SHAPE = {
   // Medido em cada rota carregada (1280 px): faixa, linhas de descrição, controles e alertas.
   '/':              { strip: 192, desc: 0, tools: [[168, 38, 'pill']],                      bento: [[7, 528], [5, 648]] },
-  '/agenda':        { strip: 192, desc: 1, stacked: true, tools: [[187, 38, 'pill']], toolbar: [[315, 34, 'sm'], [285, 38, 'sm']], alerts: [72], bento: [[12, 984]] },
+  '/agenda':        { strip: 192, stripBelow: true, desc: 1, stacked: true, tools: [[187, 38, 'pill']], toolbar: [[315, 34, 'sm'], [285, 38, 'sm']], alerts: [72], bento: [[12, 984]] },
   '/pacientes':     { strip: 240, desc: 2, tools: [[174, 38, 'sm'], [156, 38, 'pill']],      alerts: [72], bento: [[12, 744]] },
   '/documentos':    { strip: 168, desc: 2, tools: [[408, 38, 'sm']],                         bento: [[12, 1296]] },
   '/mensagens':     { strip: 168, desc: 2, tools: [[355, 38, 'sm']],                         bento: [[7, 552], [5, 552]] },
@@ -77,25 +78,49 @@ function RouteFallback() {
       {/* O vão é o mesmo da página real: um espaçador de --gutter (24 px) depois de cada
           bloco, não margem na caixa — a margem somava com a do contêiner e o esqueleto
           ficava 23 px mais baixo que a rota carregada. */}
-      {shape.strip ? (
+      {shape.stripBelow ? (
         <>
-          <Skeleton height={shape.strip} radius="var(--r-lg)" card />
-          <div style={{ height: 'var(--gutter)' }} />
-        </>
-      ) : null}
-      {shape.alerts?.map((height, i) => (
-        <div key={`alert-${i}`}>
-          <Skeleton height={height} radius="var(--r-sm)" card />
-          <div style={{ height: 'var(--gutter)' }} />
-        </div>
-      ))}
-      <div className="bento">
-        {shape.bento.map(([span, height], i) => (
-          <div key={i} style={{ gridColumn: `span ${span}` }}>
-            <Skeleton height={height} radius="var(--r-lg)" card />
+          <div className="bento">
+            {shape.bento.map(([span, height], i) => (
+              <div key={i} style={{ gridColumn: `span ${span}` }}>
+                <Skeleton height={height} radius="var(--r-lg)" card />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+          <div style={{ height: 'var(--gutter)' }} />
+          {shape.alerts?.map((height, i) => (
+            <div key={`alert-${i}`}>
+              <Skeleton height={height} radius="var(--r-sm)" card />
+              <div style={{ height: 'var(--gutter)' }} />
+            </div>
+          ))}
+          {shape.strip ? (
+            <Skeleton height={shape.strip} radius="var(--r-lg)" card />
+          ) : null}
+        </>
+      ) : (
+        <>
+          {shape.strip ? (
+            <>
+              <Skeleton height={shape.strip} radius="var(--r-lg)" card />
+              <div style={{ height: 'var(--gutter)' }} />
+            </>
+          ) : null}
+          {shape.alerts?.map((height, i) => (
+            <div key={`alert-${i}`}>
+              <Skeleton height={height} radius="var(--r-sm)" card />
+              <div style={{ height: 'var(--gutter)' }} />
+            </div>
+          ))}
+          <div className="bento">
+            {shape.bento.map(([span, height], i) => (
+              <div key={i} style={{ gridColumn: `span ${span}` }}>
+                <Skeleton height={height} radius="var(--r-lg)" card />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -194,6 +219,8 @@ function Gate() {
 }
 
 export default function App() {
+  // Reflexo dos cards de vidro: um ouvinte só para o painel inteiro, inclusive o login.
+  useGlare();
   return (
     <HashRouter>
       <SessionProvider>

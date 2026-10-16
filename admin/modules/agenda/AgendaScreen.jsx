@@ -23,7 +23,7 @@ import { Card, CardHeader, CardBody, EmptyState, Metric, MetricStrip } from '../
 import { Button, IconButton, Chip, Avatar, StatusDot } from '../../components/primitives.jsx';
 import { Tabs } from '../../components/Tabs.jsx';
 import { Modal, Sheet, ConfirmDialog, useToast } from '../../components/Overlay.jsx';
-import { Select, TextField, TextArea, Combobox, FieldRow } from '../../components/Field.jsx';
+import { Select, TextField, TextArea, Combobox, FieldRow, Checkbox } from '../../components/Field.jsx';
 import { HeatGrid } from '../../charts/index.jsx';
 import Icon from '../../components/Icon.jsx';
 import { isoDay, time, date, dateLong, duration, age, money } from '../../core/format.js';
@@ -63,6 +63,7 @@ export default function AgendaScreen() {
   const [data, setData] = useState({ appointments: [], patients: [], rooms: [], allRooms: [], blocks: [] });
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(null);
+  const [cancelDayModal, setCancelDayModal] = useState(false);
   const [detail, setDetail] = useState(null);
   // Arrastar a pílula da consulta (vistas Dia e Semana) propõe um novo horário.
   const drag = useRescheduleDrag({ canWrite: can.write('agenda') });
@@ -199,12 +200,115 @@ export default function AgendaScreen() {
         }
         actions={
           can.write('agenda') ? (
-            <Button variant="primary" icon="plus" onClick={() => setBooking({ date: anchor })}>
-              Novo agendamento
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+              <Button
+                variant="danger"
+                icon="calendar-x"
+                onClick={() => setCancelDayModal(true)}
+                title="Cancelar e bloquear a agenda do dia selecionado"
+              >
+                Cancelar agenda do dia
+              </Button>
+              <Button
+                icon="lock"
+                onClick={() => setBooking({ date: anchor, mode: 'compromisso' })}
+                title="Bloquear horário ou agendar compromisso/reunião"
+              >
+                Bloquear / Compromisso
+              </Button>
+              <Button
+                variant="primary"
+                icon="plus"
+                onClick={() => setBooking({ date: anchor, mode: 'consulta' })}
+              >
+                Novo agendamento
+              </Button>
+            </div>
           ) : null
         }
       />
+
+      {view === 'dia' ? (
+        <DayView
+          day={anchor}
+          appointments={dayAppointments}
+          patients={data.patients}
+          rooms={data.rooms}
+          loading={loading}
+          onOpen={setDetail}
+          onSlot={(hour, roomId) => setBooking({ date: anchor, hour, roomId })}
+        />
+      ) : null}
+
+      {view === 'semana' ? (
+        <WeekView
+          days={weekDays}
+          appointments={data.appointments}
+          patients={data.patients}
+          onOpen={setDetail}
+          onDay={(day) => { setAnchor(day); setView('dia'); }}
+        />
+      ) : null}
+
+      {view === 'lista' ? (
+        <ListView
+          title={`Agendamentos de ${monthLabel(anchor).toLowerCase()}`}
+          appointments={visible}
+          patients={data.patients}
+          loading={loading}
+          onOpen={setDetail}
+        />
+      ) : null}
+
+      {view === 'ocupacao' ? (
+        <OccupancyView appointments={visible} month={monthLabel(anchor).toLowerCase()} />
+      ) : null}
+
+      {/* Dois avisos, dois tons. Atraso sem chegada é erro de agora (vermelho);
+          consulta sem confirmação é tarefa de rotina, no mesmo tom que tem em
+          Relatórios. Juntos numa faixa vermelha, a rotina virava alarme. */}
+      {/* Sem desfecho é contado na agenda INTEIRA, não só no recorte: no Dia de
+          hoje o registro esquecido de ontem sumia do aviso. */}
+      {stats.late || pendingRecords.length ? (
+        <>
+          <div style={{ height: 'var(--gutter)' }} />
+          <div className="ops-alert ops-alert--danger" role="status">
+            <Icon name="alert-triangle" size={15} />
+            <p>
+              {stats.late ? <><strong>{stats.late} {stats.late === 1 ? 'consulta atrasada' : 'consultas atrasadas'} sem chegada.</strong>{' '}</> : null}
+              {pendingRecords.length ? <><strong>{pendingRecords.length} {pendingRecords.length === 1 ? 'consulta que já passou está' : 'consultas que já passaram estão'} sem desfecho registrado.</strong>{' '}</> : null}
+              Registre chegada, atendimento ou falta.
+            </p>
+            {(() => {
+              // Leva ao dia do registro que falta: o sem desfecho mais antigo, ou hoje.
+              const first = [...pendingRecords, ...visible.filter((x) => isLate(x))].sort((x, y) => x.inicio.localeCompare(y.inicio))[0];
+              const day = first ? localDay(first.inicio) : isoDay();
+              // Já estando nesse dia, o botão levaria para onde o leitor está.
+              if (view === 'dia' && day === anchor) return null;
+              return (
+                <Button size="sm" onClick={() => { setAnchor(day); setView('dia'); }}>
+                  {day === isoDay() ? 'Ver hoje' : `Ver ${new Date(`${day}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
+                </Button>
+              );
+            })()}
+          </div>
+        </>
+      ) : null}
+      {stats.upcoming - stats.confirmed ? (
+        <>
+          <div style={{ height: 'var(--gutter)' }} />
+          <div className="ops-alert" role="status">
+            <Icon name="message-circle" size={15} />
+            <p>
+              <strong>{stats.upcoming - stats.confirmed} {stats.upcoming - stats.confirmed === 1 ? 'consulta ainda sem confirmação' : 'consultas ainda sem confirmação'}</strong> {scope}.
+              {optIn ? '' : ' Nenhuma família com consentimento para mensagens: registre o opt-in antes de pedir confirmação.'}
+            </p>
+            <Button size="sm" onClick={() => navigate('/comunicacao')}>{optIn ? 'Pedir confirmação' : 'Registrar consentimento'}</Button>
+          </div>
+        </>
+      ) : null}
+
+      <div style={{ height: 'var(--gutter)' }} />
 
       <MetricStrip loading={loading}>
         {/* A soma das partes fica escrita sob o total: por acontecer, atrasadas,
@@ -254,94 +358,23 @@ export default function AgendaScreen() {
         <Metric label="Faltas" value={stats.noShow} />
       </MetricStrip>
 
-      {/* Dois avisos, dois tons. Atraso sem chegada é erro de agora (vermelho);
-          consulta sem confirmação é tarefa de rotina, no mesmo tom que tem em
-          Relatórios. Juntos numa faixa vermelha, a rotina virava alarme. */}
-      {/* Sem desfecho é contado na agenda INTEIRA, não só no recorte: no Dia de
-          hoje o registro esquecido de ontem sumia do aviso. */}
-      {stats.late || pendingRecords.length ? (
-        <>
-          <div style={{ height: 'var(--gutter)' }} />
-          <div className="ops-alert ops-alert--danger" role="status">
-            <Icon name="alert-triangle" size={15} />
-            <p>
-              {stats.late ? <><strong>{stats.late} {stats.late === 1 ? 'consulta atrasada' : 'consultas atrasadas'} sem chegada.</strong>{' '}</> : null}
-              {pendingRecords.length ? <><strong>{pendingRecords.length} {pendingRecords.length === 1 ? 'consulta que já passou está' : 'consultas que já passaram estão'} sem desfecho registrado.</strong>{' '}</> : null}
-              Registre chegada, atendimento ou falta.
-            </p>
-            {(() => {
-              // Leva ao dia do registro que falta: o sem desfecho mais antigo, ou hoje.
-              const first = [...pendingRecords, ...visible.filter((x) => isLate(x))].sort((x, y) => x.inicio.localeCompare(y.inicio))[0];
-              const day = first ? localDay(first.inicio) : isoDay();
-              // Já estando nesse dia, o botão levaria para onde o leitor está.
-              if (view === 'dia' && day === anchor) return null;
-              return (
-                <Button size="sm" onClick={() => { setAnchor(day); setView('dia'); }}>
-                  {day === isoDay() ? 'Ver hoje' : `Ver ${new Date(`${day}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
-                </Button>
-              );
-            })()}
-          </div>
-        </>
-      ) : null}
-      {stats.upcoming - stats.confirmed ? (
-        <>
-          <div style={{ height: 'var(--gutter)' }} />
-          <div className="ops-alert" role="status">
-            <Icon name="message-circle" size={15} />
-            <p>
-              <strong>{stats.upcoming - stats.confirmed} {stats.upcoming - stats.confirmed === 1 ? 'consulta ainda sem confirmação' : 'consultas ainda sem confirmação'}</strong> {scope}.
-              {optIn ? '' : ' Nenhuma família com consentimento para mensagens: registre o opt-in antes de pedir confirmação.'}
-            </p>
-            <Button size="sm" onClick={() => navigate('/comunicacao')}>{optIn ? 'Pedir confirmação' : 'Registrar consentimento'}</Button>
-          </div>
-        </>
-      ) : null}
-
-      <div style={{ height: 'var(--gutter)' }} />
-
-      {view === 'dia' ? (
-        <DayView
-          day={anchor}
-          appointments={dayAppointments}
-          patients={data.patients}
-          rooms={data.rooms}
-          loading={loading}
-          onOpen={setDetail}
-          onSlot={(hour, roomId) => setBooking({ date: anchor, hour, roomId })}
-        />
-      ) : null}
-
-      {view === 'semana' ? (
-        <WeekView
-          days={weekDays}
-          appointments={data.appointments}
-          patients={data.patients}
-          onOpen={setDetail}
-          onDay={(day) => { setAnchor(day); setView('dia'); }}
-        />
-      ) : null}
-
-      {view === 'lista' ? (
-        <ListView
-          title={`Agendamentos de ${monthLabel(anchor).toLowerCase()}`}
-          appointments={visible}
-          patients={data.patients}
-          loading={loading}
-          onOpen={setDetail}
-        />
-      ) : null}
-
-      {view === 'ocupacao' ? (
-        <OccupancyView appointments={visible} month={monthLabel(anchor).toLowerCase()} />
-      ) : null}
-
       <BookingSheet
         request={booking}
         patients={data.patients}
         rooms={data.rooms}
+        appointments={data.appointments}
         onClose={() => setBooking(null)}
         onSaved={() => { setBooking(null); load(); }}
+      />
+
+      <CancelDayDialog
+        open={cancelDayModal}
+        day={anchor}
+        appointments={data.appointments}
+        patients={data.patients}
+        rooms={data.rooms}
+        onClose={() => setCancelDayModal(false)}
+        onConfirmed={() => { setCancelDayModal(false); load(); }}
       />
 
       <AppointmentDetail
@@ -789,22 +822,44 @@ function OccupancyView({ appointments, month }) {
   );
 }
 
-/* ═══════════════════════════ Agendamento ═══════════════════════════ */
+function getDaysRange(startDateStr, endDateStr) {
+  const days = [];
+  const current = new Date(`${startDateStr}T12:00:00`);
+  const end = new Date(`${endDateStr}T12:00:00`);
+  while (current <= end) {
+    days.push(isoDay(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+}
 
-export function BookingSheet({ request, patients, rooms, onClose, onSaved }) {
+/* ═══════════════════════════ Agendamento & Bloqueios ═══════════════════════════ */
+
+export function BookingSheet({ request, patients, rooms, appointments = [], onClose, onSaved }) {
   const { plaza, user } = useSession();
   const toast = useToast();
   const [form, setForm] = useState(null);
+  const [mode, setMode] = useState('consulta'); // 'consulta' | 'compromisso'
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!request) { setForm(null); return; }
+    const initialMode = request.mode === 'compromisso' ? 'compromisso' : 'consulta';
+    setMode(initialMode);
     const hour = request.hour ?? 9;
     setForm({
+      // Compromisso / Bloqueio
+      titulo: '',
+      dataInicio: request.date,
+      dataFim: request.date,
+      horaInicio: `${String(hour).padStart(2, '0')}:00`,
+      horaFim: `${String(Math.min(19, hour + 1)).padStart(2, '0')}:00`,
+      diaInteiro: request.mode === 'dia_inteiro',
+
+      // Consulta
       pacienteId: '',
       salaId: request.roomId ?? rooms[0]?.id ?? null,
       data: request.date,
-      horaInicio: `${String(hour).padStart(2, '0')}:00`,
       duracao: 60,
       tipo: APPOINTMENT_TYPES.RETURN,
       observacoes: '',
@@ -818,27 +873,137 @@ export function BookingSheet({ request, patients, rooms, onClose, onSaved }) {
     setForm((f) => ({ ...f, [field]: value }));
   };
 
+  const isCompromisso = mode === 'compromisso';
+
+  function handleDataInicioChange(e) {
+    const newDate = e.target.value;
+    setForm((f) => ({
+      ...f,
+      dataInicio: newDate,
+      dataFim: !f.dataFim || f.dataFim < newDate || f.dataFim === f.dataInicio ? newDate : f.dataFim,
+    }));
+  }
+
+  function handleToggleDiaInteiro(e) {
+    const checked = e.target.checked;
+    setForm((f) => ({
+      ...f,
+      diaInteiro: checked,
+      horaInicio: checked ? '07:00' : (f.horaInicio === '07:00' ? '08:00' : f.horaInicio),
+      horaFim: checked ? '19:00' : (f.horaFim === '19:00' ? '09:00' : f.horaFim),
+    }));
+  }
+
+  function handleHoraInicioChange(e) {
+    const val = e.target.value;
+    setForm((f) => ({
+      ...f,
+      horaInicio: val,
+      diaInteiro: val === '07:00' && f.horaFim === '19:00',
+    }));
+  }
+
+  function handleHoraFimChange(e) {
+    const val = e.target.value;
+    setForm((f) => ({
+      ...f,
+      horaFim: val,
+      diaInteiro: f.horaInicio === '07:00' && val === '19:00',
+    }));
+  }
+
+  const rangeDays = (() => {
+    if (!form.dataInicio || !form.dataFim || form.dataFim < form.dataInicio) return [];
+    return getDaysRange(form.dataInicio, form.dataFim);
+  })();
+
+  const conflictingAppointments = rangeDays.length && appointments?.length
+    ? appointments.filter(
+        (a) => rangeDays.includes(localDay(a.inicio)) &&
+               a.status !== APPOINTMENT_STATUS.CANCELLED &&
+               a.tipo !== APPOINTMENT_TYPES.EVENT &&
+               !a.titulo
+      )
+    : [];
+
   async function save() {
-    if (!form.pacienteId) { toast.error('Selecione o paciente.'); return; }
+    if (isCompromisso) {
+      if (!form.titulo?.trim()) {
+        toast.error('Informe o título do compromisso ou bloqueio.');
+        return;
+      }
+      if (!form.dataInicio || !form.dataFim) {
+        toast.error('Informe a data de início e de término.');
+        return;
+      }
+      if (form.dataFim < form.dataInicio) {
+        toast.error('A data de término não pode ser anterior à data de início.');
+        return;
+      }
+      if (!form.horaInicio || !form.horaFim) {
+        toast.error('Informe o horário de início e de término.');
+        return;
+      }
+      if (form.horaFim <= form.horaInicio) {
+        toast.error('O horário de término deve ser posterior ao horário de início.');
+        return;
+      }
+      if (rangeDays.length > 60) {
+        toast.error('O período máximo de bloqueio contínuo é de 60 dias.');
+        return;
+      }
+    } else {
+      if (!form.pacienteId) {
+        toast.error('Selecione o paciente.');
+        return;
+      }
+    }
 
     setBusy(true);
     try {
-      const inicio = new Date(`${form.data}T${form.horaInicio}:00`);
-      const fim = new Date(inicio.getTime() + Number(form.duracao) * 60000);
+      if (isCompromisso) {
+        for (const day of rangeDays) {
+          const inicio = new Date(`${day}T${form.horaInicio}:00`);
+          const fim = new Date(`${day}T${form.horaFim}:00`);
 
-      await repo.create(STORES.APPOINTMENTS, {
-        ...newAppointment({ praca: plaza, userId: user?.id }),
-        pacienteId: form.pacienteId,
-        salaId: form.salaId,
-        profissionalId: user?.id,
-        inicio: inicio.toISOString(),
-        fim: fim.toISOString(),
-        tipo: form.tipo,
-        status: APPOINTMENT_STATUS.SCHEDULED,
-        observacoes: form.observacoes,
-      });
+          await repo.create(STORES.APPOINTMENTS, {
+            ...newAppointment({ praca: plaza, userId: user?.id }),
+            pacienteId: null,
+            salaId: form.salaId,
+            profissionalId: user?.id,
+            inicio: inicio.toISOString(),
+            fim: fim.toISOString(),
+            tipo: APPOINTMENT_TYPES.EVENT,
+            titulo: form.titulo.trim(),
+            status: APPOINTMENT_STATUS.CONFIRMED,
+            observacoes: form.observacoes,
+          });
+        }
 
-      toast.success('Consulta agendada.');
+        toast.success(
+          rangeDays.length > 1
+            ? `Bloqueio registrado para ${rangeDays.length} dias na agenda.`
+            : 'Compromisso registrado na agenda.'
+        );
+      } else {
+        const inicio = new Date(`${form.data}T${form.horaInicio}:00`);
+        const fim = new Date(inicio.getTime() + Number(form.duracao) * 60000);
+
+        await repo.create(STORES.APPOINTMENTS, {
+          ...newAppointment({ praca: plaza, userId: user?.id }),
+          pacienteId: form.pacienteId,
+          salaId: form.salaId,
+          profissionalId: user?.id,
+          inicio: inicio.toISOString(),
+          fim: fim.toISOString(),
+          tipo: form.tipo,
+          status: APPOINTMENT_STATUS.SCHEDULED,
+          observacoes: form.observacoes,
+        });
+
+        toast.success('Consulta agendada.');
+      }
+
       onSaved();
     } catch (error) {
       toast.error(error.message);
@@ -847,60 +1012,377 @@ export function BookingSheet({ request, patients, rooms, onClose, onSaved }) {
     }
   }
 
+  const sheetDescription = isCompromisso
+    ? form.dataInicio === form.dataFim
+      ? `${dateLong(form.dataInicio)} · ${form.horaInicio} às ${form.horaFim}`
+      : `De ${date(form.dataInicio)} a ${date(form.dataFim)} · ${form.horaInicio} às ${form.horaFim}`
+    : dateLong(form.data);
+
   return (
     <Sheet
       open={!!request}
       onClose={onClose}
-      width={460}
-      title="Novo agendamento"
-      description={dateLong(form.data)}
+      width={540}
+      title={isCompromisso ? 'Bloquear agenda / Compromisso' : 'Novo agendamento'}
+      description={sheetDescription}
       footer={
         <>
           <Button onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" onClick={save} loading={busy}>Agendar</Button>
+          <Button variant="primary" onClick={save} loading={busy}>
+            {isCompromisso ? (rangeDays.length > 1 ? `Salvar bloqueio (${rangeDays.length} dias)` : 'Salvar compromisso') : 'Agendar'}
+          </Button>
         </>
       }
     >
-      <div className="booking-form">
-        <Combobox
-          label="Paciente" required
-          value={form.pacienteId}
-          onChange={(value) => setForm((f) => ({ ...f, pacienteId: value }))}
-          options={patients.map((p) => ({
-            value: p.id,
-            label: p.nomeSocial || p.nome,
-            hint: p.dataNascimento ? age(p.dataNascimento).label : undefined,
-          }))}
-          placeholder="Buscar paciente cadastrado"
-          emptyMessage="Nenhum paciente cadastrado ainda."
-        />
-
-        <FieldRow>
-          <TextField label="Data" type="date" value={form.data} onChange={set('data')} />
-          <TextField label="Hora" type="time" value={form.horaInicio} onChange={set('horaInicio')} />
-        </FieldRow>
-
-        <FieldRow>
-          <Select
-            label="Duração" value={form.duracao} onChange={set('duracao')}
-            options={[30, 45, 60, 90, 120].map((m) => ({ value: m, label: duration(m) }))}
+      <div className="booking-form" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-5)' }}>
+        <div style={{ marginBottom: 'var(--s-1)' }}>
+          <Tabs
+            variant="segment"
+            value={mode}
+            onChange={(newMode) => setMode(newMode)}
+            ariaLabel="Tipo de registro"
+            items={[
+              { value: 'consulta', label: 'Consulta com paciente' },
+              { value: 'compromisso', label: 'Bloquear / Compromisso' },
+            ]}
           />
-          <Select
-            label="Tipo" value={form.tipo} onChange={set('tipo')}
-            options={Object.values(APPOINTMENT_TYPES).map((t) => ({ value: t, label: APPOINTMENT_TYPE_LABELS[t] }))}
-          />
-        </FieldRow>
+        </div>
 
-        {rooms.length > 1 ? (
-          <Select
-            label="Sala" value={form.salaId ?? ''} onChange={set('salaId')}
-            options={rooms.map((r) => ({ value: r.id, label: r.nome }))}
-          />
-        ) : null}
+        {isCompromisso ? (
+          <>
+            <TextField
+              label="Título do compromisso / bloqueio"
+              placeholder="Ex.: Reunião clínica, Congresso, Compromisso pessoal, Férias, Bloqueio"
+              value={form.titulo}
+              onChange={set('titulo')}
+              required
+              autoFocus
+            />
 
-        <TextArea label="Observações" rows={3} value={form.observacoes} onChange={set('observacoes')} />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--s-4)',
+                padding: 'var(--s-5)',
+                borderRadius: 'var(--r-md)',
+                background: 'var(--ink-a04)',
+                border: '1px solid var(--ink-a08)',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 'var(--t-micro)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 'var(--ls-eyebrow)',
+                  fontWeight: 'var(--w-semibold)',
+                  color: 'var(--ink-400)',
+                }}
+              >
+                Período e Horário
+              </span>
+
+              <FieldRow>
+                <TextField
+                  label="Data de início"
+                  type="date"
+                  value={form.dataInicio}
+                  onChange={handleDataInicioChange}
+                  required
+                />
+                <TextField
+                  label="Data de fim"
+                  type="date"
+                  value={form.dataFim}
+                  min={form.dataInicio}
+                  onChange={(e) => setForm((f) => ({ ...f, dataFim: e.target.value }))}
+                  required
+                />
+              </FieldRow>
+
+              <FieldRow>
+                <TextField
+                  label="Horário de início"
+                  type="time"
+                  value={form.horaInicio}
+                  onChange={handleHoraInicioChange}
+                  required
+                />
+                <TextField
+                  label="Horário de fim"
+                  type="time"
+                  value={form.horaFim}
+                  onChange={handleHoraFimChange}
+                  required
+                />
+              </FieldRow>
+
+              <div
+                style={{
+                  paddingTop: 'var(--s-3)',
+                  borderTop: '1px solid var(--ink-a08)',
+                  marginTop: 'var(--s-1)',
+                }}
+              >
+                <Checkbox
+                  label="Dia inteiro (07:00 às 19:00)"
+                  description="Ajusta o horário das 07:00 às 19:00 para cada dia selecionado."
+                  checked={form.diaInteiro}
+                  onChange={handleToggleDiaInteiro}
+                />
+              </div>
+            </div>
+
+            {conflictingAppointments.length > 0 ? (
+              <div
+                className="ops-alert ops-alert--warning"
+                role="status"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 'var(--s-3)',
+                  padding: 'var(--s-4)',
+                  borderRadius: 'var(--r-md)',
+                  margin: 0,
+                }}
+              >
+                <Icon name="alert-triangle" size={16} />
+                <p style={{ margin: 0, fontSize: 'var(--t-caption)', lineHeight: 1.5 }}>
+                  Há <strong>{conflictingAppointments.length} {conflictingAppointments.length === 1 ? 'consulta agendada' : 'consultas agendadas'}</strong> no período selecionado. O bloqueio ocupará a grade junto a elas. Para cancelar consultas de um dia específico, utilize o botão <em>Cancelar agenda do dia</em> no cabeçalho.
+                </p>
+              </div>
+            ) : null}
+
+            {rooms.length > 1 ? (
+              <Select
+                label="Sala"
+                value={form.salaId ?? ''}
+                onChange={set('salaId')}
+                options={rooms.map((r) => ({ value: r.id, label: r.nome }))}
+              />
+            ) : null}
+
+            <TextArea
+              label="Observações"
+              rows={3}
+              placeholder="Detalhes ou justificativa do compromisso..."
+              value={form.observacoes}
+              onChange={set('observacoes')}
+            />
+          </>
+        ) : (
+          <>
+            <Combobox
+              label="Paciente" required
+              value={form.pacienteId}
+              onChange={(value) => setForm((f) => ({ ...f, pacienteId: value }))}
+              options={patients.map((p) => ({
+                value: p.id,
+                label: p.nomeSocial || p.nome,
+                hint: p.dataNascimento ? age(p.dataNascimento).label : undefined,
+              }))}
+              placeholder="Buscar paciente cadastrado"
+              emptyMessage="Nenhum paciente cadastrado ainda."
+            />
+
+            <FieldRow>
+              <TextField label="Data" type="date" value={form.data} onChange={set('data')} />
+              <TextField label="Hora" type="time" value={form.horaInicio} onChange={set('horaInicio')} />
+            </FieldRow>
+
+            <FieldRow>
+              <Select
+                label="Duração" value={form.duracao} onChange={set('duracao')}
+                options={[30, 45, 60, 90, 120].map((m) => ({ value: m, label: duration(m) }))}
+              />
+              <Select
+                label="Tipo" value={form.tipo} onChange={set('tipo')}
+                options={Object.values(APPOINTMENT_TYPES)
+                  .filter((t) => t !== APPOINTMENT_TYPES.EVENT)
+                  .map((t) => ({ value: t, label: APPOINTMENT_TYPE_LABELS[t] }))}
+              />
+            </FieldRow>
+
+            {rooms.length > 1 ? (
+              <Select
+                label="Sala" value={form.salaId ?? ''} onChange={set('salaId')}
+                options={rooms.map((r) => ({ value: r.id, label: r.nome }))}
+              />
+            ) : null}
+
+            <TextArea label="Observações" rows={3} value={form.observacoes} onChange={set('observacoes')} />
+          </>
+        )}
       </div>
     </Sheet>
+  );
+}
+
+/* ═══════════════════════════ Cancelar agenda do dia ═══════════════════════════ */
+
+export function CancelDayDialog({ open, day, appointments, patients, rooms, onClose, onConfirmed }) {
+  const { plaza, user } = useSession();
+  const toast = useToast();
+  const [reason, setReason] = useState('');
+  const [blockDay, setBlockDay] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setReason('');
+      setBlockDay(true);
+      setBusy(false);
+    }
+  }, [open]);
+
+  const activeAppointments = useMemo(() => {
+    if (!day || !appointments) return [];
+    return appointments.filter(
+      (a) => localDay(a.inicio) === day &&
+             a.status !== APPOINTMENT_STATUS.CANCELLED &&
+             a.tipo !== APPOINTMENT_TYPES.EVENT &&
+             !a.titulo
+    );
+  }, [day, appointments]);
+
+  async function handleConfirm() {
+    if (!reason.trim()) {
+      toast.error('Informe o motivo do cancelamento / bloqueio da agenda.');
+      return;
+    }
+    setBusy(true);
+    try {
+      // 1. Cancela as consultas ativas do dia
+      for (const app of activeAppointments) {
+        const obsPrefix = `[Cancelamento da agenda: ${reason.trim()}]`;
+        const updatedObs = app.observacoes ? `${obsPrefix} ${app.observacoes}` : obsPrefix;
+        await repo.update(STORES.APPOINTMENTS, app.id, {
+          status: APPOINTMENT_STATUS.CANCELLED,
+          observacoes: updatedObs,
+        });
+      }
+
+      // 2. Cria bloqueio de dia inteiro se marcado
+      if (blockDay) {
+        const inicio = new Date(`${day}T07:00:00`);
+        const fim = new Date(`${day}T19:00:00`);
+        await repo.create(STORES.APPOINTMENTS, {
+          ...newAppointment({ praca: plaza, userId: user?.id }),
+          pacienteId: null,
+          salaId: rooms?.[0]?.id ?? null,
+          profissionalId: user?.id,
+          inicio: inicio.toISOString(),
+          fim: fim.toISOString(),
+          tipo: APPOINTMENT_TYPES.EVENT,
+          titulo: `Bloqueio: ${reason.trim()}`,
+          status: APPOINTMENT_STATUS.CONFIRMED,
+          observacoes: `Cancelamento da agenda do dia. Motivo: ${reason.trim()}`,
+        });
+      }
+
+      toast.success(
+        activeAppointments.length > 0
+          ? `Agenda cancelada. ${activeAppointments.length} ${activeAppointments.length === 1 ? 'consulta foi cancelada' : 'consultas foram canceladas'}.`
+          : 'Agenda do dia bloqueada com sucesso.'
+      );
+      onConfirmed?.();
+    } catch (err) {
+      toast.error(err.message || 'Erro ao cancelar a agenda do dia.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Cancelar agenda do dia"
+      description={day ? dateLong(day) : ''}
+      size="md"
+      footer={
+        <>
+          <Button onClick={onClose} disabled={busy}>Voltar</Button>
+          <Button variant="danger" onClick={handleConfirm} loading={busy} icon="calendar-x">
+            Confirmar cancelamento
+          </Button>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-5)' }}>
+        {activeAppointments.length > 0 ? (
+          <div
+            className="ops-alert ops-alert--danger"
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 'var(--s-3)',
+              padding: 'var(--s-4)',
+              borderRadius: 'var(--r-md)',
+              margin: 0,
+            }}
+          >
+            <Icon name="alert-triangle" size={16} />
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 'var(--fw-medium)' }}>
+                {activeAppointments.length} {activeAppointments.length === 1 ? 'consulta agendada será cancelada' : 'consultas agendadas serão canceladas'}:
+              </p>
+              <ul style={{ margin: 'var(--s-2) 0 0 0', paddingLeft: 'var(--s-5)', fontSize: 'var(--t-caption)' }}>
+                {activeAppointments.map((a) => {
+                  const pt = patients?.find((p) => p.id === a.pacienteId);
+                  const name = pt?.nomeSocial || pt?.nome || 'Paciente';
+                  return (
+                    <li key={a.id}>
+                      <strong>{time(a.inicio)}</strong> · {name} ({APPOINTMENT_TYPE_LABELS[a.tipo] || a.tipo})
+                    </li>
+                  );
+                })}
+              </ul>
+              <p style={{ margin: 'var(--s-2) 0 0 0', fontSize: 'var(--t-caption)', opacity: 0.9 }}>
+                A recepção deverá entrar em contato com os responsáveis para reagendamento.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="ops-alert"
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 'var(--s-3)',
+              padding: 'var(--s-4)',
+              borderRadius: 'var(--r-md)',
+              margin: 0,
+            }}
+          >
+            <Icon name="info" size={16} />
+            <p style={{ margin: 0 }}>
+              Não há consultas agendadas para este dia. O dia será bloqueado na grade.
+            </p>
+          </div>
+        )}
+
+        <TextField
+          label="Motivo do cancelamento / bloqueio"
+          placeholder="Ex.: Congresso médico, Imprevisto, Feriado ou Recesso"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          required
+          autoFocus
+        />
+
+        <Checkbox
+          label="Bloquear grade deste dia inteiro (07:00 às 19:00)"
+          description="Cria um compromisso de bloqueio que ocupa todo o expediente e impede novos agendamentos."
+          checked={blockDay}
+          onChange={(e) => setBlockDay(e.target.checked)}
+        />
+      </div>
+    </Modal>
   );
 }
 
