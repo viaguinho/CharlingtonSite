@@ -159,3 +159,21 @@ Método: 3 críticos de contexto limpo, veredito binário por peça. Todos preci
 - **Arco de camadas ancorado à cabeça a 1024/1280, lista por teclado sobre o crânio, SNAP-IV com 2 pontos cinza, trilha rala:** acabamento menor, sem risco de dado.
 - **Data de 11 px na cápsula, anel do "+" da pasta, sombras da pasta fora de `--e-*`:** dependem do desenho do componente de pasta do dono.
 - **Cobertura de coração e artérias em vermelho:** não verificado pelo crítico; falta capturar com o coração em foco.
+
+## Rodada própria do plexo (22/10/2026)
+Pedido do dono depois da passada 5: o plexo tinha que ler como anatomia (cérebro de cordas longas, pele sem nós, estrutura em foco sem malha por cima).
+
+| Problema | O que se fez |
+|---|---|
+| "Cordas" longas atravessando o cérebro | A decimação do meshoptimizer deixava triângulos finos e longos. O plexo agora é um **grafo de vizinhança**: amostra os vértices em disco de Poisson (espaçamento ≈ 0,5× a aresta-alvo; 0,42× no cérebro) e liga cada ponto aos 3 vizinhos mais próximos dentro de 1,8×. Arestas curtas, parecidas e rente à superfície. O meshoptimizer saiu do palco (`scene.js`) |
+| Arestas do lado de trás cruzando o volume | Esmaecimento por orientação no shader do plexo (`vFacing`): só a face voltada para a câmera, com a borda da silhueta esmaecendo |
+| Pele e crânio sem nós | Todas as camadas têm nós (fração fixa dos pontos do grafo) |
+| Crânio e rosto na mesma tinta do cérebro | Pele e crânio são véu (linha leve, poucos nós); o cérebro é a camada protagonista, em azul, visível através do crânio |
+| Estrutura em foco sólida e sem malha | Em foco o plexo da estrutura desenha por cima do próprio sólido, em branco azulado a 62%. As arestas são cordas entre pontos da superfície e ficam alguns mm por dentro dela: o sólido, que escreve profundidade, as escondia |
+| Traço do plexo pálido | `--anat-line` .16 → .20, `--anat-node` .34 → .42; vizinhas em foco a 50% (antes 42%) |
+
+**Tentado e descartado:** um oclusor de profundidade só para o córtex (esconder as arestas dos lobos de trás). Não funcionou: `polygonOffset` é medido em unidades de profundidade (≈ 0,06 mm a 60 cm), não cobre os ~3 mm de flecha das cordas, e a casca recuada em milímetros escondia as arestas da frente por um motivo que não se achou no tempo da rodada. Ficou só o esmaecimento por orientação.
+
+**Verificado:** repouso, hover e seleção do lobo temporal (malha branca visível sobre o sólido azul); coração em foco acende em vermelho; 1440, 1280, 1024 e 390 sem o palco cair no fallback. Carga do palco ≈ 1,2 s com o modelo em cache.
+
+**Ainda aberto:** a 1440×900 o coração fica atrás da faixa de consultas quando em foco (composição do palco, não do plexo). Falta uma passada dos críticos para dizer se o plexo agora passa como anatomia.

@@ -412,8 +412,8 @@
   /* ——————————— Anatomia — exceção de cor registrada em 20/10/2026 ———————————
      Só dentro do modelo 3D cada estrutura acende na cor anatômica. Fora do
      palco, vermelho/âmbar/verde continuam sendo sinal. Tudo puxado da paleta. */
-  --anat-line: rgba(15, 16, 18, .16);         /* plexo em repouso */
-  --anat-node: rgba(15, 16, 18, .34);         /* vértices do plexo */
+  --anat-line: rgba(15, 16, 18, .2);          /* plexo em repouso */
+  --anat-node: rgba(15, 16, 18, .42);         /* vértices do plexo */
   --anat-brain-rest: rgba(0, 69, 140, .26);   /* cérebro em repouso: um degrau mais denso, azulado */
   --anat-dim: rgba(15, 16, 18, .07);          /* vizinhas quando outra estrutura está em foco */
   --anat-frontal: var(--blue-500);

@@ -17,7 +17,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { MeshoptSimplifier } from 'three/examples/jsm/libs/meshopt_simplifier.module.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ESTRUTURAS } from './estruturas.js';
 
@@ -49,7 +48,7 @@ const ZOOM_MS = 320;
 // estrutura flutuava sem contexto). Em repouso não há preenchimento
 // (veja `look`): só linhas e nós.
 const SOLID_HOVER = 0.9;
-const DIM = 0.42;
+const DIM = 0.5;
 const DEEP = new Set(['insula', 'limbico', 'hipocampo', 'amigdala', 'nucleos_base', 'talamo', 'corpo_caloso', 'ventriculos', 'tronco', 'medula']);
 const ON_TOP = 30;
 
@@ -110,10 +109,15 @@ const PLEXO_VS = /* glsl */ `
   uniform float uReveal;
   varying float vReveal;
   varying float vDepth;
+  varying float vFacing;
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vReveal = clamp((uReveal - aDist) / 0.12, 0.0, 1.0);
     vDepth = -mv.z;
+    // Só a face voltada para a câmera: sem isso as arestas do outro lado da
+    // mesma superfície atravessam o volume ("cordas") e o órgão não tem
+    // superfície. A borda da silhueta esmaece, não corta.
+    vFacing = smoothstep(-0.04, 0.32, dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
     gl_Position = projectionMatrix * mv;
     gl_PointSize = uSize * uDpr * clamp(uRefDist / max(vDepth, 0.001), 0.6, 1.8);
   }
@@ -132,8 +136,9 @@ const PLEXO_FS = /* glsl */ `
   uniform vec3 uCore;
   varying float vReveal;
   varying float vDepth;
+  varying float vFacing;
   void main() {
-    float fade = mix(1.0, 0.35, smoothstep(uDepthNear, uDepthFar, vDepth));
+    float fade = mix(1.0, 0.35, smoothstep(uDepthNear, uDepthFar, vDepth)) * vFacing;
     vec3 c = mix(uRest.rgb, uColor, uHi);
     float a = mix(uRest.a, uHiAlpha, uHi);
     if (uPoint > 0.5) {
@@ -228,18 +233,18 @@ function look(id, camada, deep) {
   // estruturas internas. Hierarquia de profundidade: pele e crânio são véu
   // (linha leve, quase sem nó), o cérebro é a camada protagonista e aparece
   // através deles. Pele e ossos guardam um traço de Fresnel na silhueta.
-  if (id === 'pele') return { edge: 0.034, line: 0.6, node: 0, restA: 0, restF: 0.08, tone: 'ink' };
+  if (id === 'pele') return { edge: 0.034, line: 1.0, node: 0.7, keep: 0.1, restA: 0, restF: 0.08, tone: 'ink' };
   if (id === 'substancia_branca') return { edge: 0, line: 0, node: 0, restA: 0, restF: 0, tone: 'cool' };
   // Crânio e rosto na mesma tinta do cérebro viravam um novelo: agora são véu.
-  if (id === 'cranio') return { edge: 0.019, line: 0.7, node: 0.2, restA: 0, restF: 0.1, tone: 'bone' };
-  if (id === 'mandibula') return { edge: 0.014, line: 0.6, node: 0.2, restA: 0, restF: 0.08, tone: 'bone' };
-  if (id === 'coluna_cervical') return { edge: 0.014, line: 0.9, node: 0.6, restA: 0, restF: 0.1, tone: 'bone' };
+  if (id === 'cranio') return { edge: 0.019, line: 1.0, node: 0.6, keep: 0.12, restA: 0, restF: 0.1, tone: 'bone' };
+  if (id === 'mandibula') return { edge: 0.014, line: 0.9, node: 0.6, keep: 0.15, restA: 0, restF: 0.08, tone: 'bone' };
+  if (id === 'coluna_cervical') return { edge: 0.014, line: 1.2, node: 0.8, keep: 0.3, restA: 0, restF: 0.1, tone: 'bone' };
   if (camada === 'cerebro') {
     // Muitas estruturas se sobrepõem dentro do crânio: plexo mais ralo, linhas
     // leves e nós esparsos, para o conjunto ler como malha e não como massa.
     return deep
       ? { edge: 0.018, line: 0.12, node: 0, restA: 0, restF: 0, tone: 'cool' }
-      : { edge: 0.026, line: 0.8, node: 1.4, keep: 0.06, restA: 0, restF: 0, tone: 'cool' };
+      : { edge: 0.026, line: 1.5, node: 1.4, keep: 0.14, restA: 0, restF: 0, tone: 'cool' };
   }
   if (id === 'medula') return { edge: 0.012, line: 0.5, node: 0.55, restA: 0, restF: 0, tone: 'cool' };
   // Coração em repouso: malha fina e leve. Com aresta longa a decimação virava
@@ -249,55 +254,102 @@ function look(id, camada, deep) {
   return { edge: 0.018, line: 0.7, node: 0.7, keep: 0.4, restA: 0, restF: 0.04, tone: 'ink' };
 }
 
-/** Área da malha em metros quadrados (no espaço do mundo). */
-function surfaceArea(geo, matrix) {
-  const pos = geo.attributes.position;
-  const idx = geo.index.array;
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
-  let area = 0;
-  for (let i = 0; i < idx.length; i += 3) {
-    a.fromBufferAttribute(pos, idx[i]).applyMatrix4(matrix);
-    b.fromBufferAttribute(pos, idx[i + 1]).applyMatrix4(matrix);
-    c.fromBufferAttribute(pos, idx[i + 2]).applyMatrix4(matrix);
-    area += b.sub(a).cross(c.sub(a)).length() / 2;
-  }
-  return area;
-}
-
 /**
- * Índice para o plexo: solda vértices repetidos nas costuras (normais/UV) e
- * decima com o meshoptimizer, para o plexo ter poucas linhas longas em vez
- * de um novelo. Os índices continuam apontando para o buffer original.
+ * Plexo como grafo de vizinhança sobre a superfície.
+ *
+ * Amostra os vértices da malha em disco de Poisson (nenhum par mais perto que
+ * `spacing`) e liga cada ponto aos vizinhos mais próximos dentro de 1,8×. As
+ * arestas saem curtas e parecidas entre si, rente à superfície: sem os
+ * triângulos longos que a decimação deixa (as "cordas" que atravessavam o
+ * cérebro) e sem o novelo da malha inteira. Determinístico (mesma figura a
+ * cada carga). Tudo em coordenadas locais da malha.
  */
-function plexoIndex(geo, ratio) {
+function plexoGraph(geo, spacing, keepNodes = 1) {
   const pos = geo.attributes.position;
+  const nor = geo.attributes.normal;
+  const dist = geo.attributes.aDist;
   const n = pos.count;
-  const src = geo.index.array;
-  const flat = new Float32Array(n * 3);
-  const weld = new Uint32Array(n);
-  const seen = new Map();
-  const v = new THREE.Vector3();
-  for (let i = 0; i < n; i++) {
-    v.fromBufferAttribute(pos, i);
-    flat[i * 3] = v.x; flat[i * 3 + 1] = v.y; flat[i * 3 + 2] = v.z;
-    const key = `${Math.round(v.x * 1e5)},${Math.round(v.y * 1e5)},${Math.round(v.z * 1e5)}`;
-    const first = seen.get(key);
-    if (first === undefined) { seen.set(key, i); weld[i] = i; } else weld[i] = first;
-  }
-  const welded = new Uint32Array(src.length);
-  for (let i = 0; i < src.length; i++) welded[i] = weld[src[i]];
-  if (ratio >= 1 || !MeshoptSimplifier.supported) return welded;
-  const tris = src.length / 3;
-  const target = Math.max(24, Math.floor(tris * ratio)) * 3;
-  try {
-    let [out] = MeshoptSimplifier.simplify(welded, flat, 3, target, 0.25, []);
-    if (out.length > target * 1.5) {
-      [out] = MeshoptSimplifier.simplifySloppy(welded, flat, 3, null, target, 0.3);
+  const hash = (i) => ((i * 2654435761) >>> 0) / 4294967296;
+  const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => hash(a) - hash(b));
+
+  const cell = spacing;
+  const cellKey = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+  const grid = new Map();
+  const picked = [];
+  const near = (x, y, z, r, visit) => {
+    const reach = Math.ceil(r / cell);
+    const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
+    for (let dx = -reach; dx <= reach; dx++) for (let dy = -reach; dy <= reach; dy++) for (let dz = -reach; dz <= reach; dz++) {
+      const bucket = grid.get(`${cx + dx},${cy + dy},${cz + dz}`);
+      if (bucket) for (const j of bucket) visit(j);
     }
-    return out.length >= 9 ? out : welded;
-  } catch {
-    return welded;
+  };
+  const s2 = spacing * spacing;
+  for (const i of order) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    let free = true;
+    near(x, y, z, spacing, (j) => {
+      const dx = pos.getX(j) - x, dy = pos.getY(j) - y, dz = pos.getZ(j) - z;
+      if (dx * dx + dy * dy + dz * dz < s2) free = false;
+    });
+    if (!free) continue;
+    picked.push(i);
+    const key = cellKey(x, y, z);
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(i);
   }
+
+  // Cada ponto liga aos 3 vizinhos mais próximos dentro de 1,8× o espaçamento.
+  const reachD = spacing * 1.8;
+  const r2 = reachD * reachD;
+  const slot = new Map(picked.map((v, k) => [v, k]));
+  const edgeSeen = new Set();
+  const edges = [];
+  for (const i of picked) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const found = [];
+    near(x, y, z, reachD, (j) => {
+      if (j === i) return;
+      const dx = pos.getX(j) - x, dy = pos.getY(j) - y, dz = pos.getZ(j) - z;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 <= r2) found.push([d2, j]);
+    });
+    found.sort((a, b) => a[0] - b[0]);
+    for (const [, j] of found.slice(0, 3)) {
+      const a = slot.get(i), b = slot.get(j);
+      const key = a < b ? a * picked.length + b : b * picked.length + a;
+      if (edgeSeen.has(key)) continue;
+      edgeSeen.add(key);
+      edges.push(a, b);
+    }
+  }
+
+  const m = picked.length;
+  const P = new Float32Array(m * 3);
+  const N = new Float32Array(m * 3);
+  const D = new Float32Array(m);
+  picked.forEach((v, k) => {
+    P[k * 3] = pos.getX(v); P[k * 3 + 1] = pos.getY(v); P[k * 3 + 2] = pos.getZ(v);
+    N[k * 3] = nor.getX(v); N[k * 3 + 1] = nor.getY(v); N[k * 3 + 2] = nor.getZ(v);
+    D[k] = dist.getX(v);
+  });
+  const attrs = () => ({
+    position: new THREE.BufferAttribute(P, 3),
+    normal: new THREE.BufferAttribute(N, 3),
+    aDist: new THREE.BufferAttribute(D, 1),
+  });
+  const Idx = m > 65535 ? THREE.Uint32BufferAttribute : THREE.Uint16BufferAttribute;
+  const lines = new THREE.BufferGeometry();
+  for (const [k, a] of Object.entries(attrs())) lines.setAttribute(k, a);
+  lines.setIndex(new Idx(edges, 1));
+  const points = new THREE.BufferGeometry();
+  for (const [k, a] of Object.entries(attrs())) points.setAttribute(k, a);
+  const nodes = [];
+  for (let k = 0; k < m; k++) if (keepNodes >= 1 || hash(k + 7919) < keepNodes) nodes.push(k);
+  points.setIndex(new Idx(nodes, 1));
+  lines.computeBoundingSphere();
+  points.boundingSphere = lines.boundingSphere;
+  return { lines, points };
 }
 
 /* ———————————————————————————— A cena ———————————————————————————— */
@@ -391,7 +443,7 @@ export class AnatomyScene {
         : Promise.resolve(null);
       const loader = new GLTFLoader();
       loader.setMeshoptDecoder(MeshoptDecoder);
-      const [gltf, meta] = await Promise.all([loader.loadAsync(modelUrl), metaPromise, MeshoptSimplifier.ready]);
+      const [gltf, meta] = await Promise.all([loader.loadAsync(modelUrl), metaPromise]);
       if (this._disposed) {
         gltf.scene.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
         return;
@@ -541,9 +593,9 @@ export class AnatomyScene {
 
         // (b) Plexo: arestas únicas da malha decimada + vértices.
         if (!lk.edge) continue;
-        const tris = geo.index.count / 3;
-        const target = surfaceArea(geo, mesh.matrixWorld) / (0.433 * lk.edge * lk.edge);
-        const { lines, points } = this._plexoGeometry(geo, Math.min(1, target / tris), lk.node ? lk.keep ?? 1 : 0);
+        const localScale = mesh.matrixWorld.getMaxScaleOnAxis() || 1;
+        // Espaçamento do disco de Poisson: arestas de 1× a 1,8× dele (média ≈ lk.edge).
+        const { lines, points } = plexoGraph(geo, (lk.edge * (camada === 'cerebro' ? 0.42 : 0.5)) / localScale, lk.node ? lk.keep ?? 1 : 0);
         const lineMat = this._plexoMaterial(false);
         const pointMat = this._plexoMaterial(true);
         const lineObj = new THREE.LineSegments(lines, lineMat);
@@ -576,45 +628,6 @@ export class AnatomyScene {
     if (id === 'pele') return 4;
     if (camada === 'cranio') return 3;
     return 2;
-  }
-
-  _plexoGeometry(geo, ratio, keepNodes = 1) {
-    const index = plexoIndex(geo, ratio);
-    const pos = geo.attributes.position;
-    const dist = geo.attributes.aDist;
-    const n = pos.count;
-    const seen = new Set();
-    const used = new Set();
-    const edges = [];
-    const add = (a, b) => {
-      if (a === b) return;
-      const lo = a < b ? a : b;
-      const hi = a < b ? b : a;
-      const key = lo * n + hi;
-      if (seen.has(key)) return;
-      seen.add(key);
-      edges.push(lo, hi);
-    };
-    for (let i = 0; i < index.length; i += 3) {
-      const a = index[i], b = index[i + 1], c = index[i + 2];
-      add(a, b); add(b, c); add(c, a);
-      used.add(a); used.add(b); used.add(c);
-    }
-    const Idx = n > 65535 ? THREE.Uint32BufferAttribute : THREE.Uint16BufferAttribute;
-    const lines = new THREE.BufferGeometry();
-    lines.setAttribute('position', pos);
-    lines.setAttribute('aDist', dist);
-    lines.setIndex(new Idx(edges, 1));
-
-    const pts = new THREE.BufferGeometry();
-    pts.setAttribute('position', pos);
-    pts.setAttribute('aDist', dist);
-    // Só uma parte dos vértices vira nó: o cérebro tem muitas superfícies sobrepostas.
-    const nodes = [...used].filter((i) => keepNodes >= 1 || ((i * 2654435761) >>> 0) / 4294967296 < keepNodes);
-    pts.setIndex(new Idx(nodes, 1));
-    lines.boundingSphere = geo.boundingSphere;
-    pts.boundingSphere = geo.boundingSphere;
-    return { lines, points: pts };
   }
 
   _plexoMaterial(isPoint) {
@@ -673,11 +686,13 @@ export class AnatomyScene {
     const base = rec.info?.cor ? byToken[rec.info.cor] : null;
     const tone = lk.tone === 'bone' ? bone : lk.tone === 'cool' ? cool : ink;
     const col = base ?? ink;
-    // Plexo aceso: a cor da estrutura com um passo de tinta, para a linha ler sobre o próprio sólido.
+    // Plexo aceso: a malha clara sobre o sólido da estrutura (na referência a
+    // malha branca continua nítida por cima do órgão colorido); um traço da
+    // cor entra para a linha não virar branco puro sobre as cores claras.
     const lit = {
-      r: col.r * 0.72 + ink.r * 0.28,
-      g: col.g * 0.72 + ink.g * 0.28,
-      b: col.b * 0.72 + ink.b * 0.28,
+      r: col.r * 0.22 + rim.r * 0.78,
+      g: col.g * 0.22 + rim.g * 0.78,
+      b: col.b * 0.22 + rim.b * 0.78,
     };
     // Linha WebGL tem 1 px físico: em tela comum (DPR 1) ela pesa o dobro da retina.
     const lineScale = this.dpr >= 1.75 ? 1 : 0.8;
@@ -694,7 +709,7 @@ export class AnatomyScene {
       const boost = rec.camada === 'cerebro' && this.layers.cranio === false ? 1.4 : 1;
       const alpha = (isPoint ? node.a * lk.node : line.a * lk.line * lineScale) * boost;
       u.uRest.value.set(rgb.r, rgb.g, rgb.b, Math.min(1, alpha));
-      u.uHiAlpha.value = isPoint ? 0.9 : 0.7 * lineScale;
+      u.uHiAlpha.value = isPoint ? 0.95 : 0.62 * lineScale;
       u.uColor.value.setRGB(lit.r, lit.g, lit.b);
       u.uCore.value.setRGB(rim.r, rim.g, rim.b);
     });
@@ -1013,7 +1028,11 @@ export class AnatomyScene {
       }
       for (const o of rec.plexo) {
         const u = o.material.uniforms;
-        const onTop = rec.deep && rec.hi > 0.02;
+        // Em foco o plexo da estrutura desenha por cima do próprio sólido: as
+        // arestas são cordas entre pontos da superfície e ficam alguns mm por
+        // dentro dela, então o sólido (que escreve profundidade) as esconderia.
+        // A face de trás já sai pelo esmaecimento por orientação.
+        const onTop = rec.hi > 0.02;
         o.material.depthTest = !onTop;
         o.renderOrder = o.userData.baseOrder + (onTop ? ON_TOP : 0);
         u.uHi.value = rec.hi;
