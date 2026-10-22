@@ -1,0 +1,1 @@
+import{a as n}from"./client-D9hV86iM.js";function o(t){var e;const r=(e=window.matchMedia)==null?void 0:e.call(window,"(prefers-reduced-motion: reduce)").matches;return!document.startViewTransition||r?(t(),null):document.startViewTransition(()=>{n.flushSync(t)})}function a(t,r){return`${t}-${String(r).replace(/[^a-zA-Z0-9_-]/g,"")}`}export{a as v,o as w};
