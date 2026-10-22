@@ -1,0 +1,1150 @@
+/* ==========================================================================
+   PRONTUÁRIO — redesign Quantis em tema claro (20/10/2026)
+   Guia: docs/redesign-paciente/guia.md. Prefixo `pr-`. Só tokens.
+
+   coluna do paciente · palco anatômico · coluna de medidas
+   As colunas são cards de vidro que flutuam sobre a mesa pontilhada do
+   palco; o painel de seção cobre o palco e a coluna direita.
+   ========================================================================== */
+
+.pr { position: relative; isolation: isolate; min-width: 0; }
+.pr .num { font-variant-numeric: tabular-nums; }
+
+/* ——————————————————————————— Barra da página ——————————————————————————— */
+
+.pr-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-4);
+  margin: var(--s-2) 0 var(--s-4);
+}
+.pr-bar__back {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: var(--r-circle);
+  color: var(--ink-900);
+  background: var(--card-glass);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.pr-bar__back:hover { transform: translateX(-2px); box-shadow: var(--e-glass-hover); }
+.pr-bar__back:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 3px; }
+
+.pr-bar__id { min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.pr-bar__id h1 {
+  margin: 0;
+  font-size: var(--t-page);
+  line-height: var(--lh-page);
+  letter-spacing: var(--ls-page);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+  text-wrap: balance;
+}
+.pr-bar__legal { margin: 0; color: var(--ink-400); font-size: var(--t-body); }
+.pr-bar__meta {
+  margin: var(--s-1) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-4);
+  color: var(--ink-400);
+  font-size: var(--t-body);
+}
+.pr-bar__codes { display: inline-flex; flex-wrap: nowrap; gap: var(--s-2); white-space: nowrap; }
+.pr-bar__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-600);
+}
+.pr-bar__status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-circle);
+  background: var(--signal-green);
+}
+.pr-bar__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); }
+
+/* ——————————————————————————— Pílulas de seção ——————————————————————————— */
+
+/* A barra gruda no topo com um vidro próprio de largura total: o que rola
+   por baixo dela passa desfocado, nunca com texto de card sobreposto ao das
+   pílulas. A altura dela é o deslocamento de rolagem do resto da página. */
+.pr {
+  --pr-sticky-h: 64px;
+  --pr-bleed: var(--gutter);   /* respiro lateral de .shell__content (layout.css) */
+  --pr-panel-filter: blur(10px) saturate(140%);
+}
+.pr-pills {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  padding: var(--s-2) 0;
+}
+.pr-pills::before {
+  content: '';
+  position: absolute;
+  /* Sobe sobre o padding do topo do contêiner de rolagem, onde a barra gruda,
+     e vaza só até a borda dele (o respiro lateral): com 50vw o vidro passava
+     da borda direita e criava 38px de rolagem lateral oculta em #conteudo. */
+  inset: calc(var(--s-3) * -1) calc(var(--pr-bleed) * -1) 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--rp-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: 0 1px 0 var(--ink-a06);
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+/* O vidro só existe quando a barra gruda e há conteúdo passando por baixo:
+   em repouso ele era um retângulo claro de borda dura sobre a aurora. */
+.pr-pills[data-stuck]::before { opacity: 1; }
+.pr-pills__nav { min-width: 0; }
+.pr-pills__alerts { display: none; min-width: 0; }
+.pr-grid :where(*) { scroll-margin-top: calc(var(--pr-sticky-h) + var(--s-2)); }
+/* Os embrulhos de inércia não existem para a grade. */
+.pr-behind { display: contents; }
+.pr-pills__track {
+  display: flex;
+  gap: var(--s-1);
+  width: max-content;
+  max-width: 100%;
+  padding: var(--s-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: var(--r-pill);
+  background: var(--rp-glass);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+.pr-pills__track::-webkit-scrollbar { display: none; }
+/* Pílulas além da borda: a borda esmaece ("Consentimentos" cortado em "C"
+   não dizia que a faixa rola). */
+.pr-pills__track[data-more="end"] { -webkit-mask: linear-gradient(to right, black calc(100% - 40px), transparent); mask: linear-gradient(to right, black calc(100% - 40px), transparent); }
+.pr-pills__track[data-more="start"] { -webkit-mask: linear-gradient(to right, transparent, black 40px); mask: linear-gradient(to right, transparent, black 40px); }
+.pr-pills__track[data-more="start end"] { -webkit-mask: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent); mask: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent); }
+.pr-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-600);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.pr-pill:hover { background: var(--ink-a06); color: var(--ink-900); }
+.pr-pill:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--blue-500); }
+/* Aba ativa: a mesma gramática do painel inteiro (--tab-active-*). O azul
+   preenchido fica para a próxima consulta e a estrutura em foco. */
+.pr-pill.is-active { background: var(--tab-active-bg); color: var(--tab-active-ink); }
+.pr-pill__count {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--t-micro);
+  line-height: 18px;
+  text-align: center;
+  color: var(--ink-600);
+  background: var(--ink-a06);
+}
+.pr-pill__count.is-warning { color: var(--signal-amber-ink); background: var(--signal-amber-bg); }
+.pr-pill.is-active .pr-pill__count { color: var(--surface); background: var(--on-mood-faint); }
+
+/* ——————————————————————————— Grade ——————————————————————————— */
+
+.pr-grid {
+  --pr-col-left: 340px;
+  --pr-col-right: 360px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--pr-col-left) minmax(0, 1fr) var(--pr-col-right);
+  gap: var(--s-5);
+  align-items: start;
+}
+/* A mesa pontilhada do palco: só atrás do palco e das colunas, apagando
+   nas bordas — é o tampo do exame, não o papel de parede do painel. */
+.pr-grid::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--s-6) * -1) calc(var(--s-4) * -1);
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(var(--pr-dot) 1.1px, transparent 1.4px);
+  background-size: var(--pr-dot-step) var(--pr-dot-step);
+  -webkit-mask: radial-gradient(70% 60% at 50% 40%, black 30%, transparent 100%);
+  mask: radial-gradient(70% 60% at 50% 40%, black 30%, transparent 100%);
+}
+
+.pr-profile,
+.pr-insights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.pr-stage {
+  position: sticky;
+  top: calc(var(--pr-sticky-h) + var(--s-2));
+  /* Cabe na primeira dobra com a barra e as pílulas acima (~300px no topo):
+     a faixa de consultas e os controles aparecem sem rolar. */
+  height: calc(100dvh - 300px);
+  min-height: 480px;   /* a 1280×800 a faixa de consultas cabe na dobra */
+  max-height: 960px;
+  min-width: 0;
+  /* Os z-index internos do palco (alertas, camadas, pinos) ficam aqui dentro:
+     nenhum deles sobe acima do painel de seção. */
+  isolation: isolate;
+  border-radius: var(--r-card);
+  transition: filter var(--dur-4) var(--ease), opacity var(--dur-4) var(--ease), transform var(--dur-4) var(--ease);
+}
+.pr-side { min-width: 0; isolation: isolate; transition: filter var(--dur-4) var(--ease), opacity var(--dur-4) var(--ease); }
+/* Com o painel aberto (guia §4.5), o palco recua: desfoque, esmaecida e um
+   passo para trás. Desfocado só pelo vidro, o busto e os cards viravam manchas
+   cinzentas sob o painel; esmaecido antes, o vidro mostra só profundidade. A
+   coluna direita, inteira sob o painel, sai de cena. */
+.pr-grid.has-panel .pr-stage,
+.pr-grid.has-panel .pr-side { pointer-events: none; }
+.pr-grid.has-panel .pr-stage { filter: blur(5px); opacity: .8; transform: scale(.98); }
+.pr-grid.has-panel .pr-side { opacity: 0; }
+
+.pr-stage__fallback {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--s-4);
+}
+.pr-stage__msg { margin: auto; color: var(--ink-400); font-size: var(--t-body); }
+
+/* ——————————————————————————— Cards ——————————————————————————— */
+
+.pr-card {
+  position: relative;
+  padding: var(--s-5);
+  border-radius: var(--r-card);
+  background: var(--card-glass);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+/* O "Patient Profile" da referência: vidro com luz entrando pelo topo. */
+.pr-card--lit {
+  background:
+    radial-gradient(120% 70% at 0% 0%, var(--blue-050), transparent 60%),
+    var(--card-glass);
+}
+.pr-card__title,
+.pr-insights__head h2 {
+  margin: 0;
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+}
+.pr-insights__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 32px;
+}
+.pr-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--s-2);
+  margin-right: calc(var(--s-2) * -1);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: var(--t-body);
+  color: var(--blue-600);
+  background: transparent;
+  cursor: pointer;
+}
+.pr-link { position: relative; min-height: 44px; margin-block: -6px; }
+.pr-link:hover { background: var(--blue-a08); color: var(--blue-700); }
+.pr-link:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 1px; }
+.pr-empty-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+.pr-empty-card .pr-empty { margin: 0; }
+.pr-action {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  min-height: 40px; padding: 0 var(--s-4);
+  border: 0; border-radius: var(--r-pill);
+  font: inherit; font-size: var(--t-body); font-weight: var(--w-medium);
+  color: var(--surface); background: var(--ink-900); cursor: pointer;
+}
+.pr-action:hover { background: var(--ink-600); }
+.pr-action:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--blue-500); }
+.pr-empty { margin: var(--s-2) 0 0; color: var(--ink-400); font-size: var(--t-body); line-height: var(--lh-body); }
+
+/* Perfil */
+.pr-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4) var(--s-4);
+  margin: var(--s-5) 0 0;
+}
+.pr-facts > div { min-width: 0; }
+.pr-facts__wide { grid-column: 1 / -1; }
+.pr-facts dt { font-size: var(--t-body); color: var(--ink-400); }
+.pr-facts dd { margin: 2px 0 0; font-size: var(--t-body); color: var(--ink-900); overflow-wrap: anywhere; }
+.pr-facts dd.pr-facts__sub { margin-top: 0; color: var(--ink-400); }
+
+.pr-trail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 100%;
+  margin-top: var(--s-5);
+  padding: var(--s-4) 0 0;
+  border: 0;
+  border-top: 1px solid var(--ink-a06);
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  cursor: pointer;
+}
+.pr-trail:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 4px; border-radius: var(--r-xs); }
+.pr-trail--empty { cursor: default; flex-direction: row; justify-content: space-between; }
+.pr-trail__row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); }
+.pr-trail__label { font-size: var(--t-body); color: var(--ink-900); }
+.pr-trail__value { font-size: var(--t-body); color: var(--ink-900); }
+.pr-trail--empty .pr-trail__value { color: var(--ink-400); }
+.pr-trail__row--foot { font-size: var(--t-body); color: var(--ink-400); }
+.pr-trail__track { position: relative; display: block; }
+.pr-trail__svg { display: block; width: 100%; height: 10px; overflow: visible; }
+.pr-trail__upcoming {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--ink-900);
+  border-radius: var(--r-circle);
+  background: var(--surface);
+  transform: translate(-50%, -50%);
+}
+.pr-trail__base { stroke: var(--ink-200); stroke-width: 1; stroke-dasharray: .6 1.4; vector-effect: non-scaling-stroke; }
+.pr-trail__done { stroke: var(--ink-900); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.pr-trail__miss { stroke: var(--data-soft); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.pr-trail__pending { stroke: var(--data-negative); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.pr-trail__today { stroke: var(--blue-500); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.pr-trail__next { display: inline-flex; align-items: center; gap: 5px; color: var(--blue-600); }
+.pr-trail__next i { width: 9px; height: 9px; border: 1.5px solid currentColor; border-radius: var(--r-circle); }
+.pr-trail:hover .pr-trail__label { color: var(--blue-600); }
+
+.pr-patient__line {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-4) 0 0;
+  font-size: var(--t-body);
+  color: var(--ink-600);
+}
+.pr-care__list { margin: var(--s-3) 0 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.pr-care__list > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--s-3); font-size: var(--t-body); line-height: var(--lh-body); }
+.pr-care__list dt { color: var(--ink-400); }
+.pr-care__list dd { margin: 0; color: var(--ink-900); }
+
+/* Diagnósticos */
+.pr-dx__list { list-style: none; margin: var(--s-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.pr-dx__list li { display: grid; grid-template-columns: 10px auto minmax(0, 1fr); align-items: baseline; gap: var(--s-2); font-size: var(--t-body); }
+.pr-dx__dot { width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--ink-900); box-shadow: 0 0 0 4px var(--ink-a06); transform: translateY(-1px); }
+.pr-dx__list strong { font-weight: var(--w-medium); color: var(--ink-900); }
+.pr-dx__list span:last-child { color: var(--ink-600); min-width: 0; }
+
+/* ——————————————————————————— Pastas ——————————————————————————— */
+
+.pr-folders { display: flex; flex-direction: column; gap: var(--s-3); }
+.pr-folders__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+.pr-folder {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--s-3) var(--s-3) var(--s-2);
+  border-radius: var(--r-card);
+  background: var(--card-glass);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+/* Título na linha inteira do card ("Neurofisiológico" cabe sem hifenizar);
+   o ↗ divide a segunda linha com a data. */
+.pr-folder__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--s-2);
+  padding: var(--s-1) var(--s-1) 0;
+}
+.pr-folder__head > span { display: contents; }
+.pr-folder__head h3 { grid-column: 1 / -1; margin: 0; font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); overflow-wrap: anywhere; }
+.pr-folder__date { grid-column: 1; margin-top: 2px; font-size: var(--t-body); color: var(--ink-400); }
+.pr-folder__open {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  grid-column: 2;
+  margin: -12px -12px -12px 0;
+  border: 0;
+  border-radius: var(--r-circle);
+  color: var(--ink-900);
+  background: transparent;
+  cursor: pointer;
+}
+.pr-folder__open:hover { background: var(--ink-a06); }
+.pr-folder__open:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 1px; }
+.pr-folder__stage { flex: 1; display: grid; place-items: end center; margin-top: calc(var(--s-3) * -1); min-width: 0; }
+.pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) {
+  --gf-lift: -42px; --gf-spread: 22px; --gf-fan: 6deg; --gf-stack: 17px; --gf-hinge: -4deg;
+}
+.pr-folder:has(.gf-hit:focus-visible) { box-shadow: var(--e-glass), 0 0 0 2px var(--surface), 0 0 0 4px var(--blue-500); }
+
+.pr-folder--add {
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  border: 0;
+  font: inherit;
+  color: var(--ink-600);
+  background: var(--card-glass-soft);
+  box-shadow: inset 0 0 0 1px var(--ink-a06);
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.pr-folder--add:hover { color: var(--blue-600); background: var(--blue-a08); }
+.pr-folder--add:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.pr-folder--add.is-alone { grid-column: 1 / -1; min-height: 140px; }
+.pr-folder__plus {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  /* Vidro com contorno, como o "+" das pastas: a ação existe sem ser a marca mais pesada da coluna. */
+  color: var(--ink-900);
+  background: var(--rp-glass-strong);
+  box-shadow: inset 0 0 0 1px var(--ink-a12), var(--e-glass);
+}
+.pr-folder__add-label { font-size: var(--t-body); font-weight: var(--w-medium); }
+.pr-folder__hint { max-width: 28ch; font-size: var(--t-body); text-align: center; color: var(--ink-400); }
+
+/* ——————————————————————— Próxima consulta ——————————————————————— */
+
+.pr-next {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 64px;
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-5);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  color: var(--surface);
+  background: var(--blue-500);
+  box-shadow: 0 14px 30px -14px var(--blue-a24);
+}
+.pr-next__text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.pr-next__label { font-size: var(--t-body); color: var(--blue-050); }
+.pr-next__text strong { font-size: var(--t-body); font-weight: var(--w-medium); }
+.pr-next__text span:last-child { font-size: var(--t-body); color: var(--blue-050); }
+.pr-next__action {
+  flex: none;
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  color: var(--blue-700);
+  background: var(--surface);
+  cursor: pointer;
+}
+.pr-next__action:hover { background: var(--blue-050); }
+.pr-next__action:focus-visible { outline: 2px solid var(--surface); outline-offset: 2px; }
+.pr-next--empty {
+  justify-content: flex-start;
+  padding-right: var(--s-5);
+  color: var(--blue-700);
+  background: var(--blue-050);
+  box-shadow: inset 0 0 0 1px var(--blue-100);
+  cursor: pointer;
+}
+.pr-next--empty:hover { background: var(--blue-100); }
+.pr-next--empty:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+
+/* ——————————————————————————— Alertas ——————————————————————————— */
+
+.pr-alerts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); }
+.pr-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 340px;
+  min-height: 44px;
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--rp-glass-strong);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+.pr-alert__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-circle);
+}
+.pr-alert--danger .pr-alert__icon { color: var(--signal-red-ink); background: var(--signal-red-bg); }
+.pr-alert--warning .pr-alert__icon { color: var(--signal-amber-ink); background: var(--signal-amber-bg); }
+.pr-alert--neutral .pr-alert__icon { color: var(--ink-600); background: var(--ink-a06); }
+.pr-alert__text { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; padding-right: var(--s-2); }
+.pr-alert__text strong { font-size: var(--t-body); font-weight: var(--w-medium); }
+.pr-alert--danger .pr-alert__text strong { color: var(--signal-red-ink); }
+.pr-alert--warning .pr-alert__text strong { color: var(--signal-amber-ink); }
+.pr-alert--neutral .pr-alert__text strong { color: var(--ink-600); }
+.pr-alert__text span { font-size: var(--t-body); color: var(--ink-900); overflow-wrap: normal; }
+/* Data e hora não quebram no meio ("07/10/20 | 26 10:00"). */
+.pr-alert__nowrap { white-space: nowrap; }
+/* Visual de 32 px dentro da pílula; a área de toque tem 44 px em qualquer
+   largura (pseudo-elemento centrado, que cabe na altura da pílula). */
+.pr-alert__action {
+  position: relative;
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  white-space: nowrap;
+  color: var(--blue-700);
+  background: var(--blue-050);
+  cursor: pointer;
+}
+.pr-alert__action::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+.pr-alert__action:hover { background: var(--blue-100); }
+.pr-alert__action:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 1px; }
+.pr-alerts--compact { flex-direction: row; flex-wrap: wrap; }
+.pr-alerts--compact .pr-alert { max-width: none; }
+
+/* ——————————————————————————— Escalas ——————————————————————————— */
+
+.pr-insights__scales { display: flex; flex-direction: column; gap: var(--s-3); }
+/* Grade de 2 colunas, não CSS columns: com 3 instrumentos o fluxo em colunas
+   deixava um vão de ~270 px sob o primeiro. O ímpar final ocupa a linha. */
+.pr-scales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+.pr-scales > .pr-scale:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.pr-scale {
+  --pr-tone: var(--pr-tick-none);
+  --pr-band: var(--pr-band-none);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-4);
+  border: 0;
+  border-radius: var(--r-card);
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: var(--card-glass);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  cursor: pointer;
+  transition: box-shadow var(--dur-3) var(--ease), transform var(--dur-3) var(--ease);
+}
+.pr-scale:hover { box-shadow: var(--e-glass-hover); transform: translateY(-2px); }
+.pr-scale:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.pr-scale--low { --pr-tone: var(--data-positive); --pr-band: var(--pr-band-low); }
+.pr-scale--mid { --pr-tone: var(--data-caution); --pr-band: var(--pr-band-mid); }
+.pr-scale--high { --pr-tone: var(--data-negative); --pr-band: var(--pr-band-high); }
+
+.pr-scale__title { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-900); }
+.pr-scale__tick { width: 2px; height: 14px; border-radius: var(--r-pill); background: var(--pr-tone); }
+.pr-scale__value { display: flex; align-items: baseline; gap: 2px; margin-top: var(--s-1); }
+.pr-scale__number {
+  font-size: var(--t-metric-lg);
+  line-height: var(--lh-metric-lg);
+  letter-spacing: var(--ls-metric-lg);
+  font-weight: var(--w-light);
+  color: var(--ink-950);
+}
+.pr-scale__fraction { color: var(--ink-300); }
+.pr-scale__unit { font-size: var(--t-body); color: var(--ink-400); }
+.pr-scale__trend { align-self: center; display: inline-flex; margin-left: var(--s-2); color: var(--ink-600); }
+.pr-scale__trend.is-down { transform: rotate(90deg); }
+.pr-scale__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); font-size: var(--t-body); color: var(--ink-400); }
+.pr-scale__delta {
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  font-size: var(--t-body);
+  color: var(--ink-600);
+  background: var(--ink-a06);
+}
+/* Gráfico curto (≤ 64 px): a faixa de referência tem a altura do intervalo real
+   e a linha-limite de 1 px é sempre desenhada. Nada de bloco de cor. */
+.pr-dots { display: block; width: 100%; height: 64px; margin: 0; overflow: visible; }
+/* A faixa marca o intervalo de referência e leva a cor do risco atual, como
+   o traço do título: um resultado moderado nunca fica sobre uma faixa verde. */
+.pr-dots__band { fill: var(--pr-band); }
+.pr-dots__limit { stroke: var(--data-soft); stroke-width: 1; shape-rendering: crispEdges; }
+.pr-dots__guide { stroke: var(--data-grid); stroke-width: 1; stroke-dasharray: 2 3; shape-rendering: crispEdges; }
+.pr-dots__dot { fill: var(--data-mid); }
+.pr-dots__dot.is-last { fill: var(--ink-900); }
+.pr-dots__dot.is-high { fill: var(--data-negative); }
+.pr-dots__ring { fill: none; stroke: var(--ink-900); stroke-width: 1.25; }
+.pr-scale__note { min-width: 0; max-width: 100%; font-size: var(--t-body); color: var(--ink-600); line-height: 1.35; }
+/* Interpretação gravada, inteira e sem reticências (é dado clínico): o
+   rodapé é só ela; a data subiu para a linha da variação. */
+.pr-scale__band { text-wrap: balance; }
+
+/* Medicações e marcos */
+.pr-meds__list { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.pr-meds__list li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: var(--s-3); align-items: start; }
+.pr-meds__list li > span:last-child { display: flex; flex-direction: column; font-size: var(--t-body); color: var(--ink-600); }
+.pr-meds__list strong { font-weight: var(--w-medium); color: var(--ink-900); }
+.pr-meds__since { font-size: var(--t-body); color: var(--ink-400); }
+.pr-meds__icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-circle); color: var(--ink-600); background: var(--ink-a06); }
+
+/* Em card estreito (1024–1180) os três não cabem lado a lado: quebram em linhas
+   em vez de a palavra passar da borda do mini-card. */
+.pr-milestones__tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: var(--s-2); margin: var(--s-3) 0 0; }
+.pr-milestones__tally > div { border-radius: var(--r-sm); }
+.pr-milestones__tally > div { padding: var(--s-3); border-radius: var(--r-md); background: var(--ink-a04); }
+.pr-milestones__tally dt { display: flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--ink-600); }
+.pr-milestones__tally dt::before { content: ''; width: 2px; height: 10px; border-radius: var(--r-pill); background: var(--pr-tick-none); }
+.pr-milestones__tally .is-low dt::before { background: var(--data-positive); }
+.pr-milestones__tally .is-mid dt::before { background: var(--data-caution); }
+.pr-milestones__tally .is-high dt::before { background: var(--data-negative); }
+.pr-milestones__tally dd { margin: 2px 0 0; font-size: var(--t-title); line-height: var(--lh-title); font-weight: var(--w-light); color: var(--ink-950); }
+.pr-milestones__last { margin: var(--s-3) 0 0; font-size: var(--t-body); color: var(--ink-400); }
+.pr-milestones__last strong { font-weight: var(--w-medium); color: var(--ink-900); }
+
+/* ——————————————————————— Linha do tempo (palco) ——————————————————————— */
+
+.pr-rail { min-width: 0; }
+/* Rolagem lateral com indício: máscara de 24 px nas bordas e o mesmo recuo
+   interno, para nenhuma cápsula começar cortada sob o esmaecimento. */
+.pr-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: var(--s-1) 24px;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-padding-inline: 24px;
+  -webkit-mask: linear-gradient(90deg, transparent, black 24px, black calc(100% - 24px), transparent);
+  mask: linear-gradient(90deg, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+.pr-rail__list::-webkit-scrollbar { display: none; }
+.pr-rail__item { flex: none; display: flex; align-items: flex-end; gap: var(--s-2); }
+/* "Hoje": um traço de 1 px com o micro-rótulo acima. */
+.pr-rail__today {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px;
+  align-self: stretch;
+  justify-content: flex-end;
+}
+.pr-rail__today-label {
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  font-weight: var(--w-medium);
+  color: var(--blue-600);
+}
+.pr-rail__today-line { width: 1px; height: 32px; background: var(--blue-500); }
+/* Cápsula compacta: data (micro) em cima, estado (corpo) embaixo. */
+/* Cortada pela borda da faixa (VisitRail): fica esmaecida, nunca some — é
+   uma consulta real (a trilha a conta). Rola à vista ao receber o foco. */
+.pr-visit[data-clipped] { opacity: .4; }
+.pr-visit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  min-height: 48px;
+  padding: 6px var(--s-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  background: var(--rp-glass-strong);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.pr-visit:hover { transform: translateY(-2px); box-shadow: var(--e-glass-hover); }
+.pr-visit:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.pr-visit__date { font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro); color: var(--ink-400); }
+.pr-visit__status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-body); line-height: var(--lh-micro); color: var(--ink-900); }
+.pr-visit__status i { flex: none; width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--ink-200); }
+.pr-visit--warning .pr-visit__status i { background: var(--signal-amber); }
+.pr-visit--danger .pr-visit__status i { background: var(--signal-red); }
+/* Confirmado/agendado ainda por vir: neutro, ponto vazado (azul não é estado). */
+.pr-visit--pending .pr-visit__status i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-400); }
+.pr-visit--neutral .pr-visit__status i { background: var(--ink-900); }
+
+/* ——————————————————————— Painel de seção ——————————————————————— */
+
+/* Camada do painel: posicionada na área do palco + coluna direita da grade
+   (colunas 2 até o fim, altura inteira da grade). Ela não ocupa célula, então
+   a grade por trás não reflui; o painel gruda sob a barra de seções e rola
+   por dentro, com a altura que sobra da janela (--pr-panel-h, medida no JS). */
+.pr-panel-layer {
+  position: absolute;
+  grid-column: 2 / -1;
+  /* Desce sobre o respiro do pé da página: no fim da rolagem o painel ainda
+     tem onde grudar sem encolher demais. */
+  inset: 0 0 calc(var(--s-12) * -1);
+  z-index: var(--z-base);
+  min-width: 0;
+  pointer-events: none;
+}
+/* Véu sobre o que o painel não cobre (a coluna direita mais longa que o
+   palco, o pé da grade): nada da visão geral vaza nítido pela borda. */
+.pr-panel-layer::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--s-2) * -1) calc(var(--s-2) * -1) 0;
+  border-radius: var(--r-card);
+  background: var(--pr-stage-veil);
+  animation: pr-veil-in var(--dur-3) var(--ease) both;
+}
+@keyframes pr-veil-in { from { opacity: 0; } to { opacity: 1; } }
+.pr-panel {
+  position: sticky;
+  top: calc(var(--pr-sticky-h) + var(--s-2));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* --pr-panel-h (SectionPanel.jsx): no mínimo a altura do palco, até o pé
+     da janela útil. */
+  height: var(--pr-panel-h, calc(100dvh - 300px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--r-card);
+  /* Vidro do guia §4.5: o véu da camada clareia o palco antes do desfoque,
+     então o texto secundário segue acima de 4,5:1 sobre o busto. */
+  background: var(--pr-panel-glass);
+  box-shadow: var(--e-4), inset 0 1px 0 var(--rp-glass-edge);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  pointer-events: auto;
+  transform-origin: 50% 0;
+  animation: pr-panel-in var(--dur-3) var(--ease) both;
+  outline: none;
+}
+@keyframes pr-panel-in {
+  from { opacity: 0; transform: scale(.98) translateY(6px); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+/* Cabeçalho grudado no topo do painel: alergia e × sempre à vista, numa
+   linha só. Fundo opaco: o que rola por baixo não aparece entre as pílulas. */
+.pr-panel__head {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  /* Margem lateral = corpo (--s-5) + a das listas e do título da seção
+     (--s-5): pílulas, título, linhas e × começam e terminam juntos. */
+  padding: var(--s-4) calc(var(--s-5) * 2) var(--s-3);
+  background: linear-gradient(var(--pr-panel), var(--pr-panel)), var(--surface);
+  box-shadow: 0 1px 0 var(--ink-a06);
+}
+/* Quem é o paciente: só no celular, onde o painel cobre a página inteira. */
+.pr-panel__who {
+  display: none;
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  line-height: var(--lh-body);
+  color: var(--ink-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-panel__body { flex: 1 0 auto; min-width: 0; padding: var(--s-4) var(--s-5) var(--s-5); }
+.pr-panel__alerts { min-width: 0; }
+/* As pílulas quebram linha, todas inteiras e com o Remarcar à vista: numa
+   fileira rolável o segundo alerta saía cortado no meio da palavra. */
+.pr-panel__alerts .pr-alerts { flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: var(--s-2); }
+.pr-panel__alerts .pr-alert { max-width: none; min-height: 44px; padding-block: 2px; }
+
+/* Alergia no topo dos modais clínicos (o modal fica fora de .pr). Gruda no
+   topo do corpo rolável do modal: um formulário longo (evolução) não a leva
+   para fora da tela. O tom é translúcido, então vai sobre a superfície. */
+.pr-rx-allergy {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--signal-red-ink);
+  background: linear-gradient(var(--signal-red-bg), var(--signal-red-bg)), var(--surface-raised);
+}
+/* Modal de documento: a faixa ocupa a largura toda, acima do editor e da
+   folha timbrada; o split fica com o resto da altura. */
+.modal__body:has(> .doc-notice) { display: flex; flex-direction: column; }
+.doc-notice {
+  flex: none;
+  margin: calc(var(--s-5) * -1) calc(var(--s-5) * -1) 0;
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--ink-a06);
+}
+.doc-notice + .doc-split { flex: 1 1 0; min-height: 0; height: auto; margin: 0 calc(var(--s-5) * -1) calc(var(--s-5) * -1); }
+@media print { .doc-notice { display: none; } }
+.pr-rx-allergy svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.pr-rx-allergy > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pr-rx-allergy strong { font-weight: var(--w-medium); }
+.pr-rx-allergy__hit { color: var(--ink-900); }
+.pr-rx-allergy.is-none { color: var(--ink-900); background: linear-gradient(var(--ink-a04), var(--ink-a04)), var(--surface-raised); }
+.pr-rx-allergy.is-none strong { font-weight: var(--w-medium); }
+
+/* Marcos registrados, antes da grade. */
+.milestone-records { padding: 0 var(--s-5) var(--s-4); }
+.milestone-records ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.milestone-records .milestone:hover { background: transparent; }
+.milestone-records__actions { justify-content: flex-start; padding: 0 var(--s-5) var(--s-4); }
+.pr-panel__close {
+  flex: none;
+  grid-column: 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  padding: 0 var(--s-4) 0 var(--s-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: var(--t-body);
+  color: var(--ink-600);
+  background: var(--ink-a06);
+  cursor: pointer;
+}
+.pr-panel__close:hover { background: var(--ink-a12); color: var(--ink-900); }
+/* Abaixo de 1180px o × perde o texto (fica no aria-label) e cabe na fileira. */
+@media (max-width: 1179px) {
+  .pr-panel__close { width: 44px; padding: 0; justify-content: center; }
+  .pr-panel__close span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+.pr-panel__close:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+/* A view dentro do painel: sem caixa dentro de caixa. */
+.pr-panel__body > .card,
+.pr-panel__body > * > .card {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.pr-panel__body > .card::before,
+.pr-panel__body > .card::after { display: none; }
+.pr-panel__body .card__header { padding-inline: var(--s-5); }
+.pr-panel__body .card__title { font-size: var(--t-title); line-height: var(--lh-title); letter-spacing: var(--ls-title); }
+
+/* ——— Uma gramática só nas 8 seções do painel ———
+   Itens são linhas de lista com separador de 1px (--ink-a06), sem borda,
+   fundo ou raio por item; subtítulo de grupo em 14px, sentence case, sem
+   sobrelinha; estado vira marca (traço de 2px) ou rótulo, nunca cartão
+   tingido. Só CSS escopado: a lógica das views não muda. */
+.pr-panel :is(.timeline__month, .meds__title, .milestone-band__title) {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-medium);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink-900);
+}
+.pr-panel .soap__label {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink-400);
+}
+/* Listas: o contêiner não espaça; a linha leva o respiro e o separador. */
+.pr-panel :is(.notes, .scales, .consents, .attachments, .meds__list, .milestone-records ul) { gap: 0; }
+.pr-panel :is(.note, .scale-card, .consent, .med, .attachment) {
+  padding: var(--s-4) 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.pr-panel :is(.note, .scale-card, .consent, .med) + :is(.note, .scale-card, .consent, .med),
+.pr-panel .attachments > li + li,
+.pr-panel .milestone-records li + li { border-top: 1px solid var(--ink-a06); }
+.pr-panel .attachment { padding-inline: 0; }
+.pr-panel .attachment:hover { background: transparent; }
+.pr-panel .attachment:hover .attachment__text strong { color: var(--blue-600); }
+.pr-panel .milestone-records .milestone { padding: var(--s-3) 0; border-radius: 0; }
+.pr-panel .milestone-grid .milestone { border-radius: 0; }
+.pr-panel .milestone-band.is-current { padding: 0; margin: 0; border-radius: 0; background: transparent; }
+.pr-panel .milestone-band.is-current .milestone-band__title { color: var(--blue-700); }
+/* Rascunho e conflito: marca lateral de 2px em vez de cartão tingido. */
+.pr-panel :is(.note.is-draft, .med.has-conflict) {
+  padding-left: var(--s-3);
+  box-shadow: inset 2px 0 0 var(--data-caution);
+  background: transparent;
+}
+.pr-panel .med.has-conflict { box-shadow: inset 2px 0 0 var(--data-negative); }
+.pr-panel .note__head { margin-bottom: var(--s-3); }
+/* Linha do tempo: o fio vertical continua; o separador corre só no texto. */
+.pr-panel .timeline__item { padding-bottom: 0; }
+.pr-panel .timeline__body { flex: 1; padding: var(--s-1) 0 var(--s-4); }
+.pr-panel .timeline__item + .timeline__item .timeline__body { border-top: 1px solid var(--ink-a06); padding-top: var(--s-4); }
+.pr-panel .timeline__item + .timeline__item .timeline__mark { margin-top: var(--s-3); }
+.pr-panel .timeline__item + .timeline__item::before { top: calc(28px + var(--s-3)); }
+.pr-panel .timeline__list + .timeline__month,
+.pr-panel .timeline__month:not(:first-child) { margin-top: var(--s-4); }
+/* Avisos dentro da seção: texto com ícone, sem caixa. */
+.pr-panel .milestone-alert--info { margin-inline: var(--s-5); padding: var(--s-3) 0; border-radius: 0; background: transparent; border-top: 1px solid var(--ink-a06); }
+/* Exames: a área de soltar arquivo vira uma linha discreta. */
+.pr-panel .dropzone { flex-direction: row; flex-wrap: wrap; justify-content: center; padding: var(--s-4); border-width: 1px; }
+/* Consentimentos: estado como rótulo com traço de 2px, não cartão tingido. */
+.pr-panel .consent__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-body);
+  color: var(--ink-400);
+}
+.pr-panel .consent__state::before { content: ''; width: 2px; height: 14px; border-radius: var(--r-pill); background: var(--pr-tick-none); }
+.pr-panel .consent__state.is-on { color: var(--ink-900); }
+.pr-panel .consent__state.is-on::before { background: var(--data-positive); }
+.pr-panel .consent__state.is-danger { color: var(--signal-red-ink); }
+.pr-panel .consent__state.is-danger::before { background: var(--data-negative); }
+.pr-panel .consent__meta { font-size: var(--t-body); line-height: var(--lh-body); letter-spacing: normal; }
+.pr-panel .consent__text p { font-size: var(--t-body); }
+/* Alvos dentro do painel: nada abaixo de --touch (40px) em nenhuma largura
+   (iPad em paisagem é toque a 1024+). Os links de texto ganham área de 44px. */
+.pr-panel :is(.btn--sm, .btn--md) { height: var(--touch); }
+.pr-panel :is(.icon-btn--sm, .icon-btn--md) { width: var(--touch); height: var(--touch); }
+.pr-panel .tabs .tabs__item { min-height: var(--touch); min-width: var(--touch); justify-content: center; }
+.pr-panel .tabs--underline .tabs__item { height: var(--touch); }
+.pr-panel :is(.chart__data-toggle, .dropzone p button) { position: relative; }
+.pr-panel :is(.chart__data-toggle, .dropzone p button)::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: max(100%, 44px); height: 44px; transform: translate(-50%, -50%);
+}
+/* Escore no painel de Escalas: 32 (o h1 da página), não o 28 da Visão geral
+   do painel — a tela fica em 11 · 14 · 22 · 32. */
+.pr-panel .scale-card__value { font-size: var(--t-page); letter-spacing: var(--ls-page); }
+/* Escalas no painel: régua neutra (sem barras laranja) e linha em --data-strong. */
+.pr-panel .ruler .ruler__tick.is-marker { background: var(--data-strong); box-shadow: 0 0 0 2px var(--ink-a06); }
+.pr-panel .ruler__tip { color: var(--ink-900); background: var(--ink-a06); }
+.pr-panel .line-path:not(.line-path--forecast) { stroke: var(--data-strong); }
+
+.attachments__filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: var(--s-4) 0 0;
+  font-size: var(--t-body);
+  color: var(--ink-600);
+}
+.attachments__filter button {
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  color: var(--blue-600);
+  background: var(--blue-a08);
+  cursor: pointer;
+}
+
+/* ——————————————————————————— Responsivo ——————————————————————————— */
+
+@media (max-width: 1439px) {
+  .pr-grid { --pr-col-left: 300px; --pr-col-right: 320px; gap: var(--s-4); }
+  .pr-scales { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 1179px) {
+  /* Coluna do paciente nas duas linhas; a coluna direita desce logo abaixo
+     do palco (coluna 2), sem esperar o fim do perfil. O palco deixa de
+     grudar: grudado, ele passaria por cima das medidas ao rolar. */
+  .pr-grid { grid-template-columns: var(--pr-col-left) minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .pr-grid > .pr-behind > .pr-profile,
+  .pr-grid > .pr-profile { grid-column: 1; grid-row: 1 / span 2; }
+  .pr-grid > .pr-stage { grid-column: 2; grid-row: 1; position: relative; top: auto; }
+  .pr-side { grid-column: 2; grid-row: 2; }
+  .pr-side .pr-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pr-side .pr-insights__scales { grid-column: 1 / -1; }
+  .pr-scales { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pr-panel-layer { grid-column: 2 / -1; grid-row: 1 / -1; }
+  .pr { --pr-sticky-h: 128px; }
+  .pr-pills__alerts { display: block; }
+  /* Abaixo de 1180px o palco deixa de grudar: ao rolar até as medicações ele
+     sai da tela, e a alergia com ele. A alergia (só ela) gruda também na
+     barra de seções (regra §0.6); os outros alertas continuam inteiros no
+     palco, sem rolagem que os esconda. */
+  .pr-pills__alerts .pr-alerts { flex-direction: row; }
+  .pr-pills__alerts .pr-alert:not(.pr-alert--allergy) { display: none; }
+  .pr-pills__alerts .pr-alert { max-width: none; min-height: 44px; padding-block: 2px; }
+}
+
+@media (max-width: 1023px) {
+  .pr-bar { grid-template-columns: auto minmax(0, 1fr); }
+  .pr-bar__actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .pr-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  /* Guia §4.6: perfil → palco (420px) → escalas → pastas → o resto. A coluna
+     do paciente se desfaz (display: contents) para que o palco entre logo
+     depois do cartão do perfil, sem esperar diagnósticos e pastas. */
+  .pr-grid > .pr-behind > .pr-profile,
+  .pr-grid > .pr-profile { display: contents; }
+  .pr-grid .pr-patient { order: 1; }
+  .pr-grid > .pr-stage { order: 2; }
+  .pr-grid > .pr-side { order: 3; }
+  .pr-grid .pr-folders { order: 4; }
+  .pr-grid .pr-dx { order: 5; }
+  .pr-grid .pr-care { order: 6; }
+  .pr-grid .pr-next { order: 7; }
+  .pr-grid > .pr-stage,
+  .pr-side { grid-column: 1; grid-row: auto; }
+  .pr-stage { position: relative; top: 0; height: 420px; min-height: 0; }
+  /* Tela cheia ENTRE a barra global (busca, unidade, sino) e a barra do
+     dock no pé: nada do painel fica por baixo delas, e o × é tocável. */
+  .pr-panel-layer { position: static; display: contents; }
+  .pr-panel-layer::before { content: none; }
+  .pr-panel {
+    position: fixed;
+    top: calc(var(--topbar) + env(safe-area-inset-top, 0px));
+    right: 0;
+    bottom: calc(var(--pr-dock-h) + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    z-index: var(--z-drawer);
+    height: auto;
+    border-radius: var(--r-card) var(--r-card) 0 0;
+    background: var(--pr-panel);
+  }
+  /* Nome do paciente em cima; alertas e × numa fileira só. */
+  .pr-panel__head { padding: var(--s-3) var(--s-4); }
+  .pr-panel__who { display: block; }
+  .pr-panel__body { padding: var(--s-3) var(--s-4) var(--s-5); }
+}
+/* Altura da barra do dock no pé (layout.css, ≤1024px). */
+.pr { --pr-dock-h: 0px; }
+@media (max-width: 1024px) { .pr { --pr-dock-h: 60px; } }
+
+@media (max-width: 768px) {
+  .pr { --pr-bleed: var(--s-4); }   /* layout.css: respiro de 16px no celular */
+  /* "Pacientes" no breadcrumb: área de toque de 44px sem mexer no traçado. */
+  .pr .breadcrumb a { position: relative; }
+  .pr .breadcrumb a::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 44px); height: 44px; transform: translate(-50%, -50%);
+  }
+  .pr-link, .pr-folder__open, .pr-alert__action, .pr-trail__next { position: relative; }
+  .pr-link::after, .pr-folder__open::after, .pr-alert__action::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 44px); height: 44px; transform: translate(-50%, -50%);
+  }
+  .pr-pill { min-height: 44px; }
+}
+
+@media (max-width: 640px) {
+  /* Cabeçalho do painel no celular: nome e × na primeira linha, alertas
+     empilhados embaixo, inteiros — numa fileira rolável o "Sem desfecho"
+     passava sob o × e o Remarcar ficava escondido. */
+  .pr-panel__who { grid-column: 1; grid-row: 1; }
+  .pr-panel__close { grid-column: 2; grid-row: 1; }
+  .pr-panel__alerts { grid-column: 1 / -1; grid-row: 2; }
+  .pr-panel__alerts .pr-alerts { flex-direction: column; }
+  .pr-panel__alerts .pr-alert { border-radius: var(--r-lg); }
+  .pr-panel__alerts .pr-alert__text { flex: 1; }
+  .pr-bar__id h1 { font-size: var(--t-title); line-height: var(--lh-title); letter-spacing: var(--ls-title); }
+  .pr-side .pr-insights { display: flex; }
+  .pr-scales { grid-template-columns: minmax(0, 1fr); }
+  /* O trilho sangra até a borda da tela: o cartão seguinte some sob a borda,
+     não num corte reto no respiro de 16px. */
+  .pr-folders__grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--pr-bleed);
+    margin-inline: calc(var(--pr-bleed) * -1);
+    padding: 0 var(--pr-bleed) var(--s-2);
+    scrollbar-width: none;
+  }
+  .pr-folders__grid::-webkit-scrollbar { display: none; }
+  .pr-folder { flex: 0 0 72%; scroll-snap-align: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-panel { animation: none; }
+  .pr-scale, .pr-visit, .pr-bar__back { transition: none; }
+}
+
+@media print {
+  .pr-stage, .pr-pills, .pr-folders, .pr-grid::before { display: none; }
+}

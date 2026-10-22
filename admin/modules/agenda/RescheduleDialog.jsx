@@ -50,7 +50,8 @@ const isEvent = (a) => a?.tipo === APPOINTMENT_TYPES.EVENT || !!a?.titulo;
  * @param suggested   Date opcional que já vem preenchida (arrastar no card)
  * @param onDone      chamado depois de gravar, para a tela recarregar
  */
-export default function RescheduleDialog({ appointment, suggested = null, onClose, onDone }) {
+// `notice`: faixa opcional no topo (o prontuário passa a alergia do paciente).
+export default function RescheduleDialog({ appointment, suggested = null, notice = null, onClose, onDone }) {
   const { plaza } = useSession();
   const toast = useToast();
   const [form, setForm] = useState(null);
@@ -150,6 +151,7 @@ export default function RescheduleDialog({ appointment, suggested = null, onClos
       }
     >
       <div className="reschedule">
+        {notice}
         <dl className="reschedule__move">
           <div>
             <dt>Horário atual</dt>

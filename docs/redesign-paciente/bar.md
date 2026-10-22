@@ -1,0 +1,11 @@
+# Régua — Prontuário estilo Quantis (tema claro)
+
+Referência: Quantis — Health Intelligence System (Dribbble 27474777). Cada linha é verificável olhando a tela renderizada a 1440×900 e a 1920×1080.
+
+1. **A anatomia é o maior objeto da tela.** O palco ocupa pelo menos 40% da largura útil a 1440 px, e o busto preenche pelo menos 75% da altura do palco. As colunas laterais flutuam como cards. O palco não tem moldura nem fundo de card próprio: o modelo fica direto sobre a mesa pontilhada.
+2. **Plexo legível, uma estrutura por vez.** Em repouso: linhas de no máximo 1 px, nós visíveis nos vértices e nenhuma área sólida preenchida. Em hover ou seleção: exatamente uma estrutura sólida e colorida, com o plexo por cima, e as demais visivelmente recuadas.
+3. **Card de medida no padrão do biomarcador.** O número tem pelo menos 3,5× a altura do título do card, peso fino (≤ 300) e unidade menor e mais clara colada ao número. Tem traço vertical colorido de 2 px antes do título e gráfico de pontos com faixa de referência tingida, linha-limite fina e o último ponto com anel. A nota de rodapé ocupa no máximo 2 linhas curtas.
+4. **Um acento só.** O azul preenchido aparece no máximo em 3 lugares por dobra: pílula ativa, pílula da próxima consulta e estrutura em foco. Vermelho, âmbar e verde aparecem só como estado (alerta, risco), nunca como enfeite fora do modelo.
+5. **Tudo que flutua sobre o palco é vidro.** Pílulas de alerta, cápsulas de consulta, seletor de camadas, controles, popover e barra de seções são translúcidos, com desfoque, e deixam ver o que passa atrás. Cards com raio ≥ 24 px e sem borda de 1 px visível somada a sombra larga.
+6. **A pasta é o herói do card de exames.** A pasta fosca ocupa pelo menos 55% da largura do card e é reconhecível como pasta (aba, frente de vidro). As folhas saem em leque atrás dela, e o rótulo da contagem fica sobre o vidro. O título e a data do card ficam no topo, com `↗` à direita.
+7. **Base do palco em faixa única.** A linha do tempo de consultas é uma fileira horizontal de cápsulas, com no máximo 3 itens de texto por cápsula e traço fino de "hoje". Os controles `+ − vista` são botões quadrados de vidro no canto inferior direito, alinhados à mesma linha de base da faixa.

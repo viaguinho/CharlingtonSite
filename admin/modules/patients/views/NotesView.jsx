@@ -6,6 +6,7 @@ import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card
 import { Button, Chip, IconButton, CidCode } from '../../../components/primitives.jsx';
 import { TextArea, Combobox, TextField } from '../../../components/Field.jsx';
 import { Modal, ConfirmDialog, useToast } from '../../../components/Overlay.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import Icon from '../../../components/Icon.jsx';
 import { dateTime, relative } from '../../../core/format.js';
 import { CID10 } from '../../../data/cid10.js';
@@ -46,7 +47,7 @@ export function NotesView({ patient, notes, appointments, reload }) {
       <Card variant="flush">
         <CardHeader
           title="Evoluções clínicas"
-          subtitle={ordered.length ? `${ordered.length} registros` : undefined}
+          subtitle={ordered.length ? `${ordered.length} ${ordered.length === 1 ? 'registro' : 'registros'}` : undefined}
           actions={<Button size="sm" variant="primary" icon="plus" onClick={() => setComposing(true)}>Nova evolução</Button>}
         />
         <CardBody>
@@ -206,6 +207,7 @@ function NoteComposer({ open, patient, appointments, onClose, onSaved }) {
       }
     >
       <div className="note-form">
+        <AllergyNotice patient={patient} typed={draft.plano ?? ''} hint="Confirme com o responsável antes de prescrever no plano." />
         {recent.length ? (
           <Combobox
             label="Vincular ao atendimento"

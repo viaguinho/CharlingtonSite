@@ -177,7 +177,12 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                   <div className="consent__text">
                     <div className="consent__head">
                       <strong>{CONSENT_PURPOSE_LABELS[purpose.id]}</strong>
-                      <Chip tone={purpose.basis.requiresConsent ? (violation ? 'danger' : 'warning') : 'info'}>
+                      {/* Estado como rótulo, não como cartão tingido. */}
+                      <span className={`consent__state ${active ? 'is-on' : violation ? 'is-danger' : ''}`.trim()}>
+                        {active ? (purpose.basis.requiresConsent ? 'Vigente' : 'Informado') : record ? 'Revogado' : 'Não registrado'}
+                      </span>
+                      {/* A base legal é categoria, não estado: âmbar só quando falta o consentimento. */}
+                      <Chip tone={violation ? 'danger' : purpose.basis.requiresConsent && !active ? 'warning' : 'neutral'}>
                         {purpose.basis.label}
                       </Chip>
                     </div>

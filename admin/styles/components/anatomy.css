@@ -1,0 +1,687 @@
+/* ——————————————————————— Palco anatômico (prontuário) ———————————————————————
+   Canvas 3D transparente sobre a matriz de pontos da grade da página
+   (`.pr-grid::before`, desenhada fora deste componente). Não há caixa: o
+   modelo se dissolve nas bordas por máscara. Tudo aqui é vidro claro e
+   tinta; a cor por estrutura vive só no modelo em foco, no pino, no popover
+   e na lista de estruturas (exceção registrada em 20/10/2026).            */
+
+.an-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  font-family: var(--font);
+  color: var(--ink-900);
+  /* Contexto de empilhamento próprio: os z-index abaixo (1–6) valem só aqui
+     dentro e nunca competem com a escada global (--z-sticky, --z-popover…). */
+  isolation: isolate;
+  container-type: inline-size;
+  container-name: an-stage;
+  --an-color: var(--ink-900);
+  --an-base-gap: 16px;
+  --an-credit-h: 18px;
+  --an-top: 0px;            /* fim da faixa de alertas, medido em JS */
+  --an-z-pin: 1;
+  --an-z-float: 2;          /* alertas, camadas, base */
+  --an-z-pop: 3;
+  --an-z-list: 4;
+}
+
+/* Máscara: o modelo some no fundo — mais embaixo (o tronco continua para
+   dentro da mesa), um pouco nos lados, quase nada no topo. Só o alfa conta. */
+.an-canvas-host {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0, var(--ink-900) 5%, var(--ink-900) 74%, transparent 97%),
+    linear-gradient(to right, transparent 0, var(--ink-900) 9%, var(--ink-900) 91%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent 0, var(--ink-900) 5%, var(--ink-900) 74%, transparent 97%),
+    linear-gradient(to right, transparent 0, var(--ink-900) 9%, var(--ink-900) 91%, transparent 100%);
+  mask-composite: intersect;
+}
+.an-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease);
+}
+.an-stage.is-ready .an-canvas { opacity: 1; }
+
+.an-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ————————————————————————— Carregando ————————————————————————— */
+
+.an-loading {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  background: var(--rp-glass-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--e-glass);
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  font-weight: var(--w-medium);
+  color: var(--ink-600);
+}
+.an-loading__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-circle);
+  background: var(--ink-600);
+  animation: an-pulse var(--dur-pulse) var(--ease-in-out) infinite;
+}
+@keyframes an-pulse {
+  0%, 100% { opacity: .25; transform: scale(.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* ——————————————————————————— Vidro ——————————————————————————— */
+
+.an-glass-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--rp-glass-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--e-glass);
+  color: var(--ink-900);
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  cursor: pointer;
+  transition: box-shadow var(--dur-2) var(--ease), background-color var(--dur-2) var(--ease), color var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
+}
+.an-glass-btn:hover { box-shadow: var(--e-glass-hover); }
+.an-glass-btn:active { transform: scale(.96); }
+.an-glass-btn:focus-visible { border-radius: inherit; }
+.an-glass-btn:disabled { color: var(--ink-400); cursor: default; box-shadow: var(--e-glass); transform: none; }
+.an-glass-btn--text { width: auto; min-width: 44px; padding: 0 10px; }
+
+/* ——————————————————————— Pino (hover e seleção) ——————————————————————— */
+
+.an-pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: var(--an-z-pin);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+  will-change: transform;
+}
+.an-pin__mark {
+  position: absolute;
+  left: -11px;
+  top: -11px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-circle);
+  background: var(--rp-glass-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--e-1);
+  display: grid;
+  place-items: center;
+}
+/* Anel fino em volta, como na referência */
+.an-pin__mark::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: var(--r-circle);
+  border: 1px solid var(--ink-a20);
+}
+.an-pin__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-circle);
+  background: var(--an-color);
+  box-shadow: 0 0 0 2px var(--surface-raised);
+}
+.an-pin__label {
+  position: absolute;
+  left: 26px;
+  top: 12px;
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  /* Vidro dobrado: quase opaco, para o rótulo ler sobre qualquer estrutura. */
+  background: linear-gradient(var(--rp-glass-strong), var(--rp-glass-strong)), var(--rp-glass-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--e-glass);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-medium);
+  color: var(--ink-900);
+}
+.an-pin.is-same { visibility: hidden; }
+.an-pin--fixed .an-pin__mark::after { border-color: var(--an-color); opacity: .7; }
+
+/* ——————————————————————— Popover compacto ———————————————————————
+   Título 14 semibold, chip de lado, resumo em até 2 linhas, "Saiba mais"
+   e as ligações reais com exames em pares chave-valor. Vidro das pílulas;
+   ancorado ao lado da cabeça, com traço-guia até o pino. A cor da
+   estrutura vaza só pela borda esquerda.                              */
+
+.an-lead {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--an-z-pin);
+  overflow: visible;
+  pointer-events: none;
+}
+.an-lead line {
+  stroke: var(--an-color);
+  stroke-width: 1;
+  stroke-linecap: round;
+  transition: opacity var(--dur-2) var(--ease);
+}
+
+.an-popover {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: var(--an-z-pop);
+  width: min(248px, calc(100% - 32px));
+  padding: 14px 10px 10px 18px;
+  border-radius: var(--r-lg);
+  /* Mesmo vidro das pílulas de alerta (alfa ~0,64 + desfoque): o plexo atrás
+     aparece como sombra desfocada. Texto em --ink-900/--ink-600, ≥ 4,5:1. */
+  background: var(--rp-glass);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--e-glass), var(--e-2);
+  overflow: hidden;
+  isolation: isolate;
+  outline: none;
+  animation: an-pop-in var(--dur-3) var(--ease) both;
+  will-change: transform;
+}
+.an-popover::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: -40px;
+  top: 14%;
+  width: 52px;
+  height: 72%;
+  border-radius: var(--r-pill);
+  background: var(--an-color);
+  filter: blur(18px);
+  opacity: .45;
+  pointer-events: none;
+}
+/* O contêiner recebe o foco só para o leitor de tela anunciar o título; o foco visível fica nos botões. */
+.an-popover:focus, .an-popover:focus-visible { outline: none; }
+@keyframes an-pop-in {
+  from { opacity: 0; filter: blur(6px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+.an-pop__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: -6px 0 0;
+}
+.an-pop__title {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-semibold);
+  color: var(--ink-900);
+}
+.an-pop__chip {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--ink-a06);
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  font-weight: var(--w-medium);
+  color: var(--ink-600);
+}
+.an-pop__close {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin: -6px 0 -6px auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-circle);
+  background: transparent;
+  color: var(--ink-600);
+  cursor: pointer;
+  transition: background-color var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.an-pop__close:hover { background: var(--ink-a06); color: var(--ink-900); }
+.an-pop__close:focus-visible { border-radius: var(--r-circle); }
+
+.an-pop__lead,
+.an-pop__more-text {
+  margin: 4px 8px 0 0;
+  font-size: var(--t-body);
+  line-height: var(--lh-small);
+  color: var(--ink-900);
+}
+.an-pop__more-text { color: var(--ink-600); margin-top: 6px; }
+
+.an-pop__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin: -6px 0 -6px -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-600);
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: var(--w-medium);
+  cursor: pointer;
+}
+.an-pop__more:hover { color: var(--ink-900); }
+.an-pop__more:focus-visible { border-radius: var(--r-pill); }
+
+.an-pop__rel {
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--ink-a06);
+}
+.an-pop__label {
+  margin: 0 0 2px;
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  font-weight: var(--w-medium);
+  color: var(--ink-600);
+}
+.an-pop__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: calc(100% + 8px);
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-900);
+  font: inherit;
+  font-size: var(--t-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-2) var(--ease);
+}
+.an-pop__row:hover { background: var(--ink-a04); }
+.an-pop__row:focus-visible { border-radius: var(--r-sm); }
+.an-pop__val {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--blue-600);
+}
+
+/* ——————————————————————— Slot de alertas ——————————————————————— */
+
+/* Faixa própria no topo: as pílulas correm em linha (quebram se faltar
+   largura) acima da cabeça. O arco de camadas começa abaixo desta faixa
+   (`--an-top`) e a cena desce o modelo pela mesma altura. */
+.an-alerts {
+  position: absolute;
+  z-index: var(--an-z-float);
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  pointer-events: none;
+}
+.an-alerts > * { pointer-events: auto; }
+/* As pílulas quebram linha e ficam todas à vista: nenhuma é cortada nem
+   escondida por rolagem (um "Atrasado hoje" fora da vista é um estado real
+   escondido). A faixa cresce para baixo; AnatomyStage mede e, se o arco de
+   camadas não couber mais, ele vira fileira abaixo dos alertas. */
+.an-alerts .pr-alerts { flex-direction: row; flex-wrap: wrap; align-items: stretch; }
+
+/* ——————————————————————— Seletor radial de camadas ———————————————————————
+   Neutro: trilha e nós em tinta; azul fica para a interação (foco). */
+
+.an-layers {
+  position: absolute;
+  z-index: var(--an-z-float);
+  left: 4px;
+  /* Centrado na altura útil, mas nunca acima do fim da faixa de alertas. */
+  top: max(calc(var(--an-top) + 20px), calc(46% - 158px));
+  pointer-events: none;
+}
+.an-layers__arc { position: absolute; inset: 0; overflow: visible; }
+.an-layers__arc path { fill: none; stroke: var(--ink-a20); stroke-width: 1; }
+.an-layers__node { fill: var(--canvas); stroke: var(--ink-400); stroke-width: 1; transition: fill var(--dur-2) var(--ease), stroke var(--dur-2) var(--ease); }
+.an-layers__node.is-on { fill: var(--ink-900); stroke: var(--ink-900); }
+.an-layers__cursor {
+  fill: none;
+  stroke: var(--ink-900);
+  stroke-width: 1;
+  transition: transform var(--dur-3) var(--ease);
+}
+.an-layers__btns { position: absolute; inset: 0; }
+.an-layers__btn {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: var(--r-circle);
+  pointer-events: auto;
+  color: var(--ink-400);
+}
+.an-layers__btn:active { transform: translate(-50%, -50%) scale(.96); }
+.an-layers__btn.is-on { color: var(--ink-900); }
+/* Desligado: anel vazio tracejado, ícone a 40% e um traço diagonal por cima,
+   para o estado se ler de longe (antes só ficava um pouco mais cinza). */
+.an-layers__btn:not(.is-on) {
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  outline: 1px dashed var(--ink-a20);
+  outline-offset: -1px;
+}
+.an-layers__btn:not(.is-on) svg { opacity: .4; }
+.an-layers__btn:not(.is-on)::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 1.5px;
+  border-radius: var(--r-pill);
+  background: var(--ink-600);
+  box-shadow: 0 0 0 1.5px var(--canvas);
+  transform: translate(-50%, -50%) rotate(-45deg);
+  pointer-events: none;
+}
+.an-layers__btn:not(.is-on):focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.an-layers__btn:focus-visible { border-radius: var(--r-circle); }
+
+/* ——————————————————————— Base: faixa única ———————————————————————
+   Linha do tempo e controles sempre na mesma linha de base, em qualquer
+   largura. Grade de 3 trilhas: as duas laterais dividem a sobra por igual,
+   então a faixa de cápsulas fica centrada no eixo do busto (o centro do
+   palco); os controles ficam no fim da 3ª trilha. Sem espaço, a faixa rola
+   na horizontal e os controles nunca sobem. */
+
+.an-base {
+  position: absolute;
+  z-index: var(--an-z-float);
+  left: var(--an-base-gap);
+  right: var(--an-base-gap);
+  bottom: calc(var(--an-base-gap) + var(--an-credit-h));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, max-content) minmax(max-content, 1fr);
+  align-items: end;
+  column-gap: 8px;
+  pointer-events: none;
+}
+.an-rail {
+  grid-column: 2;
+  min-width: 0;
+  pointer-events: auto;
+}
+.an-rail:empty { visibility: hidden; }
+.an-controls {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+/* ——————————————————————— Crédito (sempre à vista) ——————————————————————— */
+
+.an-credit-line {
+  position: absolute;
+  z-index: var(--an-z-float);
+  left: var(--an-base-gap);
+  right: var(--an-base-gap);
+  bottom: 4px;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: right;
+  font-size: var(--t-micro);
+  line-height: var(--an-credit-h);
+  letter-spacing: var(--ls-micro);
+  color: var(--ink-400);
+}
+
+/* ——————————————————— Lista acessível de estruturas ———————————————————
+   Oculta para quem usa o mouse; aparece como cartão de vidro compacto quando
+   recebe o foco do teclado. O rótulo do pino some enquanto ela está aberta
+   (o nome da estrutura ativa já está na lista), então nada é coberto. */
+
+.an-list:not(.is-open):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.an-list.is-open,
+.an-list:focus-within {
+  position: absolute;
+  z-index: var(--an-z-list);
+  /* Na área vazia do palco: canto direito, abaixo da faixa de alertas e
+     acima da base; estreita, para não chegar à cabeça. */
+  top: calc(var(--an-top) + 20px);
+  right: 12px;
+  width: min(208px, calc(100% - 32px));
+  max-height: min(44%, 300px);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: var(--r-lg);
+  background: var(--rp-glass);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--e-glass), var(--e-2);
+}
+.an-list__hint {
+  margin: 2px 8px 6px;
+  font-size: var(--t-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  color: var(--ink-600);
+}
+.an-list__box {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  border-radius: var(--r-sm);
+}
+.an-list__box:focus,
+.an-list__box:focus-visible { outline: none; }
+/* Foco visível pela opção ativa (fundo + traço de 2 px à esquerda), sem contorno permanente na caixa. */
+.an-list__box:focus-visible .an-list__opt.is-active { box-shadow: inset 2px 0 0 var(--blue-500), inset 0 0 0 1px var(--blue-a24); }
+.an-list__box[aria-busy="true"] .an-list__opt { color: var(--ink-400); cursor: progress; }
+.an-list__opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--ink-900);
+  cursor: pointer;
+}
+.an-list__opt:hover { background: var(--ink-a04); }
+.an-list__opt.is-active { background: var(--blue-a08); box-shadow: inset 2px 0 0 var(--blue-500); }
+.an-list__swatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-circle);
+  background: var(--an-color, var(--ink-300));
+}
+
+/* ——————————————————————— Sem WebGL / erro de carga ——————————————————————— */
+
+.an-stage--fallback {
+  display: flex;
+  flex-direction: column;
+}
+/* Sem WebGL as pílulas entram no fluxo, e a mensagem ganha respiro abaixo delas. */
+.an-stage--fallback .an-alerts {
+  position: relative;
+  inset: auto;
+  flex: none;
+  padding: 16px 16px 0;
+}
+.an-fallback {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 32px 16px 96px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+.an-fallback__msg {
+  margin: 0;
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--ink-600);
+}
+.an-fallback__list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+  border-radius: var(--r-lg);
+  background: var(--rp-glass-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--e-glass);
+}
+.an-fallback__item + .an-fallback__item { border-top: 1px solid var(--ink-a06); }
+.an-fallback__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-900);
+  font: inherit;
+  font-size: var(--t-body);
+  text-align: left;
+  cursor: pointer;
+}
+.an-fallback__btn > span:first-child { flex: 1; }
+.an-fallback__btn:hover { background: var(--ink-a04); }
+.an-fallback__btn:focus-visible { border-radius: var(--r-sm); }
+.an-fallback__body { padding: 0 12px 10px; }
+
+/* ——————————————————————— Movimento reduzido ——————————————————————— */
+
+@media (prefers-reduced-motion: reduce) {
+  .an-canvas,
+  .an-pin,
+  .an-layers__cursor,
+  .an-glass-btn { transition: none; }
+  .an-popover { animation: none; }
+  .an-loading__dot { animation: none; opacity: 1; }
+}
+
+/* ——————————————————————— Palco estreito ——————————————————————— */
+
+/* Palco estreito: a base continua numa linha só (faixa rola, controles no
+   fim). O crédito pode quebrar em 2 linhas abaixo de 480 px. */
+@container an-stage (max-width: 520px) {
+  .an-base { column-gap: 6px; }
+  .an-controls { gap: 6px; }
+}
+/* Fileira no topo em vez do arco quando o arco não cabe: palco muito estreito
+   (o arco caía sobre o rosto) ou baixo demais entre os alertas e a faixa de
+   consultas. Quem decide é AnatomyStage (data-layers), que mede os dois. */
+.an-stage[data-layers="row"] .an-layers {
+  top: calc(var(--an-top) + 12px);
+  left: 12px;
+  width: auto !important;
+  height: auto !important;
+}
+.an-stage[data-layers="row"] .an-layers__arc { display: none; }
+.an-stage[data-layers="row"] .an-layers__btns { position: static; display: flex; gap: 6px; }
+.an-stage[data-layers="row"] .an-layers__btn { position: static; transform: none; }
+.an-stage[data-layers="row"] .an-layers__btn:active { transform: scale(.96); }
+.an-credit-line__min { display: none; }
+/* Celular de toque: a pinça aproxima e afasta (OrbitControls), então o "+" e o
+   "−" saem e a faixa de consultas ganha a largura para mostrar a cápsula
+   inteira junto do "Hoje". A troca de vista continua. */
+@media (pointer: coarse) {
+  @container an-stage (max-width: 480px) {
+    .an-glass-btn--zoom { display: none; }
+  }
+}
+/* Palco de celular: o crédito curto, numa linha só e centrado. */
+@container an-stage (max-width: 480px) {
+  .an-credit-line { text-align: center; }
+  .an-credit-line__full { display: none; }
+  .an-credit-line__min { display: inline; }
+}
+@media print {
+  .an-stage { display: none; }
+}

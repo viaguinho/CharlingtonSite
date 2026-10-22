@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES, DEVELOPMENT_DOMAINS, DEVELOPMENT_DOMAIN_LABELS, MILESTONE_STATUS } from '../../../data/schema.js';
 import { MILESTONES, AGE_BANDS } from '../../../data/milestones.js';
@@ -7,7 +7,7 @@ import { Button, Chip } from '../../../components/primitives.jsx';
 import { useToast } from '../../../components/Overlay.jsx';
 import { Tabs } from '../../../components/Tabs.jsx';
 import Icon from '../../../components/Icon.jsx';
-import { age } from '../../../core/format.js';
+import { age, date } from '../../../core/format.js';
 
 /**
  * Marcos do desenvolvimento.
@@ -35,11 +35,14 @@ const STATUS_META = {
 const MILESTONE_COVERAGE_MONTHS = Math.max(...MILESTONES.map((m) => m.idadeEsperada));
 const MILESTONE_LIMIT_MONTHS = Math.max(...MILESTONES.map((m) => m.idadeLimite));
 
-export function MilestonesView({ patient, milestones, reload, onGoToSection }) {
+export function MilestonesView({ patient, milestones, reload, onGoToSection, intent = null }) {
   const toast = useToast();
   const [domain, setDomain] = useState('all');
   const [saving, setSaving] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
+
+  // "Registrar marco" vindo de fora do painel: o registro é feito na grade.
+  useEffect(() => { if (intent?.create) setShowGrid(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const months = patient.dataNascimento ? age(patient.dataNascimento).totalMonths : null;
   // Acima da idade-limite do marco mais tardio, a grade não se aplica: os
@@ -129,6 +132,20 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection }) {
     return counts;
   }, [recorded, months]);
 
+  // Os registros que existem, o mais recente primeiro: é o que a contagem da
+  // pílula e o card da visão geral resumem, então é o que o painel abre.
+  const records = useMemo(() => {
+    const latest = new Map();
+    for (const m of milestones) {
+      const prev = latest.get(m.marcoId);
+      if (!prev || (m.observadoEm ?? '') > (prev.observadoEm ?? '')) latest.set(m.marcoId, m);
+    }
+    return [...latest.values()]
+      .filter((m) => m.status && m.status !== MILESTONE_STATUS.NOT_ASSESSED)
+      .filter((m) => domain === 'all' || (MILESTONES.find((c) => c.id === m.marcoId)?.dominio ?? m.dominio) === domain)
+      .sort((a, b) => (b.observadoEm ?? '').localeCompare(a.observadoEm ?? ''));
+  }, [milestones, domain]);
+
   const porAvaliar = MILESTONES.filter(pendenteDeAvaliacao);
   const alemDoLimite = porAvaliar.filter(passouDoLimite);
 
@@ -151,7 +168,22 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection }) {
         }
       />
       <CardBody>
-        {months != null && beyond && !showGrid ? (
+        {months != null && beyond && !showGrid && records.length ? (
+          <>
+            <MilestoneRecords records={records} />
+            <div className="milestone-alert milestone-alert--info">
+              <Icon name="info" size={15} />
+              <p>
+                <strong>A grade de marcos vai até {Math.floor(MILESTONE_LIMIT_MONTHS / 12)} anos e {MILESTONE_LIMIT_MONTHS % 12} meses.</strong>{' '}
+                Para {age(patient.dataNascimento).label}, o desenvolvimento se acompanha pelas escalas e instrumentos; a grade fica como histórico.
+              </p>
+            </div>
+            <div className="empty__actions milestone-records__actions">
+              <Button variant="secondary" onClick={() => setShowGrid(true)}>Ver a grade como histórico</Button>
+              {onGoToSection ? <Button variant="ghost" icon="clipboard" onClick={() => onGoToSection('escalas')}>Abrir escalas</Button> : null}
+            </div>
+          </>
+        ) : months != null && beyond && !showGrid ? (
           <EmptyState
             icon="baby"
             title={`A grade de marcos vai até ${Math.floor(MILESTONE_LIMIT_MONTHS / 12)} anos e ${MILESTONE_LIMIT_MONTHS % 12} meses`}
@@ -189,7 +221,10 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection }) {
                 <Icon name="info" size={15} />
                 <p>
                   <strong>Grade como histórico.</strong>{' '}
-                  Para {age(patient.dataNascimento).label} não há faixa esperada: nenhum marco sem registro é pendência, e "Atrasado 0" não quer dizer desenvolvimento em dia.
+                  Para {age(patient.dataNascimento).label} não há faixa esperada: nenhum marco sem registro é pendência.
+                  {summary.atrasado
+                    ? ` ${summary.atrasado === 1 ? 'O atrasado contado acima foi registrado' : `Os ${summary.atrasado} atrasados contados acima foram registrados`} assim por quem avaliou.`
+                    : ' "Atrasado 0" não quer dizer desenvolvimento em dia.'}
                 </p>
               </div>
             ) : null}
@@ -206,6 +241,8 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection }) {
                 </p>
               </div>
             ) : null}
+
+            {records.length ? <MilestoneRecords records={records} /> : null}
 
             <div className="milestone-grid">
               {Array.from(grouped.entries()).map(([band, items]) => (
@@ -254,6 +291,33 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection }) {
         )}
       </CardBody>
     </Card>
+  );
+}
+
+/** Lista dos registros: marco, domínio, estado e data — antes da grade. */
+function MilestoneRecords({ records }) {
+  return (
+    <section className="milestone-records" aria-label="Marcos registrados">
+      <h4 className="milestone-band__title">Registrados ({records.length})</h4>
+      <ul>
+        {records.map((m) => {
+          const meta = STATUS_META[m.status] ?? STATUS_META[MILESTONE_STATUS.NOT_ASSESSED];
+          const catalog = MILESTONES.find((c) => c.id === m.marcoId);
+          const dominio = catalog?.dominio ?? m.dominio;
+          return (
+            <li key={m.id} className={`milestone milestone--${meta.tone}`}>
+              <span className="milestone__mark" aria-hidden="true"><Icon name={meta.icon} size={12} /></span>
+              <span className="milestone__text">
+                <strong>{m.marco ?? catalog?.marco}</strong>
+                <span>
+                  {[DEVELOPMENT_DOMAIN_LABELS[dominio], meta.label, m.observadoEm ? date(m.observadoEm) : null].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

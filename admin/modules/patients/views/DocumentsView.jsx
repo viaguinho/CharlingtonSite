@@ -4,6 +4,7 @@ import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card
 import { Button, Chip, StatusDot } from '../../../components/primitives.jsx';
 import { DataTable } from '../../../components/DataTable.jsx';
 import { DocumentSheet } from '../../documents/DocumentSheet.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import Icon from '../../../components/Icon.jsx';
 import { date, dateTime, relative } from '../../../core/format.js';
 
@@ -115,7 +116,7 @@ export function DocumentsView({ patient, documents, appointments = [], onIssueDo
       <Card variant="flush">
         <CardHeader
           title="Documentos emitidos"
-          subtitle={rows.length ? `${rows.length} documentos` : undefined}
+          subtitle={`${rows.length} ${rows.length === 1 ? 'documento' : 'documentos'}`}
           actions={
             <Button size="sm" variant="primary" icon="plus" onClick={() => onIssueDocument({ patient })}>
               Emitir documento
@@ -145,6 +146,7 @@ export function DocumentsView({ patient, documents, appointments = [], onIssueDo
       <DocumentSheet
         document={viewing}
         patient={patient}
+        notice={<AllergyNotice patient={patient} hint="Confirme com o responsável antes de prescrever." />}
         onClose={() => setViewing(null)}
       />
     </>

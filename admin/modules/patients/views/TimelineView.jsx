@@ -1,5 +1,6 @@
 import { displayStatus, canReschedule } from '../../../core/appointments.js';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ORIGINS } from './AttachmentsView.jsx';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, Chip, CidCode } from '../../../components/primitives.jsx';
 import { Tabs } from '../../../components/Tabs.jsx';
@@ -38,7 +39,7 @@ const ICONS = {
   mensagem: 'message-circle',
 };
 
-export function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection }) {
+export function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection, focusId = null }) {
   const [filter, setFilter] = useState('all');
 
   const events = useMemo(() => {
@@ -70,7 +71,8 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
       ...attachments.map((a) => ({
         id: a.id, kind: 'exame', at: a.realizadoEm ?? a.criadoEm,
         title: a.titulo || a.nomeArquivo,
-        detail: a.origem,
+        // O rótulo do tipo, nunca a chave do banco ("exame_imagem").
+        detail: ORIGINS.find((o) => o.value === a.origem)?.label ?? 'Documento',
       })),
       ...scales.map((s) => ({
         id: s.id, kind: 'escala', at: s.aplicadaEm ?? s.criadoEm,
@@ -98,11 +100,30 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
 
   const grouped = useMemo(() => groupByMonth(events), [events]);
 
+  // Vindo da faixa de consultas do palco: rola até o atendimento clicado.
+  useEffect(() => {
+    if (!focusId) return;
+    const el = document.getElementById(`tl-consulta-${focusId}`);
+    if (!el) return;
+    // Dentro do painel, rola só o painel: scrollIntoView rolava também a
+    // página e levava o cabeçalho com a alergia para fora da tela.
+    const scroller = el.closest('.pr-panel');
+    if (!scroller) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    const box = scroller.getBoundingClientRect();
+    const head = scroller.querySelector('.pr-panel__head')?.offsetHeight ?? 0;
+    const at = el.getBoundingClientRect();
+    const visible = box.height - head;
+    scroller.scrollTo({
+      top: scroller.scrollTop + (at.top - box.top - head) - Math.max(0, (visible - at.height) / 2),
+      behavior: 'smooth',
+    });
+  }, [focusId]);
+
   return (
     <Card variant="flush">
       <CardHeader
         title="Linha do tempo"
-        subtitle={events.length ? `${events.length} registros` : undefined}
+        subtitle={events.length ? `${events.length} ${events.length === 1 ? 'registro' : 'registros'}` : undefined}
         actions={
           /* Filtro sobre conjunto vazio é ruído: seis abas para peneirar zero
              registros denunciam protótipo. Só aparecem quando há o que filtrar. */
@@ -119,7 +140,8 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
                 <h3 className="timeline__month">{month}</h3>
                 <ol className="timeline__list">
                   {items.map((event) => (
-                    <li key={`${event.kind}-${event.id}`} className="timeline__item">
+                    <li key={`${event.kind}-${event.id}`} id={`tl-${event.kind}-${event.id}`}
+                      className={`timeline__item ${focusId === event.id ? 'is-focused' : ''}`.trim()}>
                       <span className={`timeline__mark timeline__mark--${event.kind}`}>
                         <Icon name={ICONS[event.kind] ?? 'info'} size={13} />
                       </span>

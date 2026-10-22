@@ -23,7 +23,7 @@
      aurora atrás dele ainda tinge o fundo; o secundário desceu um degrau para
      manter 4,5:1 mesmo sobre a mancha mais clara. */
   --ink-400: #636468;   /* texto secundário — 4,93:1 no canvas novo */
-  --ink-300: #6e6e6e;   /* legendas e notas de rodapé — 4,56:1 no canvas */
+  --ink-300: #6a6a6a;   /* legendas e notas de rodapé — 4,74:1 no canvas (#6e6e6e media 4,47 e reprovava; corrigido em 20/10) */
   --ink-200: #a9aaad;   /* placeholder e traço de gráfico — só não-texto */
   --ink-100: #dcdde0;
 
@@ -73,7 +73,7 @@
 
   --signal-amber: #f1b31c;
   --signal-amber-bg: rgba(241, 179, 28, .12);
-  --signal-amber-ink: #855f00;  /* 4,83:1 no banner âmbar; era #9a6f04, 3,78:1 */
+  --signal-amber-ink: #765400;  /* 5,4:1 no chip âmbar sobre vidro cinza; era #855f00 (4,44:1 medido no chip de Consentimentos) */
 
   --signal-red: #ea4e3d;
   --signal-red-bg: rgba(234, 78, 61, .10);
@@ -118,10 +118,11 @@
      corpo (13px); o que era secundário se distingue por cor e peso, não por
      um pixel a menos. `small`, `caption` e `base` ficam como apelidos para não
      espalhar a mudança por cada folha de estilo.
-       micro 10 · corpo 13 · título 20 (título de página, número secundário da faixa de KPIs e iniciais do avatar grande)
-       identidade do paciente no prontuário 27 · número dominante 48
-     O título de página fica em 20: ele orienta, não informa, e em 27 era o
-     maior elemento da dobra acima do número que responde à tela. */
+       Valores atuais (redesign Urbanist de 14/10): micro 11 · corpo 14 ·
+       título 22 · página 32 · número dominante 52. `h2` 28 e `display` 40
+       são exceções de tela única (Visão geral), fora da cota das demais.
+     O título de página orienta, não informa: ele não pode ser maior que o
+     número que responde à tela. */
   /* micro: só apoio — eixo e rótulo de valor sobre barra, contagem de
      filtro, sobrelinha. Nunca a informação principal de um bloco, e nunca o
      que qualifica um número (nota sob KPI, nota de gráfico, data de item de
@@ -263,7 +264,6 @@
   --liquid-back: rgba(0, 0, 0, 0);
   --liquid-tint: #cfe4ff;
 
-  /* ———————————————————————————————— Movimento ——————————————————————————————— */
   /* ——————————— Relatórios: neutro + azul (redesign de 16/10) ———————————
      Referência "Modern CRM Analytics": canvas cinza liso, cards um tom acima,
      sem sombra; o acento é o azul da marca no lugar do lima. Nova direção do
@@ -292,6 +292,7 @@
   --rp-radius: 28px;
   --rp-radius-sm: 18px;
 
+  /* ———————————————————————————————— Movimento ——————————————————————————————— */
   --dur-1: 120ms;
   --dur-2: 200ms;
   --dur-3: 320ms;
@@ -329,6 +330,111 @@
   --z-modal: 400;
   --z-popover: 500;
   --z-toast: 600;
+
+  /* ———————————— Pasta de vidro (GlassFolder) — tom claro apenas ————————————
+     Cores e sombras do componente admin/components/GlassFolder.tsx. As quatro
+     receitas de arte (azul, gelo, profundo, grafite) são lidas em tempo de
+     execução pelo canvas: sete paradas por receita, do mais escuro ao mais
+     claro conforme o desenho de cada uma. */
+  --gf-art-azul-1: #eaf3fd; --gf-art-azul-2: #cfe4fb; --gf-art-azul-3: #9fc9f7;
+  --gf-art-azul-4: #5ba4f0; --gf-art-azul-5: #0071e3; --gf-art-azul-6: #7fb6f3;
+  --gf-art-azul-7: #f2f8ff;
+  --gf-art-gelo-1: #f7f9fc; --gf-art-gelo-2: #e3ebf3; --gf-art-gelo-3: #c5d3e0;
+  --gf-art-gelo-4: #eef3f8; --gf-art-gelo-5: #d3dfea; --gf-art-gelo-6: #ffffff;
+  --gf-art-profundo-1: #050b16; --gf-art-profundo-2: #0b2145; --gf-art-profundo-3: #00458c;
+  --gf-art-profundo-4: #0a1424; --gf-art-profundo-5: #0071e3; --gf-art-profundo-6: #5ba4f0;
+  --gf-art-profundo-7: #cfe4fb;
+  --gf-art-grafite-1: #0b0c0e; --gf-art-grafite-2: #2a2c30; --gf-art-grafite-3: #6b6c6f;
+  --gf-art-grafite-4: #17181a; --gf-art-grafite-5: #55565a; --gf-art-grafite-6: #a9aaad;
+  --gf-art-grafite-7: #e6e7ea;
+  --gf-ink: var(--ink-900);
+  --gf-ink-soft: var(--ink-400);
+  --gf-white: #ffffff;
+  --gf-focus: var(--blue-500);
+  --gf-shadow: rgba(14, 22, 36, .42);
+  --gf-edge: rgba(15, 16, 18, .08);   /* linha de borda fina de tinta */
+  --gf-back-from: #e4e8ee;   /* cinza frio um tom abaixo do card branco */
+  --gf-back-to: #d6dce5;
+  --gf-sheen-top: rgba(255, 255, 255, .22);
+  --gf-sheen-corner: rgba(255, 255, 255, .16);
+  --gf-rim-back: rgba(255, 255, 255, .45);
+  --gf-sheet-from: #ffffff;
+  --gf-sheet-to: #f2f2f0;
+  --gf-sheet-art-bg: #1a1a1d;
+  --gf-sheet-edge: rgba(0, 0, 0, .1);
+  --gf-sheet-hi: rgba(255, 255, 255, .9);
+  --gf-sheet-shadow: rgba(10, 12, 20, .28);
+  --gf-sheet-shadow-up: rgba(10, 12, 20, .42);
+  --gf-sheet-ink: #18181b;
+  --gf-sheet-ink-soft: rgba(24, 24, 27, .5);
+  --gf-sheet-on-art: #fafafa;
+  --gf-sheet-on-art-soft: rgba(250, 250, 250, .66);
+  --gf-sheet-art-fade: rgba(0, 0, 0, .42);
+  --gf-sheet-art-edge: rgba(255, 255, 255, .2);
+  --gf-line: rgba(24, 24, 27, .08);
+  --gf-line-strong: rgba(24, 24, 27, .14);
+  --gf-tint-top: rgba(236, 241, 248, .70);   /* vidro denso, frio e levemente azulado (base --blue-050) */
+  --gf-tint-mid: rgba(228, 235, 245, .88);
+  --gf-tint-bottom: rgba(218, 227, 239, .97);
+  --gf-spec: rgba(255, 255, 255, .55);
+  --gf-key-1: #3a3a3f; --gf-key-2: #121214; --gf-key-3: #050506;
+  --gf-key-hi: rgba(255, 255, 255, .22);
+  --gf-key-inset: rgba(0, 0, 0, .7);
+  --gf-key-ring: rgba(0, 0, 0, .75);
+  --gf-key-drop: rgba(0, 0, 0, .55);
+  --gf-key-drop-soft: rgba(0, 0, 0, .35);
+  --gf-more-from: rgba(255, 255, 255, .92);
+  --gf-more-to: rgba(226, 226, 230, .82);
+  --gf-more-inset: rgba(0, 0, 0, .06);
+  --gf-more-ring: rgba(0, 0, 0, .16);
+  --gf-more-drop: rgba(0, 0, 0, .3);
+  --gf-menu-bg: rgba(252, 252, 253, .72);
+  --gf-menu-ring: rgba(0, 0, 0, .14);
+  --gf-menu-drop: rgba(10, 12, 20, .4);
+  --gf-menu-hover: rgba(24, 24, 27, .07);
+  --gf-menu-danger: var(--signal-red-ink);
+
+  /* ————————————— Prontuário (redesign Quantis, 20/10/2026) —————————————
+     A página do paciente: palco anatômico ao centro, colunas de vidro dos
+     lados. A matriz de pontos existe só dentro do palco: é a mesa de exame
+     do modelo, não papel de parede. */
+  --pr-dot: rgba(15, 16, 18, .10);   /* legível sobre o granulado do fundo */
+  --pr-dot-step: 22px;
+  --pr-stage-veil: rgba(238, 240, 243, .55);   /* palco atrás do painel de seção */
+  --pr-panel: rgba(250, 250, 252, .84);
+  --pr-panel-glass: rgba(255, 255, 255, .55);   /* painel de seção sobre o palco: o busto desfocado aparece por baixo */
+  --pr-tick-none: var(--ink-200);
+  --pr-band-low: rgba(39, 196, 98, .10);
+  --pr-band-mid: rgba(241, 179, 28, .14);
+  --pr-band-high: rgba(234, 78, 61, .10);
+  --pr-band-none: var(--ink-a04);
+
+  /* ——————————— Anatomia — exceção de cor registrada em 20/10/2026 ———————————
+     Só dentro do modelo 3D cada estrutura acende na cor anatômica. Fora do
+     palco, vermelho/âmbar/verde continuam sendo sinal. Tudo puxado da paleta. */
+  --anat-line: rgba(15, 16, 18, .16);         /* plexo em repouso */
+  --anat-node: rgba(15, 16, 18, .34);         /* vértices do plexo */
+  --anat-brain-rest: rgba(0, 69, 140, .26);   /* cérebro em repouso: um degrau mais denso, azulado */
+  --anat-dim: rgba(15, 16, 18, .07);          /* vizinhas quando outra estrutura está em foco */
+  --anat-frontal: var(--blue-500);
+  --anat-parietal: var(--blue-300);
+  --anat-temporal: var(--blue-600);
+  --anat-occipital: var(--blue-200);
+  --anat-insula: var(--blue-700);
+  --anat-limbico: var(--seq-2);
+  --anat-hipocampo: var(--seq-4);
+  --anat-amigdala: var(--seq-5);
+  --anat-nucleos: var(--seq-3);
+  --anat-talamo: var(--seq-2);
+  --anat-caloso: var(--blue-100);
+  --anat-liquor: var(--blue-100);
+  --anat-cerebelo: var(--seq-4);
+  --anat-tronco: var(--seq-5);
+  --anat-osso: var(--ink-600);
+  --anat-medula: var(--blue-300);
+  --anat-coracao: var(--signal-red);
+  --anat-arteria: var(--signal-red-ink);
+  --anat-nervo: var(--signal-amber);
 }
 
 /* O painel é uma ferramenta clínica de uso diurno em consultório e assume

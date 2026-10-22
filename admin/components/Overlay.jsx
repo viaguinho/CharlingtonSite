@@ -12,6 +12,11 @@ import { useSession } from '../core/session.jsx';
 function useFocusTrap(active, onEscape) {
   const ref = useRef(null);
   const previouslyFocused = useRef(null);
+  // O Esc lê a função mais recente pela ref: com ela nas dependências, cada
+  // render do pai (que passa uma função nova) refazia o efeito e o foco
+  // voltava ao primeiro controle no meio do uso.
+  const escapeRef = useRef(onEscape);
+  escapeRef.current = onEscape;
 
   useEffect(() => {
     if (!active) return undefined;
@@ -26,7 +31,7 @@ function useFocusTrap(active, onEscape) {
     (node?.querySelector(':is(.modal__body, .sheet__body) :is(input, select, textarea):not(:disabled)') ?? focusables()[0])?.focus();
 
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') { event.stopPropagation(); onEscape?.(); return; }
+      if (event.key === 'Escape') { event.stopPropagation(); escapeRef.current?.(); return; }
       if (event.key !== 'Tab') return;
       const items = focusables();
       if (!items.length) return;
@@ -45,7 +50,7 @@ function useFocusTrap(active, onEscape) {
       document.body.style.overflow = previousOverflow;
       previouslyFocused.current?.focus?.();
     };
-  }, [active, onEscape]);
+  }, [active]);
 
   return ref;
 }

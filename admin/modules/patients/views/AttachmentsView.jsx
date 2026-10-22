@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
 import { sha256, uuid } from '../../../core/crypto.js';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, IconButton } from '../../../components/primitives.jsx';
 import { Modal, ConfirmDialog, useToast } from '../../../components/Overlay.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import { TextField, Select, TextArea } from '../../../components/Field.jsx';
 import Icon from '../../../components/Icon.jsx';
 import { date, fileSize, isoDay } from '../../../core/format.js';
@@ -30,7 +31,7 @@ const ACCEPTED = {
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
-const ORIGINS = [
+export const ORIGINS = [
   { value: 'exame_imagem', label: 'Exame de imagem (RM, TC, US)' },
   { value: 'exame_neurofisiologico', label: 'Exame neurofisiológico (EEG, polissonografia)' },
   { value: 'exame_laboratorial', label: 'Exame laboratorial' },
@@ -42,13 +43,33 @@ const ORIGINS = [
   { value: 'outro', label: 'Outro documento' },
 ];
 
-export function AttachmentsView({ patient, attachments, reload }) {
+export function AttachmentsView({ patient, attachments, reload, intent = null }) {
   const toast = useToast();
   const inputRef = useRef(null);
   const [pending, setPending] = useState(null);
   const [preview, setPreview] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [dragging, setDragging] = useState(false);
+  // Vindo das pastas da visão geral: enviar já com o tipo, abrir um arquivo
+  // ou mostrar só um grupo de origens.
+  const [presetOrigin, setPresetOrigin] = useState(null);
+  const [filter, setFilter] = useState(intent?.filter ?? null);
+
+  // Em StrictMode o efeito roda duas vezes: o mesmo pedido não pode abrir
+  // dois envios nem dois avisos.
+  const handled = useRef(null);
+  useEffect(() => {
+    if (!intent || handled.current === intent.nonce) return;
+    handled.current = intent.nonce;
+    if ('upload' in intent) {
+      setPresetOrigin(intent.upload);
+      inputRef.current?.click();
+    }
+    if (intent.preview) open(intent.preview);
+    setFilter(intent.filter ?? null);
+    // `nonce` muda a cada pedido; o resto do objeto é o pedido em si.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent?.nonce]);
 
   async function handleFiles(files) {
     const file = files?.[0];
@@ -70,7 +91,7 @@ export function AttachmentsView({ patient, attachments, reload }) {
       file, buffer,
       contentType: kind.type,
       titulo: file.name.replace(/\.[^.]+$/, ''),
-      origem: 'exame_imagem',
+      origem: presetOrigin ?? 'exame_imagem',
       realizadoEm: isoDay(),
       observacoes: '',
     });
@@ -106,13 +127,18 @@ export function AttachmentsView({ patient, attachments, reload }) {
   }
 
   async function open(attachment) {
+    if (!attachment.blobId) {
+      toast.error('Arquivo indisponível: este registro não tem o arquivo guardado.');
+      return;
+    }
     try {
       const buffer = await repo.getBlob(attachment.blobId);
       if (!buffer) { toast.error('Arquivo não encontrado no armazenamento.'); return; }
       const blob = new Blob([buffer], { type: attachment.contentType });
       setPreview({ attachment, url: URL.createObjectURL(blob) });
     } catch (error) {
-      toast.error(error.message);
+      // Mensagem do navegador (em inglês, técnica) não vai para a tela.
+      toast.error('Não foi possível abrir o arquivo. Tente de novo; se persistir, envie-o outra vez.');
     }
   }
 
@@ -132,7 +158,7 @@ export function AttachmentsView({ patient, attachments, reload }) {
       <Card variant="flush">
         <CardHeader
           title="Exames e pareceres"
-          subtitle={attachments.length ? `${attachments.length} arquivos` : undefined}
+          subtitle={attachments.length ? `${attachments.length} ${attachments.length === 1 ? 'arquivo' : 'arquivos'}` : undefined}
           actions={<Button size="sm" variant="primary" icon="upload" onClick={() => inputRef.current?.click()}>Anexar arquivo</Button>}
         />
         <CardBody>
@@ -155,9 +181,17 @@ export function AttachmentsView({ patient, attachments, reload }) {
             <span>PDF, JPG, PNG ou WebP · até 25 MB · cifrado em repouso</span>
           </div>
 
+          {filter ? (
+            <p className="attachments__filter">
+              Mostrando só: {ORIGINS.filter((o) => filter.includes(o.value)).map((o) => o.label).join(', ')}
+              <button type="button" onClick={() => setFilter(null)}>Mostrar todos</button>
+            </p>
+          ) : null}
+
           {attachments.length ? (
             <ul className="attachments">
               {attachments
+                .filter((a) => !filter || filter.includes(a.origem))
                 .sort((a, b) => (b.realizadoEm ?? b.criadoEm).localeCompare(a.realizadoEm ?? a.criadoEm))
                 .map((attachment) => (
                   <li key={attachment.id}>
@@ -242,6 +276,8 @@ export function AttachmentsView({ patient, attachments, reload }) {
         title={preview?.attachment.titulo}
         description={preview ? `${date(preview.attachment.realizadoEm)} · ${fileSize(preview.attachment.tamanho)}` : ''}
       >
+        {/* A prévia cobre as pílulas de alerta: a alergia vem junto (guia §0.6). */}
+        {preview ? <AllergyNotice patient={patient} /> : null}
         {preview ? (
           preview.attachment.contentType === 'application/pdf'
             ? <iframe title={preview.attachment.titulo} src={preview.url} className="attachment-preview" />

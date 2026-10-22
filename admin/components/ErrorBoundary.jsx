@@ -41,6 +41,8 @@ export default class ErrorBoundary extends Component {
   render() {
     const { error } = this.state;
     if (!error) return this.props.children;
+    // Quem pede um substituto próprio (o palco 3D) segue sem o card de erro.
+    if (this.props.fallback) return this.props.fallback;
 
     return (
       <Card>

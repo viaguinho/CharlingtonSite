@@ -393,7 +393,7 @@ export function PatientForm({ open, onClose, onSaved, patient: existing }) {
           />
           <ChipListField
             label="Alergias"
-            hint="Aparecem em destaque vermelho no painel de contexto do prontuário."
+            hint="Aparecem em destaque vermelho no topo do prontuário e de cada seção."
             values={data.clinico.alergias}
             onChange={(list) => set('clinico.alergias')(list)}
             placeholder="Adicionar alergia e pressionar Enter"

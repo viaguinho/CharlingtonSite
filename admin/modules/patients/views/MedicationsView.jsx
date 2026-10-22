@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
@@ -6,6 +6,7 @@ import { Button, IconButton } from '../../../components/primitives.jsx';
 import { TextField, TextArea, FieldRow } from '../../../components/Field.jsx';
 import { Modal, useToast } from '../../../components/Overlay.jsx';
 import Icon from '../../../components/Icon.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import { date, relative, isoDay } from '../../../core/format.js';
 
 /**
@@ -16,9 +17,12 @@ import { date, relative, isoDay } from '../../../core/format.js';
  * sistema de suporte à decisão: avisa, não bloqueia, e a responsabilidade
  * clínica continua sendo do médico.
  */
-export function MedicationsView({ patient, medications, reload }) {
+export function MedicationsView({ patient, medications, reload, intent = null }) {
   const [composing, setComposing] = useState(false);
   const [suspending, setSuspending] = useState(null);
+
+  // Vindo de "Registrar medicação" fora do painel: o formulário já abre.
+  useEffect(() => { if (intent?.create) setComposing(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { active, past } = useMemo(() => ({
     active: medications
@@ -102,7 +106,7 @@ export function MedicationsView({ patient, medications, reload }) {
             <EmptyState
               icon="pill"
               title="Nenhuma medicação registrada"
-              description="Registre o que a criança usa para que apareça no painel de contexto durante a consulta e nas prescrições."
+              description="Confirme com o responsável antes de prescrever. O que for registrado aqui aparece na visão geral do prontuário e nas prescrições."
               action={<Button size="sm" icon="plus" onClick={() => setComposing(true)}>Registrar medicação</Button>}
             />
           )}
@@ -173,6 +177,7 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
       }
     >
       <div className="med-form">
+        <AllergyNotice patient={patient} typed={`${form.principioAtivo} ${form.nome}`} hint="Confirme com o responsável antes de prescrever." />
         <FieldRow>
           <TextField label="Princípio ativo" required autoFocus value={form.principioAtivo} onChange={set('principioAtivo')} />
           <TextField label="Nome comercial" value={form.nome} onChange={set('nome')} />

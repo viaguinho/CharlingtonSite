@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
 import { SCALES, SCALE_DOMAIN_LABELS, findScale, interpretScore, scalesForAge } from '../../../data/scales.js';
@@ -7,6 +7,7 @@ import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card
 import { Button, Chip } from '../../../components/primitives.jsx';
 import { Select, TextField, TextArea, FieldRow } from '../../../components/Field.jsx';
 import { Modal, useToast } from '../../../components/Overlay.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import { RulerScale, LineChart } from '../../../charts/index.jsx';
 import Icon from '../../../components/Icon.jsx';
 import { date, relative, age, isoDay } from '../../../core/format.js';
@@ -19,9 +20,12 @@ import { date, relative, age, isoDay } from '../../../core/format.js';
  * (linha). Um escore isolado diz pouco; o que importa em neuropediatria é a
  * trajetória.
  */
-export function ScalesView({ patient, scales, reload }) {
+export function ScalesView({ patient, scales, reload, intent = null }) {
   const [applying, setApplying] = useState(false);
   const [instrument, setInstrument] = useState(null);
+
+  // "Aplicar escala" da visão geral chega aqui pedindo o formulário aberto.
+  useEffect(() => { if (intent?.create) setApplying(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const byInstrument = useMemo(() => {
     const map = new Map();
@@ -43,7 +47,7 @@ export function ScalesView({ patient, scales, reload }) {
       <Card variant="flush">
         <CardHeader
           title="Escalas e instrumentos"
-          subtitle={scales.length ? `${byInstrument.size} instrumentos aplicados` : undefined}
+          subtitle={scales.length ? `${byInstrument.size} ${byInstrument.size === 1 ? 'instrumento aplicado' : 'instrumentos aplicados'}` : undefined}
           actions={<Button size="sm" variant="primary" icon="plus" onClick={() => setApplying(true)}>Registrar aplicação</Button>}
         />
         <CardBody>
@@ -197,6 +201,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
       }
     >
       <div className="scale-form">
+        <AllergyNotice patient={patient} />
         <Select
           label="Instrumento" required value={scaleId}
           onChange={(e) => { setScaleId(e.target.value); setScore(''); }}

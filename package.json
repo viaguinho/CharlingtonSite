@@ -6,6 +6,7 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "dev:admin": "vite --open /admin.html",
     "build": "npm run check:security && vite build",
     "check:security": "node scripts/check-secrets.mjs",
     "check:security:legacy": "node scripts/check-secrets.mjs legacy/admin-v1"

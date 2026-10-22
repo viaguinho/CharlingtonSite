@@ -124,6 +124,8 @@ async function session(route, { w = 1280, h = 800, live = false } = {}) {
   await send('Page.enable');
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+  // Celular (≤ 480): ponteiro de toque, para as regras `pointer: coarse` valerem na captura.
+  await send('Emulation.setTouchEmulationEnabled', { enabled: w <= 480, maxTouchPoints: w <= 480 ? 5 : 1 });
   await send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await send('Page.navigate', { url: `${BASE}${route}` });
   await sleep(2500);

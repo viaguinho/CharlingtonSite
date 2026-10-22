@@ -12,6 +12,9 @@
 @import './components/auth.css';
 @import './components/setup.css';
 @import './components/patients.css';
+@import './components/glass-folder.css';
+@import './components/patient-record.css';
+@import './components/anatomy.css';
 @import './components/documents.css';
 @import './components/modules.css';
 @import './components/agenda-panel.css';

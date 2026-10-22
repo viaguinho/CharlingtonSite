@@ -28,7 +28,8 @@ import { date, dateLong, age } from '../../core/format.js';
  * servido a qualquer visitante.
  */
 
-export function ClinicalDocumentModal({ open, patient, guardians = [], appointment, initialType, onClose, onIssued }) {
+// `notice`: faixa opcional acima do editor e da folha (o prontuário passa a alergia).
+export function ClinicalDocumentModal({ open, patient, guardians = [], appointment, initialType, notice = null, onClose, onIssued }) {
   const { user, plaza, requireStepUp } = useSession();
   const toast = useToast();
 
@@ -202,6 +203,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
         </>
       }
     >
+      {notice ? <div className="doc-notice">{notice}</div> : null}
       <div className="doc-split">
         {/* ═══════════ Editor ═══════════ */}
         <section className="doc-editor" aria-label="Editor do documento">

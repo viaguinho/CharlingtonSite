@@ -1,0 +1,302 @@
+/* ==========================================================================
+   Pasta de vidro — GlassFolder (admin/components/GlassFolder.tsx)
+   Só o tom claro. Cores, sombras e raios vêm de tokens.css (--gf-*).
+   ========================================================================== */
+.gf-root {
+  --gf-px: 0;
+  --gf-py: 0;
+  --gf-ease: var(--ease);
+  --gf-spring: cubic-bezier(.34, 1.36, .5, 1);
+  --gf-hinge: 0deg;
+  --gf-lift: 42px;
+  --gf-spread: 0px;
+  --gf-fan: 0deg;
+  --gf-stack: 15px;
+  --gf-k: 1; /* largura / 340, escrita pelo componente: o texto lê o tamanho real depois da escala */
+  position: relative;
+  display: inline-block;
+  flex: none;
+  vertical-align: top;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  isolation: isolate;
+  container-type: inline-size; /* tamanho do rótulo por faixa de largura (o palco é escalado) */
+}
+.gf-root:hover, .gf-root:focus-within { --gf-hinge: -11deg; --gf-lift: -34px; --gf-spread: 8px; --gf-fan: 1.4deg; --gf-stack: 10px; }
+.gf-root[data-open] { --gf-hinge: -24deg; --gf-lift: -96px; --gf-spread: 40px; --gf-fan: 5deg; --gf-stack: 30px; }
+
+.gf-stage { position: absolute; left: 0; top: 0; width: 340px; height: 272px; transform-origin: 0 0; }
+.gf-tilt {
+  position: absolute; inset: 0;
+  transform: perspective(1400px) rotateX(calc(var(--gf-py) * -3deg)) rotateY(calc(var(--gf-px) * 4deg));
+  transition: transform .9s var(--gf-ease);
+}
+.gf-shadow {
+  position: absolute; left: 14px; right: 14px; bottom: -4px; height: 34px; border-radius: 50%;
+  background: var(--gf-shadow); filter: blur(12px);
+  transform: translateX(calc(var(--gf-px) * -8px));
+  transition: transform .9s var(--gf-ease), opacity .9s var(--gf-ease);
+}
+.gf-back { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(180deg, var(--gf-back-from) 0%, var(--gf-back-to) 100%); }
+.gf-art {
+  position: absolute; left: -12px; top: -12px; max-width: none; object-fit: cover;
+  transform: translate(calc(var(--gf-px) * -7px), calc(var(--gf-py) * -6px)) scale(1.02);
+  transition: transform 1.1s var(--gf-ease), opacity 1.2s var(--gf-ease), filter 1.2s var(--gf-ease);
+}
+canvas.gf-art { opacity: 0; filter: blur(14px) saturate(.6); }
+canvas.gf-art[data-ready] { opacity: 1; filter: none; }
+.gf-back-sheen {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, var(--gf-sheen-top) 0%, transparent 22%),
+    radial-gradient(120% 80% at 80% 0%, var(--gf-sheen-corner), transparent 60%);
+  pointer-events: none;
+}
+.gf-rim { position: absolute; left: 0; top: 0; max-width: none; overflow: visible; pointer-events: none; fill: none; }
+.gf-back-rim { width: 340px; height: 272px; }
+.gf-back-rim path { stroke: var(--gf-edge); stroke-width: 2; }
+
+.gf-files {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  /* As folhas moram no bolso: só aparece o que está acima da borda da frente
+     de vidro (aba e recorte inclusos). Nenhuma folha cruza o vidro. */
+  clip-path: path('M-400 -400H740V300H340V128A22 22 0 0 0 318 106H172C146 106 144 74 118 74H22A22 22 0 0 0 0 96V300H-400Z');
+}
+.gf-sheet-slot { display: contents; }
+.gf-sheet {
+  all: unset; box-sizing: border-box; position: absolute; left: 34px; top: 96px; width: 272px; height: 184px;
+  border-radius: var(--r-md); overflow: hidden; cursor: pointer; pointer-events: auto;
+  background: linear-gradient(180deg, var(--gf-sheet-from) 0%, var(--gf-sheet-to) 100%);
+  box-shadow: inset 0 1px 0 var(--gf-sheet-hi), 0 0 0 .5px var(--gf-sheet-edge), 0 10px 26px -8px var(--gf-sheet-shadow);
+  transform-origin: 50% 100%;
+  transform:
+    translate(calc(var(--gf-jx) + var(--gf-slot) * var(--gf-spread)), calc(var(--gf-lift) + var(--gf-depth) * var(--gf-stack) * -1))
+    rotate(calc(var(--gf-jr) + var(--gf-slot) * var(--gf-fan)));
+  transition:
+    transform .75s var(--gf-spring) calc(var(--gf-depth) * 40ms),
+    box-shadow .4s var(--gf-ease),
+    translate .9s var(--gf-ease),
+    opacity .9s var(--gf-ease);
+}
+.gf-sheet--art { background: var(--gf-sheet-art-bg); }
+.gf-root[data-open] .gf-sheet:hover,
+.gf-root[data-open] .gf-sheet:focus-visible {
+  transform:
+    translate(calc(var(--gf-jx) + var(--gf-slot) * var(--gf-spread)), calc(var(--gf-lift) + var(--gf-depth) * var(--gf-stack) * -1 - 18px))
+    rotate(calc(var(--gf-slot) * var(--gf-fan) * .6));
+  box-shadow: inset 0 1px 0 var(--gf-sheet-hi), 0 0 0 .5px var(--gf-sheet-edge), 0 22px 40px -12px var(--gf-sheet-shadow-up);
+  transition-delay: 0s;
+}
+.gf-sheet:focus-visible { outline: 2px solid var(--gf-focus); outline-offset: 2px; }
+.gf-sheet-art {
+  position: absolute; left: 0; top: 0; width: 272px; height: 184px; max-width: none; object-fit: cover;
+  transition: opacity .9s var(--gf-ease), filter .9s var(--gf-ease);
+}
+canvas.gf-sheet-art { opacity: 0; filter: blur(10px); }
+canvas.gf-sheet-art[data-ready] { opacity: 1; filter: none; }
+.gf-sheet--art::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, var(--gf-sheet-art-fade) 0%, transparent 34%);
+  box-shadow: inset 0 0 0 1px var(--gf-sheet-art-edge);
+  pointer-events: none;
+}
+.gf-sheet-head {
+  position: absolute; left: 14px; right: 14px; top: 11px; z-index: 1;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; white-space: nowrap;
+}
+.gf-sheet-name { overflow: hidden; text-overflow: ellipsis; font-size: calc(var(--t-body) / var(--gf-k)); font-weight: var(--w-semibold); letter-spacing: -.005em; color: var(--gf-sheet-ink); }
+.gf-sheet-meta {
+  flex: none; font-family: var(--font); font-variant-numeric: tabular-nums;
+  font-size: calc(var(--t-body) / var(--gf-k)); letter-spacing: 0; color: var(--ink-400);
+}
+/* Em repouso as folhas se sobrepõem em degraus menores que o texto: o nome só aparece com a pasta aberta. */
+.gf-root:not([data-open]) .gf-sheet-head { opacity: 0; }
+.gf-sheet-head { transition: opacity .3s var(--gf-ease); }
+.gf-sheet--art .gf-sheet-name { color: var(--gf-sheet-on-art); }
+.gf-sheet--art .gf-sheet-meta { color: var(--gf-sheet-on-art-soft); }
+/* Folha sem miniatura (PDF): papel com orelha dobrada e linhas de texto que
+   começam no topo — em repouso só o topo da folha aparece acima do vidro, e
+   ela precisa ler como documento, não como retângulo branco. Aberta, as
+   linhas descem para o título e a data caberem. */
+.gf-lines { position: absolute; left: 18px; right: 46px; top: 14px; display: flex; flex-direction: column; gap: 8px; transition: top .3s var(--gf-ease); }
+.gf-lines i { display: block; height: 7px; border-radius: var(--r-pill); background: var(--gf-line-strong); }
+.gf-lines i:first-child { height: 12px; width: 48% !important; margin-bottom: 2px; background: var(--gf-sheet-ink-soft); }
+.gf-root[data-open] .gf-lines { top: 44px; right: 18px; }
+.gf-sheet:not(.gf-sheet--art)::before {
+  content: ""; position: absolute; top: 0; right: 0; width: 30px; height: 30px;
+  background: linear-gradient(225deg, var(--gf-back-to) 0 50%, var(--gf-sheet-to) 50% 100%);
+  border-bottom-left-radius: var(--r-xs);
+  box-shadow: -1px 1px 0 var(--gf-sheet-edge);
+}
+
+.gf-sheet--drop { animation: gf-drop .85s var(--gf-ease) both; }
+@keyframes gf-drop {
+  0% { translate: 0 -190px; rotate: -9deg; opacity: 0; }
+  35% { opacity: 1; }
+  72% { translate: 0 10px; rotate: 1deg; }
+  100% { translate: 0 0; rotate: 0deg; opacity: 1; }
+}
+
+.gf-front {
+  position: absolute; left: 0; top: 74px; width: 340px; height: 198px; z-index: 2;
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  backdrop-filter: blur(22px) saturate(1.5);
+  transform-origin: 50% 100%;
+  transform: perspective(760px) rotateX(var(--gf-hinge));
+  transition: transform .8s var(--gf-spring), translate 1s var(--gf-ease), opacity 1s var(--gf-ease);
+}
+.gf-front--bump { animation: gf-bump .7s var(--gf-ease) .38s both; }
+@keyframes gf-bump {
+  0% { scale: 1; }
+  35% { scale: 1.018 .975; }
+  70% { scale: .996 1.006; }
+  100% { scale: 1; }
+}
+.gf-tint {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, var(--gf-tint-top) 0%, var(--gf-tint-mid) 42%, var(--gf-tint-bottom) 100%);
+}
+.gf-spec {
+  position: absolute; inset: 0;
+  background: radial-gradient(260px 200px at calc(50% + var(--gf-px) * 46%) calc(30% + var(--gf-py) * 40%), var(--gf-spec), transparent 70%);
+  mix-blend-mode: soft-light; opacity: .9;
+  transition: background-position .6s var(--gf-ease);
+  pointer-events: none;
+}
+.gf-front-rim { width: 340px; height: 198px; }
+.gf-front-rim path { stroke-width: 2.4; filter: drop-shadow(0 0 1px var(--gf-edge)); transition: stroke-width .3s var(--gf-ease); }
+
+.gf-hit { all: unset; position: absolute; inset: 0; z-index: 1; cursor: pointer; }
+.gf-root:has(.gf-hit:focus-visible) .gf-label .gf-title { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.gf-front:has(.gf-hit:focus-visible) .gf-front-rim path { stroke-width: 5; }
+
+/* Rótulo fora do palco escalado (coordenadas da raiz = palco × --gf-k):
+   tamanho real da escala de tipo, sempre visível. */
+.gf-label {
+  position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 2px;
+  max-width: calc(100% - 28px * var(--gf-k) - 52px);
+  pointer-events: none; color: var(--gf-ink);
+}
+.gf-root[data-place="bottom-left"] .gf-label { left: calc(28px * var(--gf-k)); bottom: calc(32px * var(--gf-k)); }
+.gf-root[data-place="top-left"] .gf-label { left: calc(28px * var(--gf-k)); top: calc((120px + 34px) * var(--gf-k)); }
+.gf-root[data-place="top-right"] .gf-label { right: calc(32px * var(--gf-k)); top: calc((120px + 52px) * var(--gf-k)); align-items: flex-start; }
+.gf-title {
+  font-size: var(--t-body); font-weight: var(--w-medium); line-height: var(--lh-body); letter-spacing: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gf-meta {
+  font-family: var(--font); font-variant-numeric: tabular-nums;
+  font-size: var(--t-body); letter-spacing: 0; color: var(--gf-ink-soft); white-space: nowrap;
+  animation: gf-roll .5s var(--gf-ease) both;
+}
+@keyframes gf-roll {
+  from { opacity: 0; translate: 0 7px; filter: blur(3px); }
+  to { opacity: 1; translate: 0 0; filter: blur(0); }
+}
+
+.gf-key {
+  all: unset; box-sizing: border-box; position: absolute; right: 22px; bottom: 22px; z-index: 3;
+  width: 58px; height: 58px; border-radius: var(--r-md); display: grid; place-items: center; cursor: pointer;
+  transition: transform .35s var(--gf-spring), box-shadow .35s var(--gf-ease), background .35s var(--gf-ease);
+}
+.gf-key:hover { transform: translateY(-2px); }
+.gf-key:active { transform: translateY(0) scale(.93); transition-duration: .12s; }
+.gf-key:focus-visible { outline: 2px solid var(--gf-focus); outline-offset: 3px; }
+.gf-key--more {
+  color: var(--gf-ink);
+  background: linear-gradient(180deg, var(--gf-more-from) 0%, var(--gf-more-to) 100%);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 var(--gf-white), inset 0 -2px 4px var(--gf-more-inset), 0 0 0 1px var(--gf-more-ring), 0 10px 18px -8px var(--gf-more-drop);
+}
+.gf-key--more[aria-expanded="true"] { transform: scale(.96); }
+.gf-glyph { display: block; max-width: none; fill: none; stroke: currentColor; stroke-linecap: round; }
+.gf-glyph--plus { width: 58%; height: 58%; stroke-width: 1.6; animation: gf-turn .6s var(--gf-spring); }
+
+/* "+": área de toque de 44 px reais, fora do palco escalado; a face acompanha a escala. */
+.gf-keyhit {
+  all: unset; box-sizing: border-box; position: absolute; z-index: 3;
+  --gf-hit: max(44px, calc(58px * var(--gf-k)));
+  width: var(--gf-hit); height: var(--gf-hit);
+  right: max(0px, calc(51px * var(--gf-k) - var(--gf-hit) / 2));
+  bottom: max(0px, calc(51px * var(--gf-k) - var(--gf-hit) / 2));
+  display: grid; place-items: center; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.gf-key-face {
+  /* Vidro com contorno, não preto sólido: a ação continua achável sem ser
+     a marca mais pesada da coluna. A área de toque segue com 44 px. */
+  display: grid; place-items: center; box-sizing: border-box;
+  width: max(24px, calc(58px * var(--gf-k))); height: max(24px, calc(58px * var(--gf-k)));
+  border-radius: calc(var(--r-md) * var(--gf-k) + 2px);
+  color: var(--gf-ink);
+  background: linear-gradient(180deg, var(--gf-more-from) 0%, var(--gf-more-to) 100%);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 var(--gf-white),
+    0 0 0 1px var(--gf-more-ring),
+    0 calc(8px * var(--gf-k)) calc(16px * var(--gf-k)) calc(-8px * var(--gf-k)) var(--gf-more-drop);
+  transition: transform .35s var(--gf-spring), opacity .6s var(--gf-ease) .7s, scale .7s var(--gf-spring) .7s;
+}
+.gf-keyhit:hover .gf-key-face { transform: translateY(-2px); }
+.gf-keyhit:active .gf-key-face { transform: scale(.93); transition-duration: .12s; transition-delay: 0s; }
+.gf-keyhit:focus-visible .gf-key-face { outline: 2px solid var(--gf-focus); outline-offset: 3px; }
+.gf-root:not([data-entered]) .gf-keyhit { visibility: hidden; }
+.gf-root:not([data-entered]) .gf-key-face { opacity: 0; scale: .6; }
+.gf-glyph--more { width: 30px; height: 12px; stroke-width: 1.7; }
+@keyframes gf-turn { from { rotate: -90deg; } to { rotate: 0deg; } }
+
+.gf-menu {
+  position: absolute; right: 22px; bottom: 90px; z-index: 4; min-width: 176px; padding: 6px; border-radius: var(--r-md);
+  display: flex; flex-direction: column;
+  background: var(--gf-menu-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow: inset 0 1px 0 var(--gf-sheet-hi), 0 0 0 .5px var(--gf-menu-ring), 0 24px 48px -16px var(--gf-menu-drop);
+  transform-origin: 100% 100%;
+  opacity: 0; visibility: hidden;
+  transform: translateY(6px) scale(.94);
+  transition: opacity .2s var(--gf-ease), transform .32s var(--gf-spring), visibility 0s .32s;
+}
+.gf-menu[data-open] { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.gf-menu-item {
+  all: unset; box-sizing: border-box; padding: 9px 12px; border-radius: var(--r-xs);
+  font-size: 14px; font-weight: var(--w-medium); color: var(--gf-sheet-ink); cursor: pointer;
+}
+.gf-menu-item:hover, .gf-menu-item:focus-visible { background: var(--gf-menu-hover); }
+.gf-menu-item--danger { color: var(--gf-menu-danger); }
+
+.gf-root:not([data-entered]) .gf-back,
+.gf-root:not([data-entered]) .gf-back-rim { translate: 0 22px; opacity: 0; }
+.gf-root:not([data-entered]) .gf-sheet { translate: 0 -120px; opacity: 0; }
+.gf-root:not([data-entered]) .gf-front { translate: 0 46px; opacity: 0; }
+.gf-root:not([data-entered]) .gf-key { opacity: 0; scale: .6; }
+.gf-root:not([data-entered]) .gf-shadow { opacity: 0; }
+.gf-back, .gf-back-rim { transition: translate 1s var(--gf-ease), opacity .9s var(--gf-ease); }
+.gf-root[data-entered] .gf-sheet { transition-delay: calc(var(--gf-depth) * 40ms), 0s, calc(.18s + var(--gf-depth) * 90ms), calc(.18s + var(--gf-depth) * 90ms); }
+.gf-root[data-entered] .gf-front { transition-delay: 0s, .42s, .42s; }
+.gf-key { transition: transform .35s var(--gf-spring), box-shadow .35s var(--gf-ease), opacity .6s var(--gf-ease) .7s, scale .7s var(--gf-spring) .7s; }
+
+/* O texto usa o tamanho real da escala (calc com --gf-k). Em pasta estreita a
+   folha é pequena demais para texto legível: como na referência, ela mostra a
+   imagem ou o papel, e o nome fica no leitor de tela e no painel. */
+@container (max-width: 200px) {
+  .gf-sheet-head { display: none; }
+}
+/* Pasta estreita (coluna a 1024): a contagem fica na base do vidro, como em
+   qualquer largura, ao lado do "+" — só reserva menos espaço para ele (o "+"
+   visível tem ~26 px; a área de toque é do botão). Subir o rótulo o levava
+   para a linha da aba, sobre as folhas. */
+@container (max-width: 132px) {
+  .gf-root[data-place="bottom-left"] .gf-label { max-width: calc(100% - 28px * var(--gf-k) - 34px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gf-root *, .gf-root *::before, .gf-root *::after {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    animation: none !important;
+  }
+  .gf-tilt { transform: none; }
+}
