@@ -39,7 +39,8 @@ const ROUTE_SHAPE = {
   '/comunicacao':   { strip: 168, desc: 2, tools: [[355, 38, 'sm']],                         bento: [[7, 552], [5, 552]] },
   '/financeiro':    { strip: 240, desc: 2, stacked: true, tools: [[175, 38, 'pill']], toolbar: [[400, 54, 'sm'], [319, 38, 'sm']], alerts: [120], bento: [[6, 528], [6, 456], [12, 288]] },
   '/operacoes':     { strip: 168, desc: 1, tools: [[287, 38, 'sm']],                         alerts: [72], bento: [[12, 408]] },
-  '/relatorios':    { strip: 240, desc: 1, tools: [[400, 54, 'sm'], [150, 38, 'pill']],      alerts: [72], bento: [[6, 528], [6, 528], [6, 408], [6, 240]] },
+  // Redesign de 16/10: sem faixa de KPIs; pílulas de 48 px e o bento do Resumo.
+  '/relatorios':    { strip: 0, desc: 1, tools: [[48, 48, 'pill'], [48, 48, 'pill'], [48, 48, 'pill'], [110, 48, 'pill'], [110, 48, 'pill'], [210, 48, 'pill'], [135, 48, 'pill']], bento: [[4, 816], [3, 400], [5, 400]] },
   '/auditoria':     { strip: 168, desc: 2, tools: [[193, 38, 'pill']],                       bento: [[12, 600]] },
   '/configuracoes': { strip: 0,   desc: 1, tools: [[412, 38, 'sm']],                         bento: [[6, 312], [6, 312], [12, 384]] },
 };

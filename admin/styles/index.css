@@ -16,5 +16,8 @@
 @import './components/modules.css';
 @import './components/agenda-panel.css';
 @import './components/overview.css';
+@import './components/reports.css';
+@import './components/reports-date.css';
+@import './components/reports-print.css';
 
 @import './print.css';

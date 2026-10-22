@@ -97,6 +97,16 @@ export default function AgendaScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // "Agendar retorno" dos Relatórios chega como #/agenda?agendar=<pacienteId>:
+  // abre o agendamento com a criança escolhida e limpa o endereço, para um
+  // recarregar não reabrir o diálogo.
+  const wantedPatient = params.get('agendar');
+  useEffect(() => {
+    if (!wantedPatient || loading || !can.write('agenda')) return;
+    setBooking({ date: anchor, mode: 'consulta', patientId: wantedPatient });
+    navigate('/agenda', { replace: true });
+  }, [wantedPatient, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const dayAppointments = useMemo(
     () => data.appointments
       .filter((a) => localDay(a.inicio) === anchor)
@@ -857,7 +867,7 @@ export function BookingSheet({ request, patients, rooms, appointments = [], onCl
       diaInteiro: request.mode === 'dia_inteiro',
 
       // Consulta
-      pacienteId: '',
+      pacienteId: request.patientId ?? '',
       salaId: request.roomId ?? rooms[0]?.id ?? null,
       data: request.date,
       duracao: 60,

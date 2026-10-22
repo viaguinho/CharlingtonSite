@@ -637,8 +637,8 @@ export function LineChart({
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="line-svg" role="presentation">
           <defs>
             <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--mark-volume)" stopOpacity=".18" />
-              <stop offset="100%" stopColor="var(--mark-volume)" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--data-strong)" stopOpacity=".18" />
+              <stop offset="100%" stopColor="var(--data-strong)" stopOpacity="0" />
             </linearGradient>
             <pattern id={`${id}-hatch`} width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
               <line x1="0" y1="0" x2="0" y2="6" className="line-hatch-stroke" />
@@ -878,11 +878,15 @@ export function RulerScale({ value, min = 0, max = 100, bands = [], ticks = 60, 
       </div>
       {bands.length ? (
         <div className="ruler__bands">
-          {bands.map((band) => (
-            <span key={band.label} style={{ left: `${((band.at - min) / (max - min || 1)) * 100}%` }}>
-              {band.label}
-            </span>
-          ))}
+          {bands.map((band, i) => {
+            const left = ((band.at - min) / (max - min || 1)) * 100;
+            const next = bands[i + 1] ? ((bands[i + 1].at - min) / (max - min || 1)) * 100 : 100;
+            return (
+              <span key={band.label} style={{ left: `${left}%`, width: `${Math.max(next - left, 12)}%` }}>
+                {band.label}
+              </span>
+            );
+          })}
         </div>
       ) : null}
     </div>

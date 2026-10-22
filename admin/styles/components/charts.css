@@ -336,7 +336,7 @@
 
 .line-path {
   fill: none;
-  stroke: var(--mark-volume);
+  stroke: var(--data-strong);
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -345,7 +345,7 @@
   animation: draw var(--dur-draw) var(--ease) backwards;
 }
 @keyframes draw { from { stroke-dashoffset: 2000; } }
-.line-hatch-stroke { stroke: var(--mark-volume); stroke-width: 1; opacity: .38; }
+.line-hatch-stroke { stroke: var(--data-strong); stroke-width: 1; opacity: .38; }
 .line-area { animation: area-in var(--dur-draw) var(--ease) backwards; animation-delay: 160ms; }
 @keyframes area-in { from { opacity: 0; } }
 
@@ -357,11 +357,11 @@
 
 .line-dot {
   fill: var(--surface-raised);
-  stroke: var(--mark-volume);
+  stroke: var(--data-strong);
   stroke-width: 2.5;
   transition: r var(--dur-1) var(--ease);
 }
-.line-dot.is-hot { filter: drop-shadow(0 0 6px var(--mark-volume-soft)); }
+.line-dot.is-hot { stroke: var(--data-accent); filter: drop-shadow(0 0 6px var(--mark-volume-soft)); }
 
 .line-hit { position: absolute; inset: 0; display: flex; }
 .line-hit__zone { flex: 1; height: 100%; background: none; cursor: crosshair; }
@@ -488,13 +488,14 @@
   white-space: nowrap;
 }
 
-.ruler__bands { position: relative; height: 16px; margin-top: var(--s-1); }
+.ruler__bands { position: relative; height: 44px; margin-top: var(--s-1); }
+/* Cada rótulo começa no corte dele e vai até o próximo, quebrando em até 2 linhas: nada sai do card. */
 .ruler__bands span {
   position: absolute;
-  transform: translateX(-50%);
-  font-size: var(--t-micro); letter-spacing: var(--ls-micro); line-height: var(--lh-micro);
-  color: var(--ink-300);
-  white-space: nowrap;
+  padding-right: var(--s-2);
+  font-size: var(--t-body); line-height: var(--lh-body);
+  color: var(--ink-400);
+  overflow-wrap: anywhere;
 }
 
 /* ————————————————————————— Barra de proporção ————————————————————————— */
