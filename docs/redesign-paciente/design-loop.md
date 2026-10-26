@@ -177,3 +177,23 @@ Pedido do dono depois da passada 5: o plexo tinha que ler como anatomia (cérebr
 **Verificado:** repouso, hover e seleção do lobo temporal (malha branca visível sobre o sólido azul); coração em foco acende em vermelho; 1440, 1280, 1024 e 390 sem o palco cair no fallback. Carga do palco ≈ 1,2 s com o modelo em cache.
 
 **Ainda aberto:** a 1440×900 o coração fica atrás da faixa de consultas quando em foco (composição do palco, não do plexo). Falta uma passada dos críticos para dizer se o plexo agora passa como anatomia.
+
+## Passada 7 — cinco lentes e correções (26/10/2026)
+
+Pedido do dono: achar todos os erros e gargalos da página pelos agentes do design loop e só então corrigir. Cinco críticos de contexto limpo (dados, sistema, fidelidade, robustez e acessibilidade, desempenho) reprovaram as quatro peças. O registro único, com duplicatas fundidas, tensões resolvidas e o que depende do dono, está em `p7-registro-de-conflitos.md`; os relatórios completos em `critica-p7-*.md`.
+
+**Aplicado (lote 1, sem commit):**
+- **Segurança clínica:** adendo a evolução assinada passou a gravar (`repo.appendAddendum`, só acrescenta); prescrição avisa e exige conferência quando um item bate com alergia (sinônimos, marcas e classes em `allergyConflict.js`, tabela a revisar pelo dono); "Nega alergias", "NKDA" e vazio deixam de ser alerta vermelho; consentimento e "informação ao responsável" pedem confirmação; suspender medicação exige motivo e aceita data; anexo exige título; trava síncrona contra clique duplo em 8 gravações; escala sem escore não vira "null/20".
+- **Falha de leitura ≠ vazio:** a tela marca a loja que não leu, mostra aviso com "Tentar de novo", troca os textos de "nenhum registro" nos cards e bloqueia a seção afetada; falha ao ler o paciente tem tela própria; colunas, faixa e ficha isoladas por ErrorBoundary; consulta com data ilegível é separada e contada no aviso.
+- **Tempo e dados:** estados refeitos a cada minuto e ao voltar à aba; idade em dias de calendário (recém-nascido de hoje não vira "—").
+- **Palco e layout:** no palco, a alergia fica inteira e dois ou mais outros estados viram um resumo expansível; coluna de camadas compacta (40 px) a partir de 340 px de palco; cápsulas e controles na mesma linha de base; foco do popover não cai mais no `<main>`; marcadores do gráfico de escalas em HTML (não mais elipses); foco visível da tecla "+" das pastas; nome longo quebra; texto de apoio mais escuro na página.
+- **Acessibilidade:** foco volta ao gatilho em modais com `autoFocus` (adendo, medicação, agendamento); faixa de consultas com tabindex móvel; nomes acessíveis com o objeto em Suspender, Revogar e Registrar.
+- **Desempenho:** sonda de WebGL única e liberada; rota, palco e cena começam a baixar juntos; grade espacial do plexo com chave inteira e célula de 1,8× (de 125 para 27 células); auto-rotação por 14 s e a ~30 quadros por segundo; vidro de 24 para 16 px na página.
+
+**Também aplicado:** o card de medicações cita a última prescrição assinada quando não há medicação registrada (D12); modo de alto contraste do sistema (R10); coração, artérias e crânio ganham traço fino na própria cor em repouso (F7, parcial: a 1440×900 o coração ainda fica atrás da faixa de consultas).
+
+**Ainda aberto (ver o registro):** sem virtualização nas seções (G5); recolher o fundo animado do shell e skip link (dependem do dono: shell); miniatura reduzida (G7); lazy dos diálogos (G8); revisão médica da tabela de equivalências de alergia e dos textos "O que faz"; limpar da base de verificação os 3 consentimentos e 1 informação gravados por cliques de críticos na Clara; nova passada dos críticos para confirmar.
+
+## Passada 8 — 1ª leva e correções (26/10/2026)
+
+Dois críticos de contexto limpo (dados e robustez) depois do lote da passada 7: REPROVAM as quatro peças, com 1 bloqueante (o aviso de alergia não reconhecia "AAS" nem marcas com dipirona) e 14 graves. Registro único, decisões e o que foi aplicado em `p8-registro-de-conflitos.md`; relatórios em `critica-p8-dados.md` e `critica-p8-robustez.md`. Fidelidade, sistema e desempenho não rodaram nesta leva (teto de 80% do limite de 5 horas); a 2ª leva e a verificação vêm depois do reinício da janela.

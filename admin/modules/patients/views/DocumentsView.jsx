@@ -5,6 +5,7 @@ import { Button, Chip, StatusDot } from '../../../components/primitives.jsx';
 import { DataTable } from '../../../components/DataTable.jsx';
 import { DocumentSheet } from '../../documents/DocumentSheet.jsx';
 import { AllergyNotice } from '../record/AllergyNotice.jsx';
+import { declaredAllergies } from '../record/allergyConflict.js';
 import Icon from '../../../components/Icon.jsx';
 import { date, dateTime, relative } from '../../../core/format.js';
 
@@ -147,6 +148,7 @@ export function DocumentsView({ patient, documents, appointments = [], onIssueDo
         document={viewing}
         patient={patient}
         notice={<AllergyNotice patient={patient} hint="Confirme com o responsável antes de prescrever." />}
+        allergies={declaredAllergies(patient.clinico?.alergias ?? [])}
         onClose={() => setViewing(null)}
       />
     </>

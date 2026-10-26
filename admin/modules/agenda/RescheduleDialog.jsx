@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../data/repository.js';
 import { STORES, APPOINTMENT_STATUS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS } from '../../data/schema.js';
 import { useSession } from '../../core/session.jsx';
@@ -57,6 +57,7 @@ export default function RescheduleDialog({ appointment, suggested = null, notice
   const [form, setForm] = useState(null);
   const [others, setOthers] = useState({ appointments: [], patients: [] });
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   useEffect(() => {
     if (!appointment) { setForm(null); return undefined; }
@@ -114,6 +115,8 @@ export default function RescheduleDialog({ appointment, suggested = null, notice
 
   async function save() {
     if (!check || check.error || check.same) return;
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       const from = new Date(appointment.inicio);
@@ -130,6 +133,7 @@ export default function RescheduleDialog({ appointment, suggested = null, notice
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }

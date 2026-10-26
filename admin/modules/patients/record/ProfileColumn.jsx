@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { APPOINTMENT_TYPE_LABELS } from '../../../data/schema.js';
+import { APPOINTMENT_TYPE_LABELS, STORES } from '../../../data/schema.js';
 import { canReschedule, isUpcoming, stateOf } from '../../../core/appointments.js';
 import GlassFolder from '../../../components/GlassFolder.tsx';
 import Icon from '../../../components/Icon.jsx';
@@ -29,12 +29,15 @@ export const FOLDER_GROUPS = [
 export function ProfileColumn({
   patient, guardians, appointments, attachments, states,
   onReschedule, onSchedule, onOpenAttachments, onUpload, onPreview, onGoToSection, canUpload,
+  unreadable = new Set(),
 }) {
+  const noVisits = unreadable.has(STORES.APPOINTMENTS);
   return (
     <div className="pr-profile">
-      <ProfileCard patient={patient} guardians={guardians} appointments={appointments} onOpenTimeline={() => onGoToSection('linha-do-tempo')} />
+      <ProfileCard patient={patient} guardians={guardians} appointments={appointments} unreadable={noVisits} guardiansUnreadable={unreadable.has(STORES.GUARDIANS)} onOpenTimeline={() => onGoToSection('linha-do-tempo')} />
       <DiagnosesCard patient={patient} />
       <Folders
+        unreadable={unreadable.has(STORES.ATTACHMENTS)}
         attachments={attachments}
         onOpen={onOpenAttachments}
         onUpload={onUpload}
@@ -42,14 +45,14 @@ export function ProfileColumn({
         canUpload={canUpload}
       />
       <CareCard patient={patient} />
-      <NextVisit states={states} onReschedule={onReschedule} onSchedule={onSchedule} />
+      {noVisits ? null : <NextVisit states={states} onReschedule={onReschedule} onSchedule={onSchedule} />}
     </div>
   );
 }
 
 /* ─────────────────────────── Perfil ─────────────────────────── */
 
-function ProfileCard({ patient, guardians, appointments, onOpenTimeline }) {
+function ProfileCard({ patient, guardians, appointments, unreadable = false, guardiansUnreadable = false, onOpenTimeline }) {
   const ageInfo = patient.dataNascimento ? age(patient.dataNascimento) : null;
   const guardian = guardians[0];
   return (
@@ -80,11 +83,16 @@ function ProfileCard({ patient, guardians, appointments, onOpenTimeline }) {
                 </dd>
               ) : null}
             </>
-          ) : <dd>Nenhum cadastrado</dd>}
+          ) : <dd>{guardiansUnreadable ? 'Não foi possível ler o cadastro' : 'Nenhum cadastrado'}</dd>}
         </div>
       </dl>
 
-      <FollowUpTrail appointments={appointments} onOpen={onOpenTimeline} />
+      {unreadable ? (
+        <div className="pr-trail pr-trail--empty">
+          <span className="pr-trail__label">Acompanhamento</span>
+          <span className="pr-trail__value">Não foi possível ler as consultas</span>
+        </div>
+      ) : <FollowUpTrail appointments={appointments} onOpen={onOpenTimeline} />}
 
     </section>
   );
@@ -96,20 +104,21 @@ function ProfileCard({ patient, guardians, appointments, onOpenTimeline }) {
  * é traço curto e claro, a próxima marcada é um anel.
  *
  * Mesma régua das pílulas de alerta e da faixa (`stateOf`/`isUnresolved`):
- * emissão de laudo e evento não contam como consulta realizada, mas toda
- * falta conta — a faixa e a Linha do tempo mostram as de laudo também, e a
- * trilha não pode dizer "1 falta" onde houve 3 ausências. "Sem desfecho" é só
- * o que `stateOf` chama assim, então a consulta de hoje que está atrasada não
- * entra aqui (a pílula diz "Atrasado").
+ * o atendimento de laudo conta como atendimento em TODOS os estados
+ * (concluído, falta e sem desfecho): a faixa mostra cada um como cápsula, a
+ * Linha do tempo e as Evoluções também, e o cabeçalho conta o "desde" a
+ * partir dele. Só o evento (reunião) fica de fora. "Sem desfecho" é só o que
+ * `stateOf` chama assim, então a consulta de hoje que está atrasada não entra
+ * aqui (a pílula diz "Atrasado").
  */
-const NOT_A_VISIT = new Set(['laudo', 'evento']);
+const NOT_A_VISIT = new Set(['evento']);
 
 function FollowUpTrail({ appointments, onOpen }) {
   const now = Date.now();
   const visits = appointments.filter((a) => !NOT_A_VISIT.has(a.tipo));
   const done = visits.filter((a) => stateOf(a, now) === 'concluido');
-  const missed = appointments.filter((a) => a.tipo !== 'evento' && stateOf(a, now) === 'faltou');
-  const pending = appointments.filter((a) => stateOf(a, now) === 'sem_desfecho');
+  const missed = visits.filter((a) => stateOf(a, now) === 'faltou');
+  const pending = visits.filter((a) => stateOf(a, now) === 'sem_desfecho');
   const upcoming = appointments
     .filter((a) => a.tipo !== 'evento' && isUpcoming(a, now) && new Date(a.inicio).getTime() > now)
     .sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
@@ -147,7 +156,7 @@ function FollowUpTrail({ appointments, onOpen }) {
       <span className="pr-trail__row">
         <span className="pr-trail__label">Acompanhamento</span>
         {/* "1 consulta" ao lado de 3 cápsulas na faixa enganava: o total vem junto. */}
-        <span className="pr-trail__value num">{done.length === total ? plural(total, 'consulta', 'consultas') : `${done.length} de ${total} realizadas`}</span>
+        <span className="pr-trail__value num">{done.length === total ? plural(total, 'consulta', 'consultas') : `${done.length} de ${total} ${total === 1 ? 'realizada' : 'realizadas'}`}</span>
       </span>
       <span className="pr-trail__track">
       <svg className="pr-trail__svg" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
@@ -221,7 +230,7 @@ function DiagnosesCard({ patient }) {
 
 /* ─────────────────────────── Pastas ─────────────────────────── */
 
-function Folders({ attachments, onOpen, onUpload, onPreview, canUpload }) {
+function Folders({ attachments, onOpen, onUpload, onPreview, canUpload, unreadable = false }) {
   const groups = useMemo(() => FOLDER_GROUPS
     .map((g) => ({
       ...g,
@@ -241,17 +250,18 @@ function Folders({ attachments, onOpen, onUpload, onPreview, canUpload }) {
         </button>
       </div>
       <div className="pr-folders__grid">
-        {groups.map((group, i) => (
+        {unreadable ? <p className="pr-empty">Não foi possível ler os exames. Isso não quer dizer que não haja nenhum anexado.</p> : null}
+        {unreadable ? null : groups.map((group, i) => (
           <FolderCard key={group.key} group={group} index={i} onOpen={onOpen} onUpload={canUpload ? onUpload : null} onPreview={onPreview} />
         ))}
-        {canUpload ? (
+        {canUpload && !unreadable ? (
           <button type="button" className={`pr-folder pr-folder--add ${groups.length ? '' : 'is-alone'}`.trim()} onClick={() => onUpload(null)}>
             <span className="pr-folder__plus" aria-hidden="true"><Icon name="plus" size={20} /></span>
             <span className="pr-folder__add-label">Anexar exame</span>
             {!groups.length ? <span className="pr-folder__hint">RM, EEG, laudos e relatórios de terapeutas, cifrados no prontuário.</span> : null}
           </button>
         ) : null}
-        {!groups.length && !canUpload ? <p className="pr-empty">Nenhum exame anexado.</p> : null}
+        {!groups.length && !canUpload && !unreadable ? <p className="pr-empty">Nenhum exame anexado.</p> : null}
       </div>
     </section>
   );

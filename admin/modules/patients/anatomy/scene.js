@@ -48,6 +48,8 @@ const ZOOM_MS = 320;
 // estrutura flutuava sem contexto). Em repouso não há preenchimento
 // (veja `look`): só linhas e nós.
 const SOLID_HOVER = 0.9;
+// Quanto o busto gira sozinho depois de pronto, antes de parar.
+const AUTO_ROTATE_SECONDS = 14;
 const DIM = 0.5;
 const DEEP = new Set(['insula', 'limbico', 'hipocampo', 'amigdala', 'nucleos_base', 'talamo', 'corpo_caloso', 'ventriculos', 'tronco', 'medula']);
 const ON_TOP = 30;
@@ -93,7 +95,7 @@ const SOLID_FS = /* glsl */ `
     // Foco: a cor da estrutura, sólida, com borda de Fresnel clara.
     vec3 lit = uColor * (0.8 + 0.2 * light);
     lit = mix(lit, uRim, f * 0.45);
-    float aHi = ${SOLID_HOVER.toFixed(2)} * (0.62 + 0.38 * f);
+    float aHi = ${SOLID_HOVER.toFixed(2)} * (0.8 + 0.2 * f);
     vec3 c = mix(uTone, lit, uHi);
     float a = mix(aRest, aHi, uHi) * uFade * r;
     if (a < 0.002) discard;
@@ -104,6 +106,10 @@ const SOLID_FS = /* glsl */ `
 const PLEXO_VS = /* glsl */ `
   attribute float aDist;
   uniform float uSize;
+  uniform float uFaceLo;
+  uniform float uFaceHi;
+  uniform float uRadial;
+  uniform vec3 uCenter;
   uniform float uDpr;
   uniform float uRefDist;
   uniform float uReveal;
@@ -117,7 +123,18 @@ const PLEXO_VS = /* glsl */ `
     // Só a face voltada para a câmera: sem isso as arestas do outro lado da
     // mesma superfície atravessam o volume ("cordas") e o órgão não tem
     // superfície. A borda da silhueta esmaece, não corta.
-    vFacing = smoothstep(-0.04, 0.32, dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
+    float facing = dot(normalize(normalMatrix * normal), normalize(-mv.xyz));
+    if (uRadial > 0.5) {
+      // Córtex: só a direção RADIAL a partir do centro do cérebro, não a normal
+      // da malha. Dobras e a face medial de um lobo têm normal voltada para a
+      // câmera mesmo estando no fundo do cérebro e somavam-se à superfície da
+      // frente (a "bola de rede"); a direção radial deixa só a casca de frente
+      // e abre a fissura entre os hemisférios em vista frontal.
+      vec3 wp = (modelMatrix * vec4(position, 1.0)).xyz;
+      float radial = dot(normalize(wp - uCenter), normalize(cameraPosition - wp));
+      facing = radial;
+    }
+    vFacing = smoothstep(uFaceLo, uFaceHi, facing);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = uSize * uDpr * clamp(uRefDist / max(vDepth, 0.001), 0.6, 1.8);
   }
@@ -233,24 +250,26 @@ function look(id, camada, deep) {
   // estruturas internas. Hierarquia de profundidade: pele e crânio são véu
   // (linha leve, quase sem nó), o cérebro é a camada protagonista e aparece
   // através deles. Pele e ossos guardam um traço de Fresnel na silhueta.
-  if (id === 'pele') return { edge: 0.034, line: 1.0, node: 0.7, keep: 0.1, restA: 0, restF: 0.08, tone: 'ink' };
+  if (id === 'pele') return { edge: 0.034, line: 1.0, node: 0.9, keep: 0.5, restA: 0, restF: 0.08, tone: 'ink' };
   if (id === 'substancia_branca') return { edge: 0, line: 0, node: 0, restA: 0, restF: 0, tone: 'cool' };
   // Crânio e rosto na mesma tinta do cérebro viravam um novelo: agora são véu.
-  if (id === 'cranio') return { edge: 0.019, line: 1.0, node: 0.6, keep: 0.12, restA: 0, restF: 0.1, tone: 'bone' };
+  if (id === 'cranio') return { edge: 0.019, line: 1.5, node: 0.9, keep: 0.12, restA: 0, restF: 0.1, tone: 'bone' };
   if (id === 'mandibula') return { edge: 0.014, line: 0.9, node: 0.6, keep: 0.15, restA: 0, restF: 0.08, tone: 'bone' };
   if (id === 'coluna_cervical') return { edge: 0.014, line: 1.2, node: 0.8, keep: 0.3, restA: 0, restF: 0.1, tone: 'bone' };
   if (camada === 'cerebro') {
     // Muitas estruturas se sobrepõem dentro do crânio: plexo mais ralo, linhas
     // leves e nós esparsos, para o conjunto ler como malha e não como massa.
     return deep
-      ? { edge: 0.018, line: 0.12, node: 0, restA: 0, restF: 0, tone: 'cool' }
-      : { edge: 0.026, line: 1.5, node: 1.4, keep: 0.14, restA: 0, restF: 0, tone: 'cool' };
+      // Estruturas profundas: invisíveis em repouso (sob o córtex, sem oclusão elas viravam o novelo); só aparecem em foco.
+      ? { edge: 0.02, line: 0, node: 0, restA: 0, restF: 0, tone: 'cool' }
+      : { edge: 0.026, line: 2.4, node: 1.4, keep: 0.14, restA: 0, restF: 0, tone: 'cool' };
   }
   if (id === 'medula') return { edge: 0.012, line: 0.5, node: 0.55, restA: 0, restF: 0, tone: 'cool' };
   // Coração em repouso: malha fina e leve. Com aresta longa a decimação virava
   // uma caixa de arame no peito; com aresta curta ele lê como órgão.
-  if (camada === 'coracao') return { edge: 0.011, line: 0.3, node: 0.35, keep: 0.25, restA: 0, restF: 0, tone: 'ink' };
-  if (camada === 'vasos') return { edge: 0.022, line: 0.5, node: 0.7, keep: 0.3, restA: 0, restF: 0, tone: 'ink' };
+  // Em repouso o coração e as artérias ganham a cor da estrutura em traço fino (sem preenchimento): sem ela só o cérebro tinha cor e o resto do corpo não se distinguia (passada 7, F7).
+  if (camada === 'coracao') return { edge: 0.011, line: 0.9, node: 0.9, keep: 0.25, restA: 0, restF: 0, tone: 'tint' };
+  if (camada === 'vasos') return { edge: 0.022, line: 1.2, node: 1.2, keep: 0.3, restA: 0, restF: 0, tone: 'tint' };
   return { edge: 0.018, line: 0.7, node: 0.7, keep: 0.4, restA: 0, restF: 0.04, tone: 'ink' };
 }
 
@@ -272,15 +291,19 @@ function plexoGraph(geo, spacing, keepNodes = 1) {
   const hash = (i) => ((i * 2654435761) >>> 0) / 4294967296;
   const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => hash(a) - hash(b));
 
-  const cell = spacing;
-  const cellKey = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+  // Célula do tamanho do alcance das arestas (1,8× o espaçamento): as duas buscas
+  // olham 27 células em vez de 125, e a chave é um inteiro, não uma string montada
+  // 27 vezes por vértice (era 195 ms de thread principal a cada visita).
+  const cell = spacing * 1.8;
+  const cellId = (cx, cy, cz) => ((cx * 73856093) ^ (cy * 19349663) ^ (cz * 83492791)) | 0;
+  const cellKey = (x, y, z) => cellId(Math.floor(x / cell), Math.floor(y / cell), Math.floor(z / cell));
   const grid = new Map();
   const picked = [];
   const near = (x, y, z, r, visit) => {
     const reach = Math.ceil(r / cell);
     const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
     for (let dx = -reach; dx <= reach; dx++) for (let dy = -reach; dy <= reach; dy++) for (let dz = -reach; dz <= reach; dz++) {
-      const bucket = grid.get(`${cx + dx},${cy + dy},${cz + dz}`);
+      const bucket = grid.get(cellId(cx + dx, cy + dy, cz + dz));
       if (bucket) for (const j of bucket) visit(j);
     }
   };
@@ -362,7 +385,7 @@ export class AnatomyScene {
    * @param {object} opts
    *   modelUrl, metaUrl, reducedMotion,
    *   onHover(id|null, {x,y}|null), onSelect(id|null, {x,y}|null),
-   *   onAnchors({ hover, select }), onReady({ ids }), onError(error), onInteract()
+   *   onAnchors({ hover, select }), onReady({ ids }), onError(error), onContextLost(), onInteract()
    */
   constructor(host, opts = {}) {
     const canvas = document.createElement('canvas');
@@ -398,6 +421,8 @@ export class AnatomyScene {
     this._ndc = new THREE.Vector2();
     this._raycaster = new THREE.Raycaster();
     this._tmp = new THREE.Vector3();
+    this._lowV = new THREE.Vector3();
+    this._lift = 0;
 
     try {
       this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
@@ -406,6 +431,13 @@ export class AnatomyScene {
       queueMicrotask(() => this._fail({ type: 'webgl', error }));
       return;
     }
+    // Contexto perdido (GPU reiniciada, limite de contextos do navegador): sem este aviso o
+    // palco ficava vazio, com os controles ligados, e ninguém dizia nada.
+    this._onContextLost = (event) => {
+      event.preventDefault();
+      if (!this._disposed) this.opts.onContextLost?.();
+    };
+    canvas.addEventListener('webglcontextlost', this._onContextLost);
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.dpr = this.renderer.getPixelRatio();
@@ -464,9 +496,12 @@ export class AnatomyScene {
   }
 
   dispose() {
+    if (this._disposeDone) return;
+    this._disposeDone = true;
     this._disposed = true;
     cancelAnimationFrame(this._raf);
     this._unbind?.();
+    this.canvas.removeEventListener('webglcontextlost', this._onContextLost);
     if (!this.renderer) {
       this.canvas.remove();
       return;
@@ -535,6 +570,8 @@ export class AnatomyScene {
         center: new THREE.Vector3(),
         // Estruturas mediais e profundas: no foco, desenham por cima do córtex.
         deep,
+        // Superfície cortical (lobos e cerebelo): o plexo esconde dobras e face medial.
+        cortical: camada === 'cerebro' && !deep && id !== 'substancia_branca',
         look: lk,
       };
 
@@ -595,9 +632,10 @@ export class AnatomyScene {
         if (!lk.edge) continue;
         const localScale = mesh.matrixWorld.getMaxScaleOnAxis() || 1;
         // Espaçamento do disco de Poisson: arestas de 1× a 1,8× dele (média ≈ lk.edge).
-        const { lines, points } = plexoGraph(geo, (lk.edge * (camada === 'cerebro' ? 0.42 : 0.5)) / localScale, lk.node ? lk.keep ?? 1 : 0);
-        const lineMat = this._plexoMaterial(false);
-        const pointMat = this._plexoMaterial(true);
+        const { lines, points } = plexoGraph(geo, (lk.edge * (camada === 'cerebro' && !deep ? 0.4 : id === 'pele' ? 0.36 : 0.5)) / localScale, lk.node ? lk.keep ?? 1 : 0);
+        const cortical = rec.cortical;
+        const lineMat = this._plexoMaterial(false, cortical);
+        const pointMat = this._plexoMaterial(true, cortical);
         const lineObj = new THREE.LineSegments(lines, lineMat);
         const pointObj = new THREE.Points(points, pointMat);
         lineObj.raycast = () => {};
@@ -618,6 +656,16 @@ export class AnatomyScene {
       this.structures.set(id, rec);
       this._applyColors(rec);
     }
+    // Centro do cérebro (mundo): referência da direção radial do córtex.
+    const brain = new THREE.Box3();
+    for (const rec of this.structures.values()) if (rec.cortical) brain.union(rec.box);
+    if (!brain.isEmpty()) {
+      const c = brain.getCenter(new THREE.Vector3());
+      for (const rec of this.structures.values()) {
+        if (!rec.cortical) continue;
+        for (const o of rec.plexo) o.material.uniforms.uCenter.value.copy(c);
+      }
+    }
     this._pushUniforms();
   }
 
@@ -630,7 +678,7 @@ export class AnatomyScene {
     return 2;
   }
 
-  _plexoMaterial(isPoint) {
+  _plexoMaterial(isPoint, cortex = false) {
     return new THREE.ShaderMaterial({
       vertexShader: PLEXO_VS,
       fragmentShader: PLEXO_FS,
@@ -643,6 +691,13 @@ export class AnatomyScene {
         uVis: { value: 1 },
         uReveal: { value: this.reveal },
         uSize: { value: 3.4 },
+        // Córtex: a face de trás e a face medial (de lado) saem de vez — o
+        // centro esvazia e a silhueta se adensa, como numa casca, e a fissura
+        // entre os hemisférios abre em vista frontal.
+        uFaceLo: { value: cortex ? 0.02 : -0.04 },
+        uFaceHi: { value: cortex ? 0.42 : 0.32 },
+        uRadial: { value: cortex ? 1 : 0 },
+        uCenter: { value: new THREE.Vector3() },
         uCore: { value: new THREE.Color() },
         uDpr: { value: this.dpr },
         uRefDist: { value: 0.6 },
@@ -704,7 +759,12 @@ export class AnatomyScene {
     rec.plexo.forEach((o, i) => {
       const u = o.material.uniforms;
       const isPoint = i % 2 === 1;
-      const rgb = lk.tone === 'cool' ? cool : lk.tone === 'bone' ? bone : ink;
+      // Cada lobo em repouso leva um passo da própria cor: os lobos (e o
+      // cerebelo) se distinguem na silhueta sem virar massa colorida.
+      const rgb = rec.cortical && base
+        ? { r: cool.r * 0.5 + base.r * 0.5, g: cool.g * 0.5 + base.g * 0.5, b: cool.b * 0.5 + base.b * 0.5 }
+        : lk.tone === 'tint' && base ? { r: ink.r * 0.35 + base.r * 0.65, g: ink.g * 0.35 + base.g * 0.65, b: ink.b * 0.35 + base.b * 0.65 }
+        : lk.tone === 'cool' ? cool : lk.tone === 'bone' ? bone : ink;
       // Sem o crânio à frente, o cérebro ganha um degrau de contraste: a troca de camada se lê no modelo.
       const boost = rec.camada === 'cerebro' && this.layers.cranio === false ? 1.4 : 1;
       const alpha = (isPoint ? node.a * lk.node : line.a * lk.line * lineScale) * boost;
@@ -843,15 +903,40 @@ export class AnatomyScene {
 
   /** Ao afastar, o alvo desce da cabeça para o centro do busto. */
   _followFraming() {
-    if (!this.headCenter) return;
+    if (!this.headCenter) return false;
     const d = this.camera.position.distanceTo(this.controls.target);
     const t = clamp01((d - this.headDist) / Math.max(1e-6, this.bustDist - this.headDist));
     const k = t * t * (3 - 2 * t);
     const desired = this._tmp.copy(this.headCenter).lerp(this.bustCenter, k);
+    // Estrutura em foco que cairia sob a faixa de consultas (coração, vasos):
+    // o alvo desce e o modelo sobe até ela ficar inteira acima da faixa.
+    const lift = this._stepLift(d);
+    desired.y -= lift.value;
     const delta = desired.sub(this.controls.target);
-    if (delta.lengthSq() < 1e-12) return;
+    if (delta.lengthSq() < 1e-12) return lift.busy;
     this.controls.target.add(delta);
     this.camera.position.add(delta);
+    return lift.busy;
+  }
+
+  /** Quanto o modelo precisa subir (unidades do mundo) para o foco ficar acima da faixa da base. */
+  _stepLift(distance) {
+    const id = this.selectedId ?? this.keyId ?? this.hoverId;
+    const rec = id ? this.structures.get(id) : null;
+    const h = this.canvas.clientHeight;
+    let want = 0;
+    if (rec && h) {
+      const low = this._lowV.set((rec.box.min.x + rec.box.max.x) / 2, rec.box.min.y, (rec.box.min.z + rec.box.max.z) / 2).project(this.camera);
+      const lowPx = (1 - low.y) * 0.5 * h;
+      const safe = h - this._inset() - 12;
+      const worldPerPx = (2 * distance * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)) / h;
+      want = THREE.MathUtils.clamp((this._lift ?? 0) + (lowPx - safe) * worldPerPx, 0, worldPerPx * h * 0.35);
+    }
+    const cur = this._lift ?? 0;
+    const k = this.reducedMotion ? 1 : 0.18;
+    const next = Math.abs(want - cur) < 1e-5 ? want : cur + (want - cur) * k;
+    this._lift = next;
+    return { value: next, busy: Math.abs(want - next) > 1e-5 };
   }
 
   /* ——————————————————————— API pública ——————————————————————— */
@@ -1075,8 +1160,16 @@ export class AnatomyScene {
       busy = true;
     }
     if (this.controls.update(dt)) busy = true;
-    if (this.controls.autoRotate && this.structures.size) busy = true;
-    this._followFraming();
+    if (this._followFraming()) busy = true;
+    // Girar sozinho é só um convite: dura alguns segundos e para (o repouso custava
+    // 60 quadros por segundo e 108 mil triângulos por quadro para girar 2°/s).
+    // Enquanto gira e nada mais se move, desenha a ~30 quadros por segundo.
+    const moving = busy;
+    if (this.controls.autoRotate && this.structures.size) {
+      this._autoFor = (this._autoFor ?? 0) + dt;
+      if (this._autoFor > AUTO_ROTATE_SECONDS) this.controls.autoRotate = false;
+      else busy = true;
+    }
 
     if (this._pointer.dirty) {
       this._pointer.dirty = false;
@@ -1087,8 +1180,10 @@ export class AnatomyScene {
     this.renderer.render(this.scene, this.camera);
     this._emitAnchors();
 
-    if (busy && !this._paused) this.invalidate();
-    else this._last = 0;
+    if (busy && !this._paused) {
+      if (!moving && this.controls.autoRotate) setTimeout(() => this.invalidate(), 22);
+      else this.invalidate();
+    } else this._last = 0;
   };
 
   _project(world) {

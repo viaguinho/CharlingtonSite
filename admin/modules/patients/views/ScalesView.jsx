@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
 import { SCALES, SCALE_DOMAIN_LABELS, findScale, interpretScore, scalesForAge } from '../../../data/scales.js';
@@ -10,7 +10,7 @@ import { Modal, useToast } from '../../../components/Overlay.jsx';
 import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import { RulerScale, LineChart } from '../../../charts/index.jsx';
 import Icon from '../../../components/Icon.jsx';
-import { date, relative, age, isoDay } from '../../../core/format.js';
+import { date, relative, age, isoDay, timeOf } from '../../../core/format.js';
 
 /**
  * Escalas e instrumentos.
@@ -34,7 +34,7 @@ export function ScalesView({ patient, scales, reload, intent = null }) {
       map.get(record.instrumentoId).push(record);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => (a.aplicadaEm ?? '').localeCompare(b.aplicadaEm ?? ''));
+      list.sort((a, b) => (timeOf(a.aplicadaEm) ?? -Infinity) - (timeOf(b.aplicadaEm) ?? -Infinity));
     }
     return map;
   }, [scales]);
@@ -145,6 +145,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
   const [appliedAt, setAppliedAt] = useState(isoDay());
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   const scale = findScale(scaleId);
   const band = scale && score !== '' ? interpretScore(scaleId, Number(score)) : null;
@@ -156,7 +157,11 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
       toast.error(`O escore de ${scale.nome} vai de ${scale.escoreMin} a ${scale.escoreMax}.`);
       return;
     }
+    // Aplicação de uma data que ainda não chegou viraria "o escore atual" do card.
+    if (!appliedAt || appliedAt > isoDay()) { toast.error('A data da aplicação não pode ser futura.'); return; }
 
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await repo.create(STORES.SCALES, {
@@ -177,6 +182,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -234,7 +240,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
                 value={score} onChange={(e) => setScore(e.target.value)}
               />
               <TextField
-                label="Data de aplicação" type="date" required
+                label="Data de aplicação" type="date" required max={isoDay()}
                 value={appliedAt} onChange={(e) => setAppliedAt(e.target.value)}
               />
             </FieldRow>

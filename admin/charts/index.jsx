@@ -670,16 +670,17 @@ export function LineChart({
             <path d={linePath} className="line-path" vectorEffect="non-scaling-stroke" />
           ) : null}
 
-          {points.map((p, i) => (
-            <circle
-              key={p.label ?? i}
-              cx={p.x} cy={p.y}
-              r={hovered === i ? 6 : sparse ? 4 : 0}
-              className={`line-dot ${hovered === i ? 'is-hot' : ''}`}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
         </svg>
+
+        {/* Marcadores em HTML: dentro do SVG esticado (preserveAspectRatio="none") o círculo virava elipse. */}
+        {points.map((p, i) => (hovered === i || sparse ? (
+          <span
+            key={p.label ?? i}
+            className={`line-dot-html ${hovered === i ? 'is-hot' : ''}`}
+            style={{ left: `${(p.x / W) * 100}%`, top: `${(p.y / H) * 100}%` }}
+            aria-hidden="true"
+          />
+        ) : null))}
 
         <div className="line-hit">
           {points.map((p, i) => (
@@ -709,11 +710,18 @@ export function LineChart({
       </div>
 
       <div className="line-axis">
-        {points.map((p, i) => (
-          (points.length <= 8 || i % Math.ceil(points.length / 7) === 0)
-            ? <span key={p.label ?? i} style={{ left: `${(p.x / W) * 100}%` }}>{p.label}</span>
-            : null
-        ))}
+        {(() => {
+          const shown = points.map((p, i) => [p, i]).filter(([, i]) => points.length <= 8 || i % Math.ceil(points.length / 7) === 0);
+          // A data da primeira e da última ponta alinham-se à borda do gráfico:
+          // centradas no ponto, perdiam 3–4 px ("4/03/2026", "30/09/202") no celular.
+          return shown.map(([p, i], k) => (
+            <span
+              key={p.label ?? i}
+              className={k === 0 ? 'is-first' : k === shown.length - 1 ? 'is-last' : undefined}
+              style={{ left: `${(p.x / W) * 100}%` }}
+            >{p.label}</span>
+          ));
+        })()}
       </div>
 
       {sparse ? (

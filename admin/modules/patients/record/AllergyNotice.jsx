@@ -1,4 +1,5 @@
 import Icon from '../../../components/Icon.jsx';
+import { declaredAllergies, allergyHits } from './allergyConflict.js';
 
 /**
  * Faixa de alergia no topo dos modais clínicos abertos a partir do prontuário
@@ -10,9 +11,8 @@ import Icon from '../../../components/Icon.jsx';
  * antes de prescrever."); sem ele, só o fato.
  */
 export function AllergyNotice({ patient, allergies, typed = '', hint = null, className = '' }) {
-  const declared = (allergies ?? patient?.clinico?.alergias ?? []).map((a) => String(a).trim()).filter(Boolean);
-  const needle = String(typed).toLowerCase();
-  const hits = needle.trim() ? declared.filter((a) => a.length > 2 && needle.includes(a.toLowerCase())) : [];
+  const declared = declaredAllergies(allergies ?? patient?.clinico?.alergias ?? []);
+  const hits = String(typed).trim() ? allergyHits(typed, declared) : [];
   if (!declared.length) {
     return (
       <p className={`pr-rx-allergy is-none ${className}`.trim()} role="note">
@@ -27,6 +27,7 @@ export function AllergyNotice({ patient, allergies, typed = '', hint = null, cla
       <span>
         <strong>Alergias: {declared.join(' · ')}</strong>
         {hits.length ? <span className="pr-rx-allergy__hit" role="alert">O que foi digitado contém {hits.join(', ')}: confirme antes de registrar.</span> : null}
+        {String(typed).trim() && !hits.length ? <span className="pr-rx-allergy__caveat">Sem correspondência automática. A checagem só reconhece nomes e marcas conhecidos: confira o medicamento.</span> : null}
       </span>
     </p>
   );

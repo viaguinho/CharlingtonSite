@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../data/repository.js';
+import { allergyConflict } from '../patients/record/allergyConflict.js';
 import { STORES, DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, DOCUMENT_STATUS, newDocument } from '../../data/schema.js';
 import {
   DOCUMENT_SKELETONS, REQUIRES_SIGNATURE, SIGNATURE_PROVIDERS, VARIABLES,
@@ -29,7 +30,7 @@ import { date, dateLong, age } from '../../core/format.js';
  */
 
 // `notice`: faixa opcional acima do editor e da folha (o prontuário passa a alergia).
-export function ClinicalDocumentModal({ open, patient, guardians = [], appointment, initialType, notice = null, onClose, onIssued }) {
+export function ClinicalDocumentModal({ open, patient, guardians = [], appointment, initialType, notice = null, allergies = [], onClose, onIssued }) {
   const { user, plaza, requireStepUp } = useSession();
   const toast = useToast();
 
@@ -41,6 +42,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
   const [provider, setProvider] = useState('birdid');
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   const skeleton = DOCUMENT_SKELETONS[type] ?? {};
 
@@ -73,6 +75,12 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
 
   const resolvedText = useMemo(() => resolveVariables(text, context), [text, context]);
   // Itens da prescrição também aceitam {{variáveis}}: o que a prévia mostra é o que se grava, faz hash e imprime.
+  // Alergia declarada que aparece em algum item da prescrição (sinônimos e marcas inclusos).
+  const [ackAllergy, setAckAllergy] = useState(false);
+  const itemConflicts = useMemo(() => [...new Set(items.flatMap((i) => allergyConflict(
+    { principioAtivo: i.principio, nome: `${i.concentracao ?? ''}` }, allergies)))], [items, allergies]);
+  useEffect(() => { if (!itemConflicts.length) setAckAllergy(false); }, [itemConflicts.length]);
+
   const resolvedItems = useMemo(() => items
     .filter((i) => i.principio?.trim())
     .map((i) => ({ ...i, posologia: resolveVariables(i.posologia ?? '', context) })), [items, context]);
@@ -97,6 +105,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
     const hasContent = resolvedText.trim() || items.some((i) => i.principio?.trim());
     if (!hasContent) { toast.error('O documento está vazio.'); return; }
     if (tooLong) { toast.error('O texto não cabe em uma folha. Reduza o texto para emitir.'); return; }
+    if (itemConflicts.length && !ackAllergy) { toast.error('Confirme que revisou a alergia declarada antes de emitir.'); return; }
 
     if (pending.length) {
       toast.warning(`Há variáveis sem valor: ${pending.join(', ')}. Complete a ficha ou edite o texto.`);
@@ -109,6 +118,8 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
       return;
     }
 
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await requireStepUp('documents.issue', 'Emitir um documento clínico exige confirmação de identidade.');
@@ -162,6 +173,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
     } catch (error) {
       if (error.message !== 'Ação cancelada.') toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -197,13 +209,22 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
             Depois de assinado, o documento não pode ser editado.
           </span>
           <Button onClick={onClose} disabled={busy}>Fechar</Button>
-          <Button variant="primary" icon="signature" onClick={issue} loading={busy} disabled={tooLong}>
+          <Button variant="primary" icon="signature" onClick={issue} loading={busy} disabled={tooLong || (itemConflicts.length > 0 && !ackAllergy)}>
             {REQUIRES_SIGNATURE.has(type) ? 'Assinar e emitir' : 'Emitir documento'}
           </Button>
         </>
       }
     >
       {notice ? <div className="doc-notice">{notice}</div> : null}
+      {itemConflicts.length ? (
+        <div className="doc-notice doc-allergy-hit" role="alert">
+          <p><strong>Alergia declarada: {itemConflicts.join(', ')}.</strong> Um item desta prescrição é, contém ou pertence à mesma família.</p>
+          <label className="doc-allergy-hit__ack">
+            <input type="checkbox" checked={ackAllergy} onChange={(e) => setAckAllergy(e.target.checked)} />
+            Revisei a alergia com o responsável e mantenho este item.
+          </label>
+        </div>
+      ) : null}
       <div className="doc-split">
         {/* ═══════════ Editor ═══════════ */}
         <section className="doc-editor" aria-label="Editor do documento">

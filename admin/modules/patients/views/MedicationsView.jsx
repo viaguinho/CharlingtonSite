@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
@@ -7,6 +7,8 @@ import { TextField, TextArea, FieldRow } from '../../../components/Field.jsx';
 import { Modal, useToast } from '../../../components/Overlay.jsx';
 import Icon from '../../../components/Icon.jsx';
 import { AllergyNotice } from '../record/AllergyNotice.jsx';
+import { medicationLabel } from '../record/medicationLabel.js';
+import { allergyConflict, declaredAllergies } from '../record/allergyConflict.js';
 import { date, relative, isoDay } from '../../../core/format.js';
 
 /**
@@ -33,12 +35,8 @@ export function MedicationsView({ patient, medications, reload, intent = null })
       .sort((a, b) => (b.suspensaEm ?? '').localeCompare(a.suspensaEm ?? '')),
   }), [medications]);
 
-  const allergies = patient.clinico?.alergias ?? [];
+  const allergies = declaredAllergies(patient.clinico?.alergias ?? []);
 
-  function allergyConflict(medication) {
-    const needle = `${medication.principioAtivo ?? ''} ${medication.nome ?? ''}`.toLowerCase();
-    return allergies.filter((a) => needle.includes(String(a).toLowerCase().trim()) && String(a).trim().length > 2);
-  }
 
   return (
     <>
@@ -56,13 +54,13 @@ export function MedicationsView({ patient, medications, reload, intent = null })
                 {active.length ? (
                   <ul className="meds__list">
                     {active.map((medication) => {
-                      const conflicts = allergyConflict(medication);
+                      const conflicts = allergyConflict(medication, allergies);
                       return (
                         <li key={medication.id} className={`med ${conflicts.length ? 'has-conflict' : ''}`}>
                           <span className="med__icon"><Icon name="pill" size={15} /></span>
                           <div className="med__text">
-                            <strong>{medication.principioAtivo || medication.nome}</strong>
-                            <span>{medication.concentracao} · {medication.posologia}</span>
+                            <strong>{medicationLabel(medication)}</strong>
+                            <span>{[medication.concentracao, medication.posologia].filter(Boolean).join(' · ')}</span>
                             <span className="med__since">Desde {date(medication.iniciadaEm)} · {relative(medication.iniciadaEm)}</span>
                             {conflicts.length ? (
                               <span className="med__conflict">
@@ -71,7 +69,7 @@ export function MedicationsView({ patient, medications, reload, intent = null })
                               </span>
                             ) : null}
                           </div>
-                          <IconButton name="minus" label="Suspender" onClick={() => setSuspending(medication)} />
+                          <IconButton name="minus" label={`Suspender ${medication.principioAtivo || medication.nome}`} onClick={() => setSuspending(medication)} />
                         </li>
                       );
                     })}
@@ -122,6 +120,7 @@ export function MedicationsView({ patient, medications, reload, intent = null })
 
       <SuspendDialog
         medication={suspending}
+        patient={patient}
         onClose={() => setSuspending(null)}
         onSaved={() => { setSuspending(null); reload(); }}
       />
@@ -133,6 +132,7 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState(blank());
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   function blank() {
     return {
@@ -150,6 +150,8 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
     }
     if (!form.posologia.trim()) { toast.error('Informe a posologia.'); return; }
 
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await repo.create(STORES.MEDICATIONS, { ...form, pacienteId: patient.id });
@@ -159,6 +161,7 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -197,24 +200,35 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
   );
 }
 
-function SuspendDialog({ medication, onClose, onSaved }) {
+function SuspendDialog({ medication, patient, onClose, onSaved }) {
   const toast = useToast();
   const [reason, setReason] = useState('');
+  const [since, setSince] = useState(isoDay());
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   async function confirm() {
+    // Sem motivo e sem data a suspensão não explica nada a quem lê o histórico depois.
+    if (!reason.trim()) { toast.error('Informe o motivo da suspensão.'); return; }
+    if (!since || since > isoDay()) { toast.error('A data da suspensão não pode ser futura.'); return; }
+    if (medication.iniciadaEm && since < medication.iniciadaEm.slice(0, 10)) { toast.error('A suspensão não pode ser anterior ao início do uso.'); return; }
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await repo.update(STORES.MEDICATIONS, medication.id, {
-        suspensaEm: new Date().toISOString(),
-        motivoSuspensao: reason.trim() || null,
-      });
+        // Hoje vale o instante; um dia passado vale o meio-dia daquele dia.
+        suspensaEm: since === isoDay() ? new Date().toISOString() : `${since}T12:00:00`,
+        motivoSuspensao: reason.trim(),
+      }, { auditDetail: `Suspensão de ${medication.principioAtivo || medication.nome}: ${reason.trim()}` });
       toast.success('Medicação suspensa. O registro permanece no histórico.');
       setReason('');
+      setSince(isoDay());
       onSaved();
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -233,12 +247,14 @@ function SuspendDialog({ medication, onClose, onSaved }) {
         </>
       }
     >
+      <AllergyNotice patient={patient} />
       <TextField
-        label="Motivo da suspensão"
+        label="Motivo da suspensão *"
         placeholder="Ex.: efeito adverso, troca de esquema, alta"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
       />
+      <TextField label="Data da suspensão" type="date" value={since} max={isoDay()} onChange={(e) => setSince(e.target.value)} />
     </Modal>
   );
 }

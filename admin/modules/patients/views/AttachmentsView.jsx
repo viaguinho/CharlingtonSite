@@ -90,14 +90,23 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
     setPending({
       file, buffer,
       contentType: kind.type,
-      titulo: file.name.replace(/\.[^.]+$/, ''),
+      // O nome do arquivo costuma ter o nome do paciente: não vira título nem é guardado (PRODUCT.md).
+      titulo: '',
       origem: presetOrigin ?? 'exame_imagem',
       realizadoEm: isoDay(),
       observacoes: '',
     });
   }
 
+  const saving = useRef(false);
+
   async function save() {
+    // O asterisco do título é uma promessa: anexo sem nome vira linha em branco na lista.
+    if (!pending.titulo?.trim()) { toast.error('Informe o título do anexo.'); return; }
+    // Exame de amanhã não existe: uma data futura viraria "o mais recente" na pasta e na Linha do tempo.
+    if (!pending.realizadoEm || pending.realizadoEm > isoDay()) { toast.error('A data de realização não pode ser futura.'); return; }
+    if (saving.current) return;
+    saving.current = true;
     setPending((p) => ({ ...p, busy: true }));
     try {
       const blobId = uuid();
@@ -108,7 +117,6 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
         pacienteId: patient.id,
         blobId,
         titulo: pending.titulo.trim(),
-        nomeArquivo: pending.file.name,
         contentType: pending.contentType,
         tamanho: pending.file.size,
         origem: pending.origem,
@@ -123,6 +131,8 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
     } catch (error) {
       toast.error(error.message);
       setPending((p) => ({ ...p, busy: false }));
+    } finally {
+      saving.current = false;
     }
   }
 
@@ -158,7 +168,12 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
       <Card variant="flush">
         <CardHeader
           title="Exames e pareceres"
-          subtitle={attachments.length ? `${attachments.length} ${attachments.length === 1 ? 'arquivo' : 'arquivos'}` : undefined}
+          subtitle={attachments.length ? (() => {
+            // Filtrado, o subtítulo diz o que a lista mostra: "3 de 7 arquivos".
+            const shown = filter ? attachments.filter((a) => filter.includes(a.origem)).length : attachments.length;
+            const total = `${attachments.length} ${attachments.length === 1 ? 'arquivo' : 'arquivos'}`;
+            return shown === attachments.length ? total : `${shown} de ${total}`;
+          })() : undefined}
           actions={<Button size="sm" variant="primary" icon="upload" onClick={() => inputRef.current?.click()}>Anexar arquivo</Button>}
         />
         <CardBody>
@@ -255,7 +270,7 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
               options={ORIGINS}
             />
             <TextField
-              label="Data de realização" type="date"
+              label="Data de realização" type="date" max={isoDay()}
               value={pending.realizadoEm}
               onChange={(e) => setPending((p) => ({ ...p, realizadoEm: e.target.value }))}
             />

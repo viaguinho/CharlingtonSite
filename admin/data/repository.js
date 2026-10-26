@@ -158,6 +158,31 @@ export async function update(store, id, changes, { auditAction, auditDetail } = 
 }
 
 /**
+ * Adendo a registro travado: a ÚNICA alteração permitida depois da assinatura.
+ * Acrescenta ao fim de `adendos` e nunca toca no texto original. `update`
+ * recusa registro travado, então o adendo precisa de caminho próprio — destravar
+ * e travar de novo, como a tela fazia antes, nunca funcionou.
+ */
+export async function appendAddendum(store, id, addendum) {
+  const existing = await adapter.get(store, id);
+  if (!existing) throw new Error('Registro não encontrado.');
+  if (!existing.travada) throw new Error('Só uma evolução assinada recebe adendo; edite o rascunho.');
+
+  const next = touch({ ...existing, adendos: [...(existing.adendos ?? []), addendum], id }, currentUserId);
+  const saved = await adapter.put(store, next);
+
+  const patient = next.pacienteId ? await adapter.get(STORES.PATIENTS, next.pacienteId) : null;
+  await audit.log({
+    action: audit.ACTIONS.UPDATE,
+    entity: store,
+    entityId: id,
+    changes: { adendos: 'acrescentado' },
+    detail: `Adendo à evolução${patient ? ` de ${patient.nome}` : ''}`,
+  });
+  return saved;
+}
+
+/**
  * Exclusão lógica. Prontuário, documento e lançamento financeiro têm prazo
  * legal de guarda e jamais são removidos fisicamente.
  */

@@ -1,6 +1,6 @@
 import { findScale, interpretScore } from '../../../data/scales.js';
 import Icon from '../../../components/Icon.jsx';
-import { date, relative } from '../../../core/format.js';
+import { date, relative, number as num } from '../../../core/format.js';
 
 /**
  * Card de instrumento — o "biomarcador" da referência, com dado de escala.
@@ -27,9 +27,29 @@ function recorded(instrumentId, application) {
   return { label, tone };
 }
 
-export function ScaleCard({ instrumentId, applications, onOpen }) {
+export function ScaleCard({ instrumentId, applications: all, onOpen }) {
   const scale = findScale(instrumentId);
-  if (!scale || !applications.length) return null;
+  if (!all.length) return null;
+  if (!scale) {
+    // Instrumento fora do catálogo conta na pílula: o card não pode sumir. Mostra o que foi gravado.
+    const last = all[all.length - 1];
+    return (
+      <button type="button" className="pr-scale pr-scale--none" onClick={onOpen}>
+        <span className="pr-scale__title"><span className="pr-scale__tick" aria-hidden="true" />{last.instrumento || 'Instrumento fora do catálogo'}</span>
+        <span className="pr-scale__note">Escore {last.escore ?? '—'} registrado; sem faixa de interpretação aqui</span>
+      </button>
+    );
+  }
+  // Aplicação sem escore numérico não vira "null/20" nem ponto em zero no gráfico.
+  const applications = all.filter((a) => a.escore != null && a.escore !== '' && Number.isFinite(Number(a.escore)));
+  if (!applications.length) {
+    return (
+      <button type="button" className="pr-scale pr-scale--none" onClick={onOpen}>
+        <span className="pr-scale__title"><span className="pr-scale__tick" aria-hidden="true" />{scale.nome}</span>
+        <span className="pr-scale__note">Aplicada sem escore registrado</span>
+      </button>
+    );
+  }
 
   const latest = applications[applications.length - 1];
   const previous = applications.length > 1 ? applications[applications.length - 2] : null;
@@ -63,7 +83,7 @@ export function ScaleCard({ instrumentId, applications, onOpen }) {
       {/* Variação e data na mesma linha: o rodapé fica só com a interpretação. */}
       <span className="pr-scale__meta">
         {delta ? (
-          <span className="pr-scale__delta num">{delta > 0 ? '+' : '−'}{Math.abs(delta)} {Math.abs(delta) === 1 ? 'ponto' : 'pontos'}</span>
+          <span className="pr-scale__delta num">{delta > 0 ? '+' : '−'}{num(Math.abs(delta))} {Math.abs(delta) === 1 ? 'ponto' : 'pontos'}</span>
         ) : null}
         <span>{relative(latest.aplicadaEm)}{single ? ' · 1 aplicação' : ''}</span>
       </span>
@@ -126,7 +146,7 @@ function DotPlot({ scale, applications }) {
 
   return (
     <svg className="pr-dots" height={H} role="img"
-      aria-label={`Escores de ${scale.nome}: ${applications.map((a) => `${a.escore} em ${date(a.aplicadaEm)}`).join('; ')}`}>
+      aria-label={`Escores de ${scale.nome}: ${applications.map((a) => `${num(a.escore)} em ${date(a.aplicadaEm)}`).join('; ')}`}>
       {ref ? (
         <rect className="pr-dots__band" x="0" width="100%" y={bandTop} height={Math.max(1, bandBottom - bandTop)} rx="3" />
       ) : null}

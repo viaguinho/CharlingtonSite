@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { APPOINTMENT_TYPE_LABELS } from '../../../data/schema.js';
 import { visitState } from './patientStates.js';
 
@@ -18,6 +18,8 @@ const EDGE = 24; // largura da máscara de esmaecimento nas bordas
 export function VisitRail({ appointments, onOpen }) {
   const scroller = useRef(null);
   const todayRef = useRef(null);
+  // Tabindex móvel: com 300 consultas eram 303 paradas de Tab. Tab entra uma vez e as setas andam.
+  const [stop, setStop] = useState(null);
 
   const list = appointments
     .filter((a) => a.status !== 'cancelado' && a.inicio)
@@ -48,19 +50,23 @@ export function VisitRail({ appointments, onOpen }) {
     };
   }, [list.length]);
 
-  // Cápsula que a borda corta fica esmaecida: perto do fim da rolagem não há
-  // como alinhar a borda a uma cápsula, e "7 out 2026" sem o "0" lia errado.
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-    const io = new IntersectionObserver((entries) => {
-      for (const en of entries) en.target.toggleAttribute('data-clipped', en.intersectionRatio < 0.98);
-    }, { root: el, rootMargin: `0px -${EDGE / 2}px`, threshold: [0, 0.98, 1] });
-    el.querySelectorAll('.pr-visit').forEach((b) => io.observe(b));
-    return () => io.disconnect();
-  }, [list.length]);
-
   if (!list.length) return null;
+
+  const onKeyDown = (e) => {
+    const buttons = [...scroller.current.querySelectorAll('button')];
+    const at = buttons.indexOf(document.activeElement);
+    if (at < 0) return;
+    let next = null;
+    if (e.key === 'ArrowRight') next = Math.min(buttons.length - 1, at + 1);
+    if (e.key === 'ArrowLeft') next = Math.max(0, at - 1);
+    if (e.key === 'Home') next = 0;
+    if (e.key === 'End') next = buttons.length - 1;
+    if (next == null) return;
+    e.preventDefault();
+    buttons[next].focus();
+  };
+  // Parada inicial: a primeira consulta de hoje em diante (a que a faixa centraliza).
+  const stopId = stop ?? list[Math.max(0, firstFuture === -1 ? list.length - 1 : firstFuture)]?.id;
 
   const today = (
     <span ref={todayRef} className="pr-rail__today">
@@ -71,7 +77,7 @@ export function VisitRail({ appointments, onOpen }) {
 
   return (
     <nav className="pr-rail" aria-label="Consultas do paciente">
-      <ol ref={scroller} className="pr-rail__list">
+      <ol ref={scroller} className="pr-rail__list" onKeyDown={onKeyDown}>
         {list.map((a, i) => {
           const d = new Date(a.inicio);
           const st = visitState(a, now);
@@ -80,7 +86,8 @@ export function VisitRail({ appointments, onOpen }) {
             <li key={a.id} className="pr-rail__item">
               {i === firstFuture ? today : null}
               <button type="button" className={`pr-visit pr-visit--${st.tone}`} onClick={() => onOpen(a)}
-                onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' })}
+                tabIndex={a.id === stopId ? 0 : -1}
+                onFocus={(e) => { setStop(a.id); e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
                 aria-label={`${APPOINTMENT_TYPE_LABELS[a.tipo] ?? 'Consulta'} em ${d.toLocaleDateString('pt-BR')}, ${st.label}`}>
                 <span className="pr-visit__date num">{day}</span>
                 <span className="pr-visit__status">

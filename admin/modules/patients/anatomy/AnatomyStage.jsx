@@ -25,6 +25,11 @@ const CREDITO_MINIMO = 'BodyParts3D © DBCLS · HRA · CC BY 4.0';
 const DESCRICAO = 'Modelo 3D do busto, da cabeça até o tórax: pele em contorno, crânio e mandíbula, cérebro dividido em lobos e estruturas profundas, coluna cervical, medula espinhal, artérias do pescoço e coração. É um modelo de referência, não uma imagem do paciente. Arraste para girar; a lista de estruturas percorre o modelo pelo teclado.';
 
 /* ——————————————— Seletor radial: posições sobre o arco ——————————————— */
+// Coluna reta de 5 botões de 44 px com vão de 6 px.
+// O busto tem ~180 px de largura: com 340 px de palco sobram 72 px de cada lado para a coluna.
+const COLUMN_MIN_W = 340;
+// Coluna compacta: 5 botões de 40 px com 4 px entre eles.
+const COLUMN_H = 5 * 40 + 4 * 4;
 const ARC = { w: 132, h: 316, cx: 196, cy: 158, r: 112, rBtn: 156, step: 21 };
 function arcPoint(i, n, radius) {
   const deg = 180 - (i - (n - 1) / 2) * ARC.step;
@@ -44,13 +49,20 @@ function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+// Uma só sondagem por página, e o contexto da sonda é devolvido na hora: cada
+// visita criava um contexto que nunca morria, e na 14ª o Chrome derrubava o do
+// fundo do painel.
+let webglSupport;
 function hasWebGL() {
+  if (webglSupport !== undefined) return webglSupport;
   try {
-    const c = document.createElement('canvas');
-    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+    const gl = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl');
+    webglSupport = !!gl;
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
   } catch {
-    return false;
+    webglSupport = false;
   }
+  return webglSupport;
 }
 
 /* ——————————————— Geometria do posicionamento do popover ——————————————— */
@@ -76,7 +88,7 @@ function RelatedRows({ estrutura, attachments, onOpenAttachments }) {
   if (!relacionados.length) return null;
   return (
     <div className="an-pop__rel">
-      <p className="an-pop__label">Relacionado ao paciente</p>
+      <p className="an-pop__label">Exames do paciente que costumam avaliar esta região</p>
       {relacionados.map((r) => (
         <button
           key={r.origem}
@@ -131,11 +143,20 @@ function StructurePopover({ estrutura, attachments, onOpenAttachments, titleId, 
 }
 
 /* ——————————————— Fallback sem WebGL / erro de carga ——————————————— */
-function FallbackList({ attachments, onOpenAttachments }) {
+const FALLBACK_MESSAGE = {
+  webgl: 'Não foi possível abrir o modelo 3D neste navegador.',
+  load: 'Não foi possível carregar o modelo 3D. Confira a conexão e tente de novo.',
+  lost: 'O modelo 3D parou de responder.',
+};
+
+function FallbackList({ attachments, onOpenAttachments, kind = 'webgl', onRetry = null }) {
   const [open, setOpen] = useState(null);
   return (
     <div className="an-fallback">
-      <p className="an-fallback__msg" role="status">Não foi possível abrir o modelo 3D neste navegador.</p>
+      <p className="an-fallback__msg" role="status">{FALLBACK_MESSAGE[kind] ?? FALLBACK_MESSAGE.webgl}</p>
+      {kind !== 'webgl' && onRetry ? (
+        <button type="button" className="an-fallback__retry" onClick={onRetry}>{kind === 'lost' ? 'Recarregar modelo' : 'Tentar de novo'}</button>
+      ) : null}
       <ul className="an-fallback__list">
         {INTERATIVAS.filter((e) => !e.opcional).map((e) => {
           const expanded = open === e.id;
@@ -192,6 +213,10 @@ export default function AnatomyStage({
   const anchorsRef = useRef({ hover: null, select: null });
 
   const [status, setStatus] = useState(() => (typeof window !== 'undefined' && !hasWebGL() ? 'error' : 'loading'));
+  // Por que o 3D não abriu: sem WebGL, falha de carga ou contexto perdido (cada um diz uma coisa diferente).
+  const [failKind, setFailKind] = useState('webgl');
+  const [reloadKey, setReloadKey] = useState(0);
+  const retryScene = useCallback(() => { setStatus('loading'); setReloadKey((k) => k + 1); }, []);
   const [present, setPresent] = useState(null); // ids presentes no modelo
   const [hoverId, setHoverId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -305,6 +330,13 @@ export default function AnatomyStage({
           },
           onError: (err) => {
             console.error('[anatomia] modelo 3D indisponível', err?.error ?? err);
+            setFailKind(err?.type === 'load' ? 'load' : 'webgl');
+            setStatus('error');
+          },
+          onContextLost: () => {
+            scene?.dispose();
+            sceneRef.current = null;
+            setFailKind('lost');
             setStatus('error');
           },
           onHover: (id) => setHoverId(id),
@@ -324,7 +356,7 @@ export default function AnatomyStage({
       })
       .catch((err) => {
         console.error('[anatomia] falha ao carregar o palco', err);
-        if (!cancelled) setStatus('error');
+        if (!cancelled) { setFailKind('load'); setStatus('error'); }
       });
     return () => {
       cancelled = true;
@@ -332,7 +364,7 @@ export default function AnatomyStage({
       sceneRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelUrl, metaUrl]);
+  }, [modelUrl, metaUrl, reloadKey]);
 
   useEffect(() => {
     sceneRef.current?.setPaused(paused);
@@ -353,17 +385,36 @@ export default function AnatomyStage({
     const el = alertsRef.current;
     const stage = stageRef.current;
     if (!el || !stage || typeof ResizeObserver === 'undefined') return undefined;
+    const narrow = window.matchMedia('(max-width: 1179px)');
     const sync = () => {
       const h = el.offsetHeight ? el.offsetTop + el.offsetHeight : 0;
       stage.style.setProperty('--an-top', `${h}px`);
+      if (narrow.matches) {
+        // Palco sem grudar: a faixa de alertas (e a fileira de camadas, quando
+        // não cabe a coluna) vira uma reserva acima do modelo, não uma camada
+        // sobre ele (anatomy.css). A cena não precisa descer a cabeça.
+        const column = stage.clientWidth >= COLUMN_MIN_W;
+        stage.dataset.layers = column ? 'column' : 'row';
+        const rowH = column ? 0 : layersRef.current?.offsetHeight ?? 0;
+        const reserve = h + (column ? 0 : 12 + rowH) + (h || rowH ? 8 : 0);
+        stage.style.setProperty('--an-reserve', `${reserve}px`);
+        sceneRef.current?.setTopInset?.(0);
+        return;
+      }
+      stage.style.removeProperty('--an-reserve');
       // Arco ou fileira. O arco começa abaixo dos alertas, centrado na altura
       // útil (mesma conta de anatomy.css), e não pode descer sobre a faixa de
       // consultas; num palco estreito ele cai sobre o rosto. Nos dois casos as
       // camadas viram uma fileira abaixo dos alertas e a cabeça desce abaixo dela.
       const arcTop = Math.max(h + 20, stage.clientHeight * 0.46 - ARC.h / 2);
       const baseTop = baseRef.current ? baseRef.current.offsetTop : stage.clientHeight;
-      const asRow = stage.clientWidth <= 400 || arcTop + ARC_BTN_BOTTOM > baseTop - 8;
-      stage.dataset.layers = asRow ? 'row' : 'arc';
+      const arcFits = stage.clientWidth > 400 && arcTop + ARC_BTN_BOTTOM <= baseTop - 8;
+      // Coluna reta na borda esquerda quando o arco não cabe mas há largura: o
+      // busto é estreito, sobra margem dos lados, e a cabeça não perde altura.
+      const columnFits = stage.clientWidth >= COLUMN_MIN_W && h + 12 + COLUMN_H <= baseTop - 8;
+      const mode = arcFits ? 'arc' : columnFits ? 'column' : 'row';
+      stage.dataset.layers = mode;
+      const asRow = mode === 'row';
       const row = asRow ? layersRef.current?.offsetHeight ?? 0 : 0;
       const top = row ? h + 12 + row : h;
       sceneRef.current?.setTopInset?.(top ? top + 12 : 0);
@@ -372,8 +423,9 @@ export default function AnatomyStage({
     ro.observe(el);
     ro.observe(stage);
     if (baseRef.current) ro.observe(baseRef.current);
+    narrow.addEventListener('change', sync);
     sync();
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); narrow.removeEventListener('change', sync); };
   }, [status, alerts]);
 
   /* ——— Estruturas navegáveis (só as presentes e visíveis) ——— */
@@ -403,7 +455,8 @@ export default function AnatomyStage({
     }
     if (!returnFocusRef.current) {
       const active = document.activeElement;
-      returnFocusRef.current = active && active !== document.body ? active : listRef.current;
+      // O <main> da página (foco programático do roteador) não é um lugar para voltar: ganhava um anel azul na página inteira.
+      returnFocusRef.current = active && active !== document.body && !active.matches?.('main, [role="main"]') ? active : listRef.current;
     }
     // Foco vai para o popover; o leitor de tela lê o título.
     const raf = requestAnimationFrame(() => {
@@ -508,7 +561,10 @@ export default function AnatomyStage({
   useEffect(() => {
     if (status === 'ready') setListNotice('');
   }, [status]);
-  const listHint = listNotice || (status === 'ready' ? 'Setas percorrem · Enter abre' : 'Carregando o modelo 3D…');
+  const listHint = listNotice
+    || (status !== 'ready' ? 'Carregando o modelo 3D…'
+      : !options.length ? 'Todas as camadas estão ocultas. Ligue uma camada para percorrer as estruturas.'
+        : 'Setas percorrem · Enter abre');
 
   const hovered = hoverId ? ESTRUTURAS[hoverId] : null;
   const selected = selectedId ? ESTRUTURAS[selectedId] : null;
@@ -553,7 +609,7 @@ export default function AnatomyStage({
     return (
       <section className="an-stage an-stage--fallback" aria-label="Anatomia">
         {alerts ? <div className="an-alerts">{alerts}</div> : null}
-        <FallbackList attachments={attachments} onOpenAttachments={onOpenAttachments} />
+        <FallbackList attachments={attachments} onOpenAttachments={onOpenAttachments} kind={failKind} onRetry={failKind === 'webgl' ? null : retryScene} />
         {base}
         {creditLine}
       </section>

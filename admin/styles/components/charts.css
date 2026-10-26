@@ -363,6 +363,20 @@
 }
 .line-dot.is-hot { stroke: var(--data-accent); filter: drop-shadow(0 0 6px var(--mark-volume-soft)); }
 
+.line-dot-html {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface-raised);
+  border: 2.5px solid var(--data-strong);
+  box-sizing: border-box;
+  pointer-events: none;
+  transition: width var(--dur-1) var(--ease), height var(--dur-1) var(--ease);
+}
+.line-dot-html.is-hot { width: 13px; height: 13px; border-color: var(--data-accent); box-shadow: 0 0 6px var(--mark-volume-soft); }
+
 .line-hit { position: absolute; inset: 0; display: flex; }
 .line-hit__zone { flex: 1; height: 100%; background: none; cursor: crosshair; }
 
@@ -398,6 +412,8 @@
   color: var(--ink-400);
   white-space: nowrap;
 }
+.line-axis span.is-first { transform: none; }
+.line-axis span.is-last { transform: translateX(-100%); }
 
 /* ————————————————————————————— Sparkline ————————————————————————————— */
 
@@ -495,7 +511,9 @@
   padding-right: var(--s-2);
   font-size: var(--t-body); line-height: var(--lh-body);
   color: var(--ink-400);
-  overflow-wrap: anywhere;
+  /* Quebra com hífen em pt-BR; "anywhere" cortava "significativ-os" no meio da sílaba. */
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 /* ————————————————————————— Barra de proporção ————————————————————————— */

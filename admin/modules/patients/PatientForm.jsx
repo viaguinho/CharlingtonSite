@@ -159,7 +159,8 @@ export function PatientForm({ open, onClose, onSaved, patient: existing }) {
             telefone: g.telefone ? g.telefone.replace(/\D/g, '') : '',
           };
 
-          if (g.id) {
+          // `newGuardian()` já nasce com id: só é atualização o responsável que a ficha já tem.
+          if (g.id && existing?.responsaveis?.includes(g.id)) {
             await repo.update(STORES.GUARDIANS, g.id, payload);
             guardianIds.push(g.id);
           } else {

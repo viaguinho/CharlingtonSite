@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES, DEVELOPMENT_DOMAINS, DEVELOPMENT_DOMAIN_LABELS, MILESTONE_STATUS } from '../../../data/schema.js';
 import { MILESTONES, AGE_BANDS } from '../../../data/milestones.js';
@@ -95,7 +95,13 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection, int
   }
   const passouDoLimite = (milestone) => pendenteDeAvaliacao(milestone) && months > milestone.idadeLimite;
 
+  // Trava por marco, síncrona: com a releitura lenta o botão ainda via "Não avaliado" e o 2º clique
+  // criava um 2º registro (ou avançava dois estados). Só libera depois de a lista estar relida.
+  const inFlight = useRef(new Set());
+
   async function cycle(milestone) {
+    if (inFlight.current.has(milestone.id)) return;
+    inFlight.current.add(milestone.id);
     const current = recorded.get(milestone.id);
     const index = STATUS_ORDER.indexOf(current?.status ?? MILESTONE_STATUS.NOT_ASSESSED);
     const next = STATUS_ORDER[(index + 1) % STATUS_ORDER.length];
@@ -118,10 +124,11 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection, int
           observadoEm: new Date().toISOString(),
         });
       }
-      reload();
+      await reload();
     } catch (error) {
       toast.error(error.message);
     } finally {
+      inFlight.current.delete(milestone.id);
       setSaving(null);
     }
   }

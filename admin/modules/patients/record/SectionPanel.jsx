@@ -13,7 +13,7 @@ import Icon from '../../../components/Icon.jsx';
  * Esc fecha (a menos que um modal da própria view esteja aberto) e o foco
  * volta para a pílula da seção.
  */
-export function SectionPanel({ label, patientName = null, alerts = null, onClose, children }) {
+export function SectionPanel({ label, patientName = null, alerts = null, states = null, onClose, children }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -88,7 +88,11 @@ export function SectionPanel({ label, patientName = null, alerts = null, onClose
             <span aria-hidden="true">Voltar à visão geral</span>
           </button>
         </header>
-        <div className="pr-panel__body">{children}</div>
+        <div className="pr-panel__body">
+          {/* Os demais estados do paciente rolam com o corpo; só a alergia fica grudada no topo. */}
+          {states ? <div className="pr-panel__states">{states}</div> : null}
+          {children}
+        </div>
       </section>
     </div>
   );

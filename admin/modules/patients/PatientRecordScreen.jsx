@@ -28,8 +28,16 @@ import { SectionPanel } from './record/SectionPanel.jsx';
 import { AllergyNotice } from './record/AllergyNotice.jsx';
 import { patientStates, firstVisit } from './record/patientStates.js';
 
-// O palco 3D (three + modelo) só carrega nesta rota.
-const AnatomyStage = lazy(() => import('./anatomy/AnatomyStage.jsx'));
+// O palco 3D (three + modelo) só carrega nesta rota. A cadeia rota → palco → cena
+// era pedida em série (a cena só era pedida depois de o palco montar: ~1 s até o
+// busto, 3,2 s em 4G): aqui os dois módulos começam a baixar assim que a rota
+// carrega, em paralelo com a leitura dos dados.
+const loadStage = () => import('./anatomy/AnatomyStage.jsx');
+const AnatomyStage = lazy(loadStage);
+if (typeof window !== 'undefined') {
+  loadStage().catch(() => {});
+  import('./anatomy/scene.js').catch(() => {});
+}
 
 /**
  * Prontuário eletrônico — redesign Quantis em tema claro (20/10/2026).
@@ -52,6 +60,31 @@ const SECTIONS = [
   { value: 'consentimentos', label: 'Consentimentos' },
 ];
 
+// O que cada seção lê: se a leitura falhou, o painel diz isso em vez de mostrar "vazio".
+const SECTION_STORES = {
+  evolucoes: STORES.NOTES,
+  escalas: STORES.SCALES,
+  marcos: STORES.MILESTONES,
+  medicacoes: STORES.MEDICATIONS,
+  anexos: STORES.ATTACHMENTS,
+  documentos: STORES.DOCUMENTS,
+  consentimentos: STORES.CONSENTS,
+};
+
+const STORE_LABELS = {
+  [STORES.GUARDIANS]: 'responsáveis',
+  [STORES.APPOINTMENTS]: 'consultas',
+  [STORES.NOTES]: 'evoluções',
+  [STORES.SCALES]: 'escalas',
+  [STORES.MILESTONES]: 'marcos',
+  [STORES.MEDICATIONS]: 'medicações',
+  [STORES.ATTACHMENTS]: 'exames',
+  [STORES.DOCUMENTS]: 'documentos',
+  [STORES.CONSENTS]: 'consentimentos',
+};
+
+const joinNames = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}` : names[0]);
+
 const SECTION_TITLES = {
   'linha-do-tempo': 'Linha do tempo',
   evolucoes: 'Evoluções clínicas',
@@ -63,6 +96,15 @@ const SECTION_TITLES = {
   consentimentos: 'Consentimentos',
 };
 
+// Leituras que alimentam a Linha do tempo: se uma falha, ela não pode parecer completa.
+const TIMELINE_STORES = [STORES.APPOINTMENTS, STORES.NOTES, STORES.DOCUMENTS, STORES.ATTACHMENTS, STORES.SCALES, STORES.MEDICATIONS];
+
+const emptyRecord = () => ({
+  patient: null, guardians: [], appointments: [], notes: [],
+  scales: [], milestones: [], medications: [], attachments: [],
+  documents: [], consents: [], failed: [], skipped: 0,
+});
+
 export default function PatientRecordScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -72,6 +114,17 @@ export default function PatientRecordScreen() {
   const section = SECTIONS.some((s) => s.value === searchParams.get('secao')) ? searchParams.get('secao') : null;
 
   const [loading, setLoading] = useState(true);   // só a carga inicial mostra esqueleto
+  // Falha ao ler o paciente: sem ele não há prontuário; com ele já na tela, os dados ficam e o aviso aparece.
+  const [loadError, setLoadError] = useState(false);
+  // Id que não existe (link velho, outra unidade): diz isso, em vez de redirecionar calado.
+  const [notFound, setNotFound] = useState(false);
+  // Só a última leitura vale: "Tentar de novo" duas vezes não pode ser sobrescrita por uma resposta antiga.
+  const loadSeq = useRef(0);
+  // "Tentar de novo" precisa mostrar que está tentando e, se falhar outra vez, dizer que falhou outra vez.
+  const [retrying, setRetrying] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  // O relógio anda com a tela aberta: "Próxima · agora" vira "Atrasado" sem recarregar.
+  const [tick, setTick] = useState(0);
   const [editing, setEditing] = useState(false);
   const [docModal, setDocModal] = useState(null);
   const [rescheduling, setRescheduling] = useState(null);
@@ -82,43 +135,79 @@ export default function PatientRecordScreen() {
   const pillsRef = useRef(null);
   // Abaixo de 1024px o painel é tela cheia: o resto da página fica inerte por trás.
   const fullscreenPanel = useMediaQuery('(max-width: 1023px)');
-  const [record, setRecord] = useState({
-    patient: null, guardians: [], appointments: [], notes: [],
-    scales: [], milestones: [], medications: [], attachments: [],
-    documents: [], consents: [],
-  });
+  const [record, setRecord] = useState(emptyRecord);
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     try {
-      const patient = await repo.get(STORES.PATIENTS, id);
-      if (!patient) { navigate('/pacientes'); return; }
+      const raw = await repo.get(STORES.PATIENTS, id);
+      if (seq !== loadSeq.current) return;
+      if (!raw) { setNotFound(true); setLoadError(false); setRecord(emptyRecord()); return; }
+      // Ficha antiga sem os blocos clínicos não pode derrubar a tela inteira.
+      const patient = { ...raw, clinico: raw.clinico ?? {}, perfilSensorial: raw.perfilSensorial ?? {} };
 
       const byPatient = { where: { pacienteId: id } };
+      // Leitura que falha NÃO é lista vazia: "Nenhuma medicação registrada" diria
+      // ao médico que o paciente não toma nada. A loja que falhou fica marcada.
+      const failed = [];
+      const read = (store, options) => repo.list(store, options).catch(() => { failed.push(store); return []; });
       const [guardians, appointments, notes, scales, milestones, medications, attachments, documents, consents] =
         await Promise.all([
-          repo.list(STORES.GUARDIANS).catch(() => []),
-          repo.list(STORES.APPOINTMENTS, byPatient).catch(() => []),
-          repo.list(STORES.NOTES, byPatient).catch(() => []),
-          repo.list(STORES.SCALES, byPatient).catch(() => []),
-          repo.list(STORES.MILESTONES, byPatient).catch(() => []),
-          repo.list(STORES.MEDICATIONS, byPatient).catch(() => []),
-          repo.list(STORES.ATTACHMENTS, byPatient).catch(() => []),
-          repo.list(STORES.DOCUMENTS, byPatient).catch(() => []),
-          repo.list(STORES.CONSENTS, byPatient).catch(() => []),
+          read(STORES.GUARDIANS),
+          read(STORES.APPOINTMENTS, byPatient),
+          read(STORES.NOTES, byPatient),
+          read(STORES.SCALES, byPatient),
+          read(STORES.MILESTONES, byPatient),
+          read(STORES.MEDICATIONS, byPatient),
+          read(STORES.ATTACHMENTS, byPatient),
+          read(STORES.DOCUMENTS, byPatient),
+          read(STORES.CONSENTS, byPatient),
         ]);
 
+      if (seq !== loadSeq.current) return;
+
+      // Uma consulta com data ilegível derrubaria a faixa e os alertas, alergia incluída.
+      const sane = appointments.filter((a) => Number.isFinite(Date.parse(a.inicio)));
+
+      setLoadError(false);
+      setNotFound(false);
       setRecord({
         patient,
         // Na ordem da ficha: o primeiro cadastrado é o responsável principal.
         guardians: (patient.responsaveis ?? []).map((gid) => guardians.find((g) => g.id === gid)).filter(Boolean),
-        appointments, notes, scales, milestones, medications, attachments, documents, consents,
+        appointments: sane, notes, scales, milestones, medications, attachments, documents, consents,
+        failed, skipped: appointments.length - sane.length,
       });
+    } catch {
+      if (seq === loadSeq.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  const retry = useCallback(async () => {
+    setRetrying(true);
+    setAttempts((n) => n + 1);
+    try { await load(); } finally { setRetrying(false); }
+  }, [load]);
+
+  // Outro paciente na mesma rota: nada do anterior fica na tela enquanto o novo carrega.
+  useEffect(() => {
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
+    setAttempts(0);
+    setRecord(emptyRecord());
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    const timer = setInterval(bump, 60_000);
+    const onVisible = () => { if (!document.hidden) bump(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
 
   const setSection = useCallback((value) => {
     setSearchParams((prev) => {
@@ -156,14 +245,19 @@ export default function PatientRecordScreen() {
   }, [section]);
 
   const states = useMemo(
-    () => (record.patient ? patientStates(record.patient, record.appointments, record.consents) : null),
-    [record.patient, record.appointments, record.consents],
+    () => (record.patient ? patientStates(record.patient, record.appointments, record.consents, record.failed) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [record.patient, record.appointments, record.consents, record.failed, tick],
   );
 
   if (loading) return <RecordSkeleton />;
+  if (notFound) return <PatientNotFound onBack={() => navigate('/pacientes', { replace: true })} />;
 
   const { patient } = record;
-  if (!patient) return null;
+  if (!patient) return loadError ? <RecordUnavailable onRetry={() => { setLoading(true); load(); }} /> : null;
+
+  // Uma leitura que falhou não é "zero": contagem e pendência dela não se afirmam.
+  const unreadable = new Set(record.failed);
 
   const counts = {
     'linha-do-tempo': null,
@@ -175,7 +269,7 @@ export default function PatientRecordScreen() {
     medicacoes: record.medications.filter((m) => !m.suspensaEm).length || null,
     anexos: record.attachments.length || null,
     // Pendência vem antes do total: "9 a emitir" é o que precisa de ação.
-    documentos: (() => {
+    documentos: unreadable.has(STORES.DOCUMENTS) ? null : (() => {
       const issued = new Set(record.documents.map((d) => d.atendimentoId).filter(Boolean));
       const pending = record.appointments.filter((a) => a.tipo === 'laudo' && a.status === 'concluido' && !issued.has(a.id)).length;
       return pending ? { value: pending, tone: 'warning', hint: `${pending} a emitir` } : record.documents.length || null;
@@ -207,12 +301,18 @@ export default function PatientRecordScreen() {
     setSection('anexos');
   };
 
+  const issueNames = record.failed.map((store) => STORE_LABELS[store]).filter(Boolean);
   const ageInfo = patient.dataNascimento ? age(patient.dataNascimento) : null;
   const first = firstVisit(record.appointments);
   const name = patient.nomeSocial || patient.nome;
 
-  const alerts = <AlertPills states={states} onReschedule={onReschedule} />;
-  const rail = <VisitRail appointments={record.appointments} onOpen={(a) => { setTimelineFocus(a.id); setSection('linha-do-tempo'); }} />;
+  const alerts = <AlertPills states={states} onReschedule={onReschedule} collapse />;
+  // A faixa e as colunas falham sozinhas: um registro ruim nunca derruba a barra, a alergia e o resto.
+  const rail = (
+    <ErrorBoundary scope="faixa de consultas" fallback={null}>
+      <VisitRail appointments={record.appointments} onOpen={(a) => { setTimelineFocus(a.id); setSection('linha-do-tempo'); }} />
+    </ErrorBoundary>
+  );
 
   return (
     <div className="pr">
@@ -222,6 +322,20 @@ export default function PatientRecordScreen() {
           { label: name },
         ]} />
       </div>
+
+      {issueNames.length || record.skipped || loadError ? (
+        <div className="pr-issue" role="alert" {...behindPanel}>
+          <Icon name="alert-triangle" size={16} />
+          <p>
+            {loadError ? `${attempts ? 'Ainda não' : 'Não'} foi possível atualizar o prontuário agora. ` : null}
+            {issueNames.length ? `${attempts ? 'Ainda não' : 'Não'} foi possível ler ${joinNames(issueNames)}. O que aparece abaixo pode estar incompleto. ` : null}
+            {record.skipped ? `${record.skipped} ${record.skipped === 1 ? 'consulta com data ilegível ficou' : 'consultas com data ilegível ficaram'} de fora.` : null}
+          </p>
+          {loadError || issueNames.length ? (
+            <button type="button" className="pr-link" onClick={retry} disabled={retrying} aria-busy={retrying || undefined}>{retrying ? 'Lendo de novo…' : 'Tentar de novo'}</button>
+          ) : null}
+        </div>
+      ) : null}
 
       <header className="pr-bar" {...behindPanel}>
         <button type="button" className="pr-bar__back" onClick={() => navigate('/pacientes')} aria-label="Voltar para Pacientes">
@@ -234,7 +348,10 @@ export default function PatientRecordScreen() {
           <p className="pr-bar__meta">
             {ageInfo ? <span>{ageInfo.label}</span> : null}
             {patient.dataNascimento ? <span className="num">{date(patient.dataNascimento)}</span> : null}
-            {first ? <span>em acompanhamento desde <span className="num">{date(first.inicio)}</span> ({relative(first.inicio)})</span> : null}
+            {first ? (
+              // "Em acompanhamento" só vale para quem está ativo: com alta ou arquivado, a frase é o fato.
+              <span>{patient.status === 'ativo' ? 'em acompanhamento desde' : 'primeiro atendimento em'} <span className="num">{date(first.inicio)}</span> ({relative(first.inicio)})</span>
+            ) : null}
             {patient.status === 'ativo'
               ? <span className="pr-bar__status">{PATIENT_STATUS_LABELS[patient.status]}</span>
               : <StatusDot tone="neutral" label={PATIENT_STATUS_LABELS[patient.status]} />}
@@ -244,6 +361,10 @@ export default function PatientRecordScreen() {
                 {patient.clinico.diagnosticos.slice(0, 3).map((d) => (
                   <Chip key={d.codigo ?? d} tone="code">{d.codigo ?? d}</Chip>
                 ))}
+                {/* O card de diagnósticos lista todos; o cabeçalho diz quantos ficaram de fora. */}
+                {patient.clinico.diagnosticos.length > 3 ? (
+                  <Chip tone="muted">+{patient.clinico.diagnosticos.length - 3}</Chip>
+                ) : null}
               </span>
             ) : null}
           </p>
@@ -271,7 +392,9 @@ export default function PatientRecordScreen() {
 
       <div className={`pr-grid ${section ? 'has-panel' : ''}`.trim()}>
         <div className="pr-behind" {...behindPanel}>
+        <ErrorBoundary scope="coluna do paciente" fallback={<RegionFailed label="a coluna do paciente" />}>
         <ProfileColumn
+          unreadable={unreadable}
           patient={patient}
           guardians={record.guardians}
           appointments={record.appointments}
@@ -285,6 +408,7 @@ export default function PatientRecordScreen() {
           onGoToSection={goToSection}
           canUpload={canUpload}
         />
+        </ErrorBoundary>
         </div>
 
         <div className="pr-stage" aria-hidden={section ? 'true' : undefined} inert={section ? true : undefined}>
@@ -302,36 +426,61 @@ export default function PatientRecordScreen() {
         </div>
 
         <div className="pr-side" aria-hidden={section ? 'true' : undefined} inert={section ? true : undefined}>
+          <ErrorBoundary scope="coluna de medidas" fallback={<RegionFailed label="a coluna de medidas" />}>
           <InsightsColumn
+            unreadable={unreadable}
             scales={record.scales}
             medications={record.medications}
+            documents={record.documents}
             milestones={record.milestones}
+            allergies={states?.allergies ?? []}
             onGoToSection={goFromInsights}
             canWrite={can.write('patients.clinical')}
           />
+          </ErrorBoundary>
         </div>
 
         {section ? (
           <SectionPanel key={section} label={SECTION_TITLES[section]} patientName={name} onClose={closePanel}
-            alerts={<AlertPills states={states} onReschedule={onReschedule} compact />}>
-            {section === 'linha-do-tempo' ? <TimelineView {...viewProps} focusId={timelineFocus} /> : null}
-            {section === 'evolucoes' ? <NotesView {...viewProps} /> : null}
-            {section === 'escalas' ? <ScalesView {...viewProps} intent={intentFor('escalas')} /> : null}
-            {section === 'marcos' ? <MilestonesView {...viewProps} intent={intentFor('marcos')} /> : null}
-            {section === 'medicacoes' ? <MedicationsView {...viewProps} intent={intentFor('medicacoes')} /> : null}
-            {section === 'anexos' ? <AttachmentsView {...viewProps} intent={attachIntent} /> : null}
-            {section === 'documentos' ? <DocumentsView {...viewProps} /> : null}
-            {section === 'consentimentos' ? <ConsentsView {...viewProps} /> : null}
+            alerts={<AlertPills states={states} onReschedule={onReschedule} compact part="allergy" />}
+            states={<AlertPills states={states} onReschedule={onReschedule} compact part="others" />}>
+            {SECTION_STORES[section] && unreadable.has(SECTION_STORES[section]) ? (
+              // Sem a leitura não há como saber o que já existe: criar agora duplicaria registro.
+              <RecordUnavailable inline what={STORE_LABELS[SECTION_STORES[section]]} onRetry={load} />
+            ) : (
+              <>
+                {section === 'linha-do-tempo' ? (
+                  <>
+                    {TIMELINE_STORES.some((s) => unreadable.has(s)) ? (
+                      <p className="pr-panel-issue" role="status">
+                        <Icon name="alert-triangle" size={16} />
+                        <span>Não foi possível ler {joinNames(TIMELINE_STORES.filter((s) => unreadable.has(s)).map((s) => STORE_LABELS[s]))}. A linha do tempo pode estar incompleta. <button type="button" className="pr-link" onClick={retry} disabled={retrying}>{retrying ? 'Lendo de novo…' : 'Tentar de novo'}</button></span>
+                      </p>
+                    ) : null}
+                    <TimelineView {...viewProps} focusId={timelineFocus} />
+                  </>
+                ) : null}
+                {section === 'evolucoes' ? <NotesView {...viewProps} intent={intentFor('evolucoes')} /> : null}
+                {section === 'escalas' ? <ScalesView {...viewProps} intent={intentFor('escalas')} /> : null}
+                {section === 'marcos' ? <MilestonesView {...viewProps} intent={intentFor('marcos')} /> : null}
+                {section === 'medicacoes' ? <MedicationsView {...viewProps} intent={intentFor('medicacoes')} /> : null}
+                {section === 'anexos' ? <AttachmentsView {...viewProps} intent={attachIntent} /> : null}
+                {section === 'documentos' ? <DocumentsView {...viewProps} /> : null}
+                {section === 'consentimentos' ? <ConsentsView {...viewProps} /> : null}
+              </>
+            )}
           </SectionPanel>
         ) : null}
       </div>
 
-      <PatientForm
-        open={editing}
-        patient={patient}
-        onClose={() => setEditing(false)}
-        onSaved={() => { setEditing(false); load(); }}
-      />
+      <ErrorBoundary scope="ficha do paciente" fallback={null}>
+        <PatientForm
+          open={editing}
+          patient={patient}
+          onClose={() => setEditing(false)}
+          onSaved={() => { setEditing(false); load(); }}
+        />
+      </ErrorBoundary>
 
       <ClinicalDocumentModal
         open={!!docModal}
@@ -339,6 +488,7 @@ export default function PatientRecordScreen() {
         guardians={record.guardians}
         initialType={docModal?.tipo}
         notice={<AllergyNotice patient={patient} hint="Confirme com o responsável antes de prescrever." />}
+        allergies={states?.allergies ?? []}
         appointment={docModal?.atendimentoId ? record.appointments.find((a) => a.id === docModal.atendimentoId) : undefined}
         onClose={() => setDocModal(null)}
         onIssued={() => { setDocModal(null); load(); }}
@@ -474,6 +624,39 @@ function useMediaQuery(query) {
   return matches;
 }
 
+/** Região que falhou ao desenhar: o resto da página, a barra e a alergia seguem de pé. */
+function RegionFailed({ label }) {
+  return (
+    <div className="pr-card pr-region-failed" role="alert">
+      <p className="pr-empty">Não foi possível mostrar {label}. O restante do prontuário continua disponível.</p>
+    </div>
+  );
+}
+
+/** Falha de leitura: nunca o texto de "nenhum registro", e nenhum botão de criar. */
+function RecordUnavailable({ onRetry, inline = false, what = 'o prontuário' }) {
+  return (
+    <div className={`pr-unavailable ${inline ? 'is-inline' : ''}`.trim()} role="alert">
+      <Icon name="alert-triangle" size={20} />
+      <h2>Não foi possível ler {what}</h2>
+      <p>Isso não significa que não haja registros. Tente de novo; se continuar, recarregue o painel.</p>
+      <Button variant="primary" icon="refresh" onClick={onRetry}>Tentar de novo</Button>
+    </div>
+  );
+}
+
+/** Id sem paciente: link velho, outra unidade ou registro removido. Volta sem prender o histórico. */
+function PatientNotFound({ onBack }) {
+  return (
+    <div className="pr-unavailable" role="alert">
+      <Icon name="search" size={20} />
+      <h2>Paciente não encontrado</h2>
+      <p>Este endereço não corresponde a nenhum paciente desta clínica. O link pode ser antigo ou de outra unidade.</p>
+      <Button variant="primary" onClick={onBack}>Ir para Pacientes</Button>
+    </div>
+  );
+}
+
 function StageFallback({ alerts, rail, loading = false }) {
   return (
     <div className="pr-stage__fallback">
@@ -486,7 +669,8 @@ function StageFallback({ alerts, rail, loading = false }) {
 
 function RecordSkeleton() {
   return (
-    <div className="pr">
+    <div className="pr" aria-busy="true">
+      <p className="sr-only" role="status">Carregando o prontuário…</p>
       <Skeleton height={20} width="240px" />
       <div style={{ height: 'var(--s-6)' }} />
       <Skeleton height={64} width="420px" />

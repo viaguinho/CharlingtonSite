@@ -18,9 +18,15 @@ function useFocusTrap(active, onEscape) {
   const escapeRef = useRef(onEscape);
   escapeRef.current = onEscape;
 
+  // O gatilho se captura ANTES da montagem (na renderização em que `active` vira
+  // verdadeiro): um campo com `autoFocus` já tomou o foco quando o efeito roda, e
+  // o "foco anterior" passava a ser o próprio campo — ao fechar, o foco ia ao body.
+  const wasActive = useRef(false);
+  if (active && !wasActive.current) previouslyFocused.current = document.activeElement;
+  wasActive.current = active;
+
   useEffect(() => {
     if (!active) return undefined;
-    previouslyFocused.current = document.activeElement;
 
     const node = ref.current;
     const focusables = () => Array.from(
@@ -30,6 +36,12 @@ function useFocusTrap(active, onEscape) {
     // Formulário: o primeiro campo recebe o foco; só diálogos sem campo caem no primeiro controle (o X).
     (node?.querySelector(':is(.modal__body, .sheet__body) :is(input, select, textarea):not(:disabled)') ?? focusables()[0])?.focus();
 
+    // Último controle focado dentro do diálogo: quando o botão de enviar se desabilita durante a
+    // gravação, o foco cai no <body>; o próximo Tab volta a ele em vez de sair do diálogo.
+    let lastInside = null;
+    const onFocusIn = (event) => { if (node?.contains(event.target)) lastInside = event.target; };
+    node?.addEventListener('focusin', onFocusIn);
+
     const onKeyDown = (event) => {
       if (event.key === 'Escape') { event.stopPropagation(); escapeRef.current?.(); return; }
       if (event.key !== 'Tab') return;
@@ -37,6 +49,11 @@ function useFocusTrap(active, onEscape) {
       if (!items.length) return;
       const first = items[0];
       const last = items[items.length - 1];
+      if (node && !node.contains(document.activeElement)) {
+        // Sem preventDefault: o Tab segue a partir do controle recolocado.
+        (lastInside && node.contains(lastInside) && !lastInside.disabled ? lastInside : first).focus();
+        return;
+      }
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
@@ -46,6 +63,7 @@ function useFocusTrap(active, onEscape) {
     document.body.style.overflow = 'hidden';
 
     return () => {
+      node?.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('keydown', onKeyDown, true);
       document.body.style.overflow = previousOverflow;
       previouslyFocused.current?.focus?.();
@@ -183,7 +201,7 @@ export function ToastProvider({ children }) {
       {createPortal(
         <div className="toasts" role="status" aria-live="polite" aria-atomic="false">
           {toasts.map((toast) => (
-            <div key={toast.id} className={`toast toast--${toast.tone}`}>
+            <div key={toast.id} className={`toast toast--${toast.tone}`} role={toast.tone === 'danger' ? 'alert' : undefined}>
               <Icon name={TOAST_ICONS[toast.tone] ?? 'info'} size={16} />
               <div className="toast__text">
                 {toast.title ? <strong>{toast.title}</strong> : null}

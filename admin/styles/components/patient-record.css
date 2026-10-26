@@ -7,6 +7,14 @@
    palco; o painel de seção cobre o palco e a coluna direita.
    ========================================================================== */
 
+/* A Urbanist desenha o ordinal (º, ª) como um "o" de corpo inteiro: "§ 1o" se confunde com "§ 10".
+   Só estes dois caracteres vêm de uma fonte do sistema. */
+@font-face {
+  font-family: 'Ordinal';
+  src: local('Helvetica Neue'), local('Arial'), local('Segoe UI');
+  unicode-range: U+00AA, U+00BA;
+}
+.pr { font-family: 'Ordinal', var(--font); }
 .pr { position: relative; isolation: isolate; min-width: 0; }
 .pr .num { font-variant-numeric: tabular-nums; }
 
@@ -47,6 +55,8 @@
   font-weight: var(--w-light);
   color: var(--ink-950);
   text-wrap: balance;
+  /* Nome sem espaço (ou muito longo) quebra em vez de correr por trás dos botões. */
+  overflow-wrap: anywhere;
 }
 .pr-bar__legal { margin: 0; color: var(--ink-400); font-size: var(--t-body); }
 .pr-bar__meta {
@@ -80,6 +90,10 @@
    por baixo dela passa desfocado, nunca com texto de card sobreposto ao das
    pílulas. A altura dela é o deslocamento de rolagem do resto da página. */
 .pr {
+  /* Texto de apoio sobre a aurora azul caía a 4,1:1 no pior ponto: nesta página ele usa o tom abaixo (ink-500). */
+  --ink-400: var(--ink-500);
+  /* 36 vidros de 24 px sobre um fundo que anima custavam 57–72% da GPU (passada 7): 16 px lê igual. */
+  --glass-filter: blur(16px) saturate(160%);
   --pr-sticky-h: 64px;
   --pr-bleed: var(--gutter);   /* respiro lateral de .shell__content (layout.css) */
   --pr-panel-filter: blur(10px) saturate(140%);
@@ -211,9 +225,8 @@
   top: calc(var(--pr-sticky-h) + var(--s-2));
   /* Cabe na primeira dobra com a barra e as pílulas acima (~300px no topo):
      a faixa de consultas e os controles aparecem sem rolar. */
-  height: calc(100dvh - 300px);
-  min-height: 480px;   /* a 1280×800 a faixa de consultas cabe na dobra */
-  max-height: 960px;
+  --pr-stage-h: clamp(480px, calc(100dvh - 300px), 960px);   /* 480: a 1280×800 a faixa de consultas cabe na dobra */
+  height: var(--pr-stage-h);
   min-width: 0;
   /* Os z-index internos do palco (alertas, camadas, pinos) ficam aqui dentro:
      nenhum deles sobe acima do painel de seção. */
@@ -288,6 +301,7 @@
 }
 .pr-link { position: relative; min-height: 44px; margin-block: -6px; }
 .pr-link:hover { background: var(--blue-a08); color: var(--blue-700); }
+.pr-link:disabled { color: var(--ink-500); cursor: progress; background: none; }
 .pr-link:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 1px; }
 .pr-empty-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
 .pr-empty-card .pr-empty { margin: 0; }
@@ -542,7 +556,7 @@
 .pr-alert__action {
   position: relative;
   flex: none;
-  min-height: 32px;
+  min-height: 40px;
   padding: 0 var(--s-3);
   border: 0;
   border-radius: var(--r-pill);
@@ -629,7 +643,8 @@
 .pr-dots { display: block; width: 100%; height: 64px; margin: 0; overflow: visible; }
 /* A faixa marca o intervalo de referência e leva a cor do risco atual, como
    o traço do título: um resultado moderado nunca fica sobre uma faixa verde. */
-.pr-dots__band { fill: var(--pr-band); }
+/* A faixa é sempre o intervalo ESPERADO do instrumento: cor de risco aqui leria "zona de atenção". */
+.pr-dots__band { fill: var(--pr-band-low); }
 .pr-dots__limit { stroke: var(--data-soft); stroke-width: 1; shape-rendering: crispEdges; }
 .pr-dots__guide { stroke: var(--data-grid); stroke-width: 1; stroke-dasharray: 2 3; shape-rendering: crispEdges; }
 .pr-dots__dot { fill: var(--data-mid); }
@@ -647,6 +662,10 @@
 .pr-meds__list li > span:last-child { display: flex; flex-direction: column; font-size: var(--t-body); color: var(--ink-600); }
 .pr-meds__list strong { font-weight: var(--w-medium); color: var(--ink-900); }
 .pr-meds__since { font-size: var(--t-body); color: var(--ink-400); }
+/* Conflito com a alergia declarada: marca de 2px e texto em tom de sinal, como no painel. */
+.pr-meds__list li.has-conflict { box-shadow: inset 2px 0 0 var(--data-negative); padding-left: var(--s-2); }
+.pr-meds__conflict { display: flex; align-items: flex-start; gap: var(--s-1); margin-top: var(--s-1); color: var(--signal-red-ink); }
+.pr-meds__conflict .icon { flex: none; margin-top: 4px; }
 .pr-meds__icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-circle); color: var(--ink-600); background: var(--ink-a06); }
 
 /* Em card estreito (1024–1180) os três não cabem lado a lado: quebram em linhas
@@ -659,7 +678,7 @@
 .pr-milestones__tally .is-low dt::before { background: var(--data-positive); }
 .pr-milestones__tally .is-mid dt::before { background: var(--data-caution); }
 .pr-milestones__tally .is-high dt::before { background: var(--data-negative); }
-.pr-milestones__tally dd { margin: 2px 0 0; font-size: var(--t-title); line-height: var(--lh-title); font-weight: var(--w-light); color: var(--ink-950); }
+.pr-milestones__tally dd { margin: 2px 0 0; font-size: var(--t-page); line-height: var(--lh-page); font-weight: var(--w-light); color: var(--ink-950); }
 .pr-milestones__last { margin: var(--s-3) 0 0; font-size: var(--t-body); color: var(--ink-400); }
 .pr-milestones__last strong { font-weight: var(--w-medium); color: var(--ink-900); }
 
@@ -671,7 +690,8 @@
 .pr-rail__list {
   list-style: none;
   margin: 0;
-  padding: var(--s-1) 24px;
+  /* Sem folga embaixo: as cápsulas e os botões + − 3D param na mesma linha de base. */
+  padding: var(--s-1) 24px 0;
   display: flex;
   align-items: flex-end;
   gap: var(--s-2);
@@ -698,21 +718,20 @@
   line-height: var(--lh-micro);
   letter-spacing: var(--ls-micro);
   font-weight: var(--w-medium);
-  color: var(--blue-600);
+  color: var(--blue-700);   /* 4,3:1 com --blue-600 no pior ponto do palco */
 }
 .pr-rail__today-line { width: 1px; height: 32px; background: var(--blue-500); }
 /* Cápsula compacta: data (micro) em cima, estado (corpo) embaixo. */
-/* Cortada pela borda da faixa (VisitRail): fica esmaecida, nunca some — é
-   uma consulta real (a trilha a conta). Rola à vista ao receber o foco. */
-.pr-visit[data-clipped] { opacity: .4; }
+/* A cápsula que a borda corta esmaece pela máscara do trilho,
+   nunca por opacidade: texto a 40% ficava a 1,7:1. Rola à vista ao receber o foco. */
 .pr-visit {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
   gap: 1px;
-  min-height: 48px;
-  padding: 6px var(--s-3);
+  min-height: 44px;
+  padding: 5px var(--s-3);
   border: 0;
   border-radius: var(--r-pill);
   font: inherit;
@@ -823,6 +842,9 @@
 }
 .pr-panel__body { flex: 1 0 auto; min-width: 0; padding: var(--s-4) var(--s-5) var(--s-5); }
 .pr-panel__alerts { min-width: 0; }
+.pr-panel__states { margin: 0 0 var(--s-4); }
+.pr-panel__states .pr-alerts { flex-direction: row; flex-wrap: wrap; gap: var(--s-2); }
+.pr-panel__states .pr-alert { max-width: none; }
 /* As pílulas quebram linha, todas inteiras e com o Remarcar à vista: numa
    fileira rolável o segundo alerta saía cortado no meio da palavra. */
 .pr-panel__alerts .pr-alerts { flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: var(--s-2); }
@@ -861,6 +883,7 @@
 .pr-rx-allergy > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pr-rx-allergy strong { font-weight: var(--w-medium); }
 .pr-rx-allergy__hit { color: var(--ink-900); }
+.pr-rx-allergy__caveat { color: var(--ink-900); font-weight: var(--w-regular); }
 .pr-rx-allergy.is-none { color: var(--ink-900); background: linear-gradient(var(--ink-a04), var(--ink-a04)), var(--surface-raised); }
 .pr-rx-allergy.is-none strong { font-weight: var(--w-medium); }
 
@@ -1037,6 +1060,10 @@
   .pr-grid > .pr-behind > .pr-profile,
   .pr-grid > .pr-profile { grid-column: 1; grid-row: 1 / span 2; }
   .pr-grid > .pr-stage { grid-column: 2; grid-row: 1; position: relative; top: auto; }
+  /* Sem palco grudado: os alertas e as camadas ficam numa faixa PRÓPRIA acima do
+     modelo (anatomy.css, --an-reserve) e o palco cresce por ela. Sobrepostos,
+     cobriam a testa e o crânio com 2 ou 3 pílulas. */
+  .pr-stage { height: auto; }
   .pr-side { grid-column: 2; grid-row: 2; }
   .pr-side .pr-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pr-side .pr-insights__scales { grid-column: 1 / -1; }
@@ -1048,6 +1075,9 @@
      sai da tela, e a alergia com ele. A alergia (só ela) gruda também na
      barra de seções (regra §0.6); os outros alertas continuam inteiros no
      palco, sem rolagem que os esconda. */
+  /* A alergia mora na barra: repeti-la no palco empurrava as camadas para
+     cima da cabeça (a 390, cerca de 56px a menos para o busto). */
+  .pr-stage .an-alerts .pr-alert--allergy { display: none; }
   .pr-pills__alerts .pr-alerts { flex-direction: row; }
   .pr-pills__alerts .pr-alert:not(.pr-alert--allergy) { display: none; }
   .pr-pills__alerts .pr-alert { max-width: none; min-height: 44px; padding-block: 2px; }
@@ -1071,7 +1101,7 @@
   .pr-grid .pr-next { order: 7; }
   .pr-grid > .pr-stage,
   .pr-side { grid-column: 1; grid-row: auto; }
-  .pr-stage { position: relative; top: 0; height: 420px; min-height: 0; }
+  .pr-stage { position: relative; top: 0; --pr-stage-h: 420px; height: auto; }
   /* Tela cheia ENTRE a barra global (busca, unidade, sino) e a barra do
      dock no pé: nada do painel fica por baixo delas, e o × é tocável. */
   .pr-panel-layer { position: static; display: contents; }
@@ -1096,14 +1126,14 @@
 .pr { --pr-dock-h: 0px; }
 @media (max-width: 1024px) { .pr { --pr-dock-h: 60px; } }
 
+/* "Pacientes" no breadcrumb: área de toque de 44px sem mexer no traçado. */
+.pr .breadcrumb a { position: relative; }
+.pr .breadcrumb a::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: max(100%, 44px); height: 44px; transform: translate(-50%, -50%);
+}
 @media (max-width: 768px) {
   .pr { --pr-bleed: var(--s-4); }   /* layout.css: respiro de 16px no celular */
-  /* "Pacientes" no breadcrumb: área de toque de 44px sem mexer no traçado. */
-  .pr .breadcrumb a { position: relative; }
-  .pr .breadcrumb a::after {
-    content: ''; position: absolute; left: 50%; top: 50%;
-    width: max(100%, 44px); height: 44px; transform: translate(-50%, -50%);
-  }
   .pr-link, .pr-folder__open, .pr-alert__action, .pr-trail__next { position: relative; }
   .pr-link::after, .pr-folder__open::after, .pr-alert__action::after {
     content: ''; position: absolute; left: 50%; top: 50%;
@@ -1118,11 +1148,12 @@
      passava sob o × e o Remarcar ficava escondido. */
   .pr-panel__who { grid-column: 1; grid-row: 1; }
   .pr-panel__close { grid-column: 2; grid-row: 1; }
+  .pr-panel__states .pr-alerts { flex-direction: column; }
+  .pr-panel__states .pr-alert { border-radius: var(--r-lg); }
   .pr-panel__alerts { grid-column: 1 / -1; grid-row: 2; }
   .pr-panel__alerts .pr-alerts { flex-direction: column; }
   .pr-panel__alerts .pr-alert { border-radius: var(--r-lg); }
   .pr-panel__alerts .pr-alert__text { flex: 1; }
-  .pr-bar__id h1 { font-size: var(--t-title); line-height: var(--lh-title); letter-spacing: var(--ls-title); }
   .pr-side .pr-insights { display: flex; }
   .pr-scales { grid-template-columns: minmax(0, 1fr); }
   /* O trilho sangra até a borda da tela: o cartão seguinte some sob a borda,
@@ -1148,3 +1179,110 @@
 @media print {
   .pr-stage, .pr-pills, .pr-folders, .pr-grid::before { display: none; }
 }
+
+
+/* ——————————— Falha de leitura e região quebrada (passada 7) ——————————— */
+
+.pr-issue {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: 0 0 var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-card);
+  background: var(--signal-red-bg);
+  color: var(--signal-red-ink);
+  font-size: var(--t-body);
+}
+.pr-issue p { margin: 0; flex: 1; min-width: 0; }
+.pr-panel-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--signal-amber-bg, var(--signal-red-bg));
+  color: var(--ink-900);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+}
+.pr-panel-issue svg { flex: none; margin-top: calc((1lh - 1em) / 2); }
+.pr-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 440px;
+  margin: var(--s-10) auto;
+  padding: var(--s-6);
+  text-align: center;
+  color: var(--ink-900);
+}
+.pr-unavailable h2 { margin: 0; font-size: var(--t-title); font-weight: var(--w-medium); }
+.pr-unavailable p { margin: 0; color: var(--ink-600); }
+.pr-unavailable.is-inline { margin: var(--s-8) auto; }
+.pr-region-failed { padding: var(--s-5); }
+.pr-scale--none .pr-scale__note { font-size: var(--t-body); color: var(--ink-600); }
+
+/* Prescrição com item que bate com uma alergia declarada. */
+.doc-allergy-hit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  background: var(--signal-red-bg);
+  color: var(--signal-red-ink);
+}
+.doc-allergy-hit p { margin: 0; }
+.doc-allergy-hit__ack { display: flex; gap: var(--s-2); align-items: center; font-weight: var(--w-medium); }
+
+/* Resumo dos estados no palco: um botão com a mesma cara das pílulas. */
+.pr-alert--summary { padding: 0; }
+.pr-alert__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pr-alert__summary:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.pr-alert--summary .pr-alert__text span { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Alto contraste do sistema (forced-colors): a cor de fundo some, então o que separa e o que
+   está ativo precisa de borda e de cor de sistema. */
+@media (forced-colors: active) {
+  .pr-card, .pr-scale, .pr-folder, .pr-alert, .pr-visit, .pr-next, .pr-panel, .an-glass-btn, .an-layers__btn, .an-popover {
+    border: 1px solid CanvasText;
+  }
+  .pr-pill { border: 1px solid transparent; }
+  .pr-pill.is-active { border-color: Highlight; background: Highlight; color: HighlightText; forced-color-adjust: none; }
+  .pr-pill__count { border: 1px solid CanvasText; }
+  .pr-visit__status i, .pr-rail__today-line { background: CanvasText; forced-color-adjust: none; }
+  .pr-link:focus-visible, .pr-pill:focus-visible, .pr-visit:focus-visible { outline: 2px solid Highlight; }
+}
+
+/* Janela baixa (zoom de 400% = 320×256): cabeçalho e barra de seções grudados comiam a janela
+   inteira e sobravam 12 px de conteúdo. Aqui eles rolam junto com o painel (WCAG 1.4.10). */
+@media (max-height: 520px) {
+  .pr-pills { position: static; }
+  .pr-panel__head { position: static; padding-block: var(--s-2); }
+  .pr-panel__who { display: none; }
+  .pr-panel__body { padding-top: var(--s-2); }
+}
+
+/* Texto sem espaço (URL, código, nome longo) quebra em vez de passar por baixo do vizinho. */
+.pr-facts dd,
+.pr-alert__text,
+.pr-alert__text span,
+.pr-panel__body strong,
+.pr-panel__body p,
+.pr-panel__body dd,
+.note__soap,
+.timeline__detail { overflow-wrap: anywhere; }
