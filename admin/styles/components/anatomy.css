@@ -33,11 +33,11 @@
   position: absolute;
   inset: 0;
   -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0, var(--ink-900) 5%, var(--ink-900) 74%, transparent 97%),
+    linear-gradient(to bottom, transparent 0, var(--ink-900) 5%, var(--ink-900) 82%, transparent 100%),
     linear-gradient(to right, transparent 0, var(--ink-900) 9%, var(--ink-900) 91%, transparent 100%);
   -webkit-mask-composite: source-in;
   mask-image:
-    linear-gradient(to bottom, transparent 0, var(--ink-900) 5%, var(--ink-900) 74%, transparent 97%),
+    linear-gradient(to bottom, transparent 0, var(--ink-900) 5%, var(--ink-900) 82%, transparent 100%),
     linear-gradient(to right, transparent 0, var(--ink-900) 9%, var(--ink-900) 91%, transparent 100%);
   mask-composite: intersect;
 }
@@ -265,7 +265,7 @@
   min-width: 0;
   font-size: var(--t-body);
   line-height: var(--lh-body);
-  font-weight: var(--w-semibold);
+  font-weight: var(--w-medium);
   color: var(--ink-900);
 }
 .an-pop__chip {
@@ -363,7 +363,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-weight: var(--w-semibold);
+  font-weight: var(--w-medium);
   font-variant-numeric: tabular-nums;
   color: var(--blue-600);
 }
@@ -430,7 +430,7 @@
   outline: 1px dashed var(--ink-a20);
   outline-offset: -1px;
 }
-.an-layers__btn:not(.is-on) svg { opacity: .55; }
+.an-layers__btn:not(.is-on) svg { opacity: .8; }
 .an-layers__btn:not(.is-on)::after {
   content: '';
   position: absolute;
@@ -726,6 +726,7 @@
 
 /* Toque: os botões da coluna de camadas medem 40 px; a área sensível chega a 44 px sem mudar o desenho. */
 @media (pointer: coarse) {
-  .an-stage[data-layers="column"] .an-layers__btn { position: relative; }
+  /* `position: relative` ancora o ::before, mas os botões trazem left/top inline do arco: zera, ou a coluna sai do lugar. */
+  .an-stage[data-layers="column"] .an-layers__btn { position: relative; left: 0 !important; top: 0 !important; }
   .an-layers__btn::before { content: ''; position: absolute; inset: -2px; }
 }

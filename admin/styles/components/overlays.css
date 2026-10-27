@@ -316,3 +316,6 @@
   color: var(--ink-300);
 }
 .palette__foot span { display: inline-flex; align-items: center; gap: var(--s-1); }
+
+/* Rodapé com três botões (Nova evolução) passava da largura a 390 px e cortava o Cancelar. */
+.modal__footer { flex-wrap: wrap; }

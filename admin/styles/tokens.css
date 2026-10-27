@@ -434,7 +434,6 @@
   --anat-medula: var(--blue-300);
   --anat-coracao: var(--signal-red);
   --anat-arteria: var(--signal-red-ink);
-  --anat-nervo: var(--signal-amber);
 }
 
 /* O painel é uma ferramenta clínica de uso diurno em consultório e assume

@@ -199,8 +199,8 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                       <span className={`consent__state ${active ? 'is-on' : violation ? 'is-danger' : ''}`.trim()}>
                         {active ? (purpose.basis.requiresConsent ? 'Vigente' : 'Informado') : record ? 'Revogado' : 'Não registrado'}
                       </span>
-                      {/* A base legal é categoria, não estado: âmbar só quando falta o consentimento. */}
-                      <Chip tone={violation ? 'danger' : purpose.basis.requiresConsent && !active ? 'warning' : 'neutral'}>
+                      {/* A base legal é categoria, não estado: sempre neutra. O estado é o rótulo ao lado. */}
+                      <Chip tone="neutral">
                         {purpose.basis.label}
                       </Chip>
                     </div>
@@ -224,7 +224,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                   </div>
 
                   <div className="consent__action">
-                    {!purpose.basis.requiresConsent && <Chip tone="info" style={{ marginRight: 8 }}>Base legal própria</Chip>}
+                    {!purpose.basis.requiresConsent && <Chip tone="neutral" style={{ marginRight: 8 }}>Base legal própria</Chip>}
                     
                     {active && !purpose.basis.requiresConsent ? (
                       // Base legal própria não se revoga: o que existe é um novo

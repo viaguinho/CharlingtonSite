@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { APPOINTMENT_TYPE_LABELS } from '../../../data/schema.js';
+import Icon from '../../../components/Icon.jsx';
 import { visitState } from './patientStates.js';
 
 /**
@@ -14,6 +15,9 @@ import { visitState } from './patientStates.js';
 
 const MONTH = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
 const EDGE = 24; // largura da máscara de esmaecimento nas bordas
+
+// Ícone do tipo da consulta (guia §4.3): lê-se o tipo sem texto.
+const TYPE_ICON = { teleconsulta: 'video', laudo: 'file-text', evento: 'calendar' };
 
 export function VisitRail({ appointments, onOpen }) {
   const scroller = useRef(null);
@@ -81,7 +85,9 @@ export function VisitRail({ appointments, onOpen }) {
         {list.map((a, i) => {
           const d = new Date(a.inicio);
           const st = visitState(a, now);
-          const day = `${String(d.getDate()).padStart(2, '0')} ${MONTH.format(d).replace('.', '')} ${d.getFullYear()}`;
+          // O ano só aparece quando não é o corrente: a cápsula fica curta e cabem mais delas na faixa.
+          const sameYear = d.getFullYear() === new Date(now).getFullYear();
+          const day = `${String(d.getDate()).padStart(2, '0')} ${MONTH.format(d).replace('.', '')}${sameYear ? '' : ` ${d.getFullYear()}`}`;
           return (
             <li key={a.id} className="pr-rail__item">
               {i === firstFuture ? today : null}
@@ -89,7 +95,10 @@ export function VisitRail({ appointments, onOpen }) {
                 tabIndex={a.id === stopId ? 0 : -1}
                 onFocus={(e) => { setStop(a.id); e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
                 aria-label={`${APPOINTMENT_TYPE_LABELS[a.tipo] ?? 'Consulta'} em ${d.toLocaleDateString('pt-BR')}, ${st.label}`}>
-                <span className="pr-visit__date num">{day}</span>
+                <span className="pr-visit__date num">
+                  <Icon name={TYPE_ICON[a.tipo] ?? 'stethoscope'} size={11} />
+                  {day}
+                </span>
                 <span className="pr-visit__status">
                   <i aria-hidden="true" />
                   {st.label}

@@ -96,7 +96,6 @@
   --glass-filter: blur(16px) saturate(160%);
   --pr-sticky-h: 64px;
   --pr-bleed: var(--gutter);   /* respiro lateral de .shell__content (layout.css) */
-  --pr-panel-filter: blur(10px) saturate(140%);
 }
 .pr-pills {
   position: sticky;
@@ -320,8 +319,8 @@
 .pr-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-4) var(--s-4);
-  margin: var(--s-5) 0 0;
+  gap: var(--s-3) var(--s-4);
+  margin: var(--s-4) 0 0;
 }
 .pr-facts > div { min-width: 0; }
 .pr-facts__wide { grid-column: 1 / -1; }
@@ -367,7 +366,7 @@
 .pr-trail__done { stroke: var(--ink-900); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .pr-trail__miss { stroke: var(--data-soft); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .pr-trail__pending { stroke: var(--data-negative); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.pr-trail__today { stroke: var(--blue-500); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.pr-trail__today { stroke: var(--ink-900); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .pr-trail__next { display: inline-flex; align-items: center; gap: 5px; color: var(--blue-600); }
 .pr-trail__next i { width: 9px; height: 9px; border: 1.5px solid currentColor; border-radius: var(--r-circle); }
 .pr-trail:hover .pr-trail__label { color: var(--blue-600); }
@@ -487,9 +486,9 @@
   box-shadow: 0 14px 30px -14px var(--blue-a24);
 }
 .pr-next__text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
-.pr-next__label { font-size: var(--t-body); color: var(--blue-050); }
+.pr-next__label { font-size: var(--t-body); color: var(--surface); }   /* branco: 4,8:1 sobre --blue-500 (o --blue-050 dava 4,15:1) */
 .pr-next__text strong { font-size: var(--t-body); font-weight: var(--w-medium); }
-.pr-next__text span:last-child { font-size: var(--t-body); color: var(--blue-050); }
+.pr-next__text span:last-child { font-size: var(--t-body); color: var(--surface); }
 .pr-next__action {
   flex: none;
   min-height: 40px;
@@ -718,9 +717,9 @@
   line-height: var(--lh-micro);
   letter-spacing: var(--ls-micro);
   font-weight: var(--w-medium);
-  color: var(--blue-700);   /* 4,3:1 com --blue-600 no pior ponto do palco */
+  color: var(--ink-900);   /* "hoje" é marcador, não interação: tinta, não azul */
 }
-.pr-rail__today-line { width: 1px; height: 32px; background: var(--blue-500); }
+.pr-rail__today-line { width: 1px; height: 32px; background: var(--ink-900); }
 /* Cápsula compacta: data (micro) em cima, estado (corpo) embaixo. */
 /* A cápsula que a borda corta esmaece pela máscara do trilho,
    nunca por opacidade: texto a 40% ficava a 1,7:1. Rola à vista ao receber o foco. */
@@ -747,7 +746,7 @@
 }
 .pr-visit:hover { transform: translateY(-2px); box-shadow: var(--e-glass-hover); }
 .pr-visit:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
-.pr-visit__date { font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro); color: var(--ink-400); }
+.pr-visit__date { display: inline-flex; align-items: center; gap: 4px; font-size: var(--t-micro); line-height: var(--lh-micro); letter-spacing: var(--ls-micro); color: var(--ink-400); }
 .pr-visit__status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-body); line-height: var(--lh-micro); color: var(--ink-900); }
 .pr-visit__status i { flex: none; width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--ink-200); }
 .pr-visit--warning .pr-visit__status i { background: var(--signal-amber); }
@@ -1253,7 +1252,7 @@
   cursor: pointer;
 }
 .pr-alert__summary:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
-.pr-alert--summary .pr-alert__text span { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-alert--summary .pr-alert__text span { max-width: 56ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Alto contraste do sistema (forced-colors): a cor de fundo some, então o que separa e o que
    está ativo precisa de borda e de cor de sistema. */
@@ -1286,3 +1285,48 @@
 .pr-panel__body dd,
 .note__soap,
 .timeline__detail { overflow-wrap: anywhere; }
+
+/* ——— Passada 8 (sistema) ——— */
+
+/* A seta ↗ da pasta ficava por baixo da frente de vidro (margem negativa do palco da pasta):
+   40% da área respondia ao clique. */
+.pr-folder__open { position: relative; z-index: 2; }
+
+/* Segunda fileira de estados e aviso do painel começam na mesma borda do título e das linhas. */
+.pr-panel__states { padding-inline: var(--s-5); }
+@media (max-width: 1023px) { .pr-panel__states { padding-inline: var(--s-4); } }
+
+/* Aviso dentro do painel: marca de 2 px e texto, nunca cartão tingido (a gramática do painel).
+   Fora do painel o `.ops-alert` das outras telas segue como está. */
+.pr-panel .ops-alert,
+.pr-panel .consent-warning {
+  margin-inline: var(--s-5);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--ink-a04);
+  box-shadow: inset 2px 0 0 var(--signal-amber);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: var(--ink-900);
+}
+.pr-panel .ops-alert--danger { background: var(--ink-a04); box-shadow: inset 2px 0 0 var(--signal-red); color: var(--ink-900); }
+.pr-panel .ops-alert > svg { padding: 0; background: none; box-shadow: none; color: var(--signal-amber-ink); }
+.pr-panel .ops-alert--danger > svg { color: var(--signal-red-ink); }
+.pr-panel .ops-alert p, .pr-panel .consent-warning p { font-weight: var(--w-regular); }
+.pr-panel .ops-alert strong, .pr-panel .consent-warning strong { font-weight: var(--w-medium); }
+
+/* ——— Passada 8 (fidelidade) ——— */
+
+/* Faixa de consultas: desfoque menor, para o corpo atrás da cápsula ler como malha borrada (referência),
+   não como mesa vazia. O vidro dos alertas e das camadas segue na receita única. */
+.pr-visit, .an-glass-btn { --glass-filter: blur(8px) saturate(160%); }
+
+/* A folha de uma pasta de 1 arquivo saía 7 px acima da frente e sumia: sobe mais em repouso. */
+.pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) { --gf-lift: 26px; }
+
+/* Estados no painel: pílula compacta como a da alergia (o cabeçalho gastava 184 px antes do título). */
+.pr-panel__states { margin-bottom: var(--s-3); }
+.pr-panel__states .pr-alert { min-height: 44px; padding-block: 2px; }
+
+/* Celular: nada do que fica atrás do painel vaza atrás do título. */
+@media (max-width: 1023px) { .pr-panel { background: var(--surface); } }

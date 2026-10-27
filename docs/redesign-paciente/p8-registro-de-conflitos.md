@@ -76,3 +76,33 @@ Build compila (`vite build`, 8894 módulos). Verificado no navegador com o adapt
 - 2ª leva de críticos (fidelidade e sistema) e verificação das correções por críticos de contexto limpo: depois do reinício da janela de uso.
 - Revisão médica da tabela de equivalências de alergia (agora com siglas e marcas combinadas).
 - Defeito antigo fora da página, aguardando o dono: formulário "Novo paciente" (`PatientForm.jsx`).
+
+## 2ª leva da passada 8 (sistema e fidelidade, 27/10/2026)
+
+Relatórios: `critica-p8-sistema.md` (S8) e `critica-p8-fidelidade.md` (F8). Sistema reprova as 4 peças (1 BLOQUEIA, 6 GRAVE, 16 MENOR); fidelidade reprova P1 e P2 e aprova P3 e P4 (5 mecanismos passam, 2 parciais, nota 7/10). O desempenho não rodou nesta leva.
+
+### Aplicado (sem commit até o fim desta seção)
+
+| ID | O que mudou |
+|---|---|
+| S8-1 (BLOQUEIA) | Regressão minha: o alvo de 44 px das camadas em toque somava o `left/top` do arco. Zerado em coluna; medido a 390: coluna reta dentro do palco |
+| S8-2 | `.pr-folder__open` acima da frente da pasta: a seta ↗ responde em 100% da área (era 40%) |
+| S8-3 | Marcas da Linha do tempo em neutro (escala e documento deixam de ser âmbar e verde) |
+| S8-4 | Estado de consentimento com uma só gravidade: chips de base legal sempre neutros; a pílula de teleconsulta fica vermelha quando já houve teleconsulta sem consentimento, âmbar quando só a próxima está sem |
+| S8-5 | Rodapé do diálogo quebra linha: o Cancelar não é mais cortado a 390 |
+| S8-6 | Estado vazio de Escalas segue a receita de Medicações e Marcos: texto no card e a ação no cabeçalho ("Aplicar +"). Exames (cartão de pasta) e "Agendar retorno" (pílula do pé) ficam como estão: são o desenho próprio dessas peças |
+| S8-7 | Avisos dentro do painel (`.ops-alert`, `.consent-warning`) viram marca de 2 px + texto, sem `rgba` solto; as outras telas não mudam |
+| S8-8, S8-10, S8-16, S8-20 | Borda do conteúdo do painel alinhada; peso 600 para 500 no popover e no título do instrumento; marcador "Hoje" em tinta (não azul); camada desligada com ícone a 80% |
+| S8-15 | Removidos o token e a estrutura do nervo âmbar e o token `--pr-panel-filter` sem uso |
+| S8-22 | O combobox abre ao clicar, digitar ou com a seta, não ao receber foco (o foco automático do diálogo abria a lista sobre o campo seguinte) |
+| Suspeita 1 | Texto da pílula "Próxima" em branco: 4,8:1 (era 4,15:1) |
+| F8-1 | Máscara do busto termina em 100% (fim do apagamento de 97% para 100% e início a 82%): ombros e coração correm atrás da faixa de consultas; desfoque das cápsulas e botões de 16 para 8 px |
+| F8-2 | Pastas logo depois do perfil (diagnósticos descem): entram na dobra a 1440×900; folha de 1 arquivo sobe mais em repouso; perfil mais compacto |
+| F8-4, F8-5 | Cápsulas com ano só quando não é o corrente e ícone do tipo; as 3 cabem sem corte |
+| F8-6, F8-7 (celular), F8-8 | Pílulas de estado do painel compactas; painel opaco no celular; resumo de alertas com largura de até 56 caracteres |
+
+### Ainda aberto
+
+- S8-9 (rótulos de formulário em caixa alta, estilo global, também na ficha), S8-11 a S8-14 (tamanhos de ícone, receita de foco e hover, famílias de vidro e de raio, espaçamentos em px em `anatomy.css`), S8-17 (data de 11 px na cápsula: guia §3 e tokens divergem), S8-18 (esqueleto de rota é do shell), S8-19, S8-21, S8-23: dívida de sistema, sem risco clínico.
+- F8-3 (arco longe do corpo a 1920), F8-7 no desktop (vidro do painel sem o busto atrás: o véu existe para garantir contraste), F8-10 (card de escala com uma só aplicação), F8-11 (a faixa do gráfico é sempre o intervalo esperado, em verde: o guia §4.4 dizia "cor do risco atual" e está desatualizado), F8-12 (próxima consulta fora da dobra), F8-13 (câmera ao ligar só coração).
+- Desempenho não verificado desde a passada 7.

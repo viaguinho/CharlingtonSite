@@ -74,11 +74,18 @@ export function InsightsColumn({ scales, medications, milestones, allergies = []
       <section className="pr-insights__scales" aria-labelledby="pr-scales-title">
         <div className="pr-insights__head">
           <h2 id="pr-scales-title">Escalas</h2>
-          {/* "Abrir" só navega: quem abre o formulário é "Aplicar escala" (create: false explícito). */}
-          <button type="button" className="pr-link" onClick={() => onGoToSection('escalas', { create: false })}>
-            {byInstrument.length ? 'Ver todas' : 'Abrir'}
-            <Icon name="arrow-up-right" size={14} />
-          </button>
+          {/* Estado vazio, uma receita só (a mesma de Medicações e Marcos): o texto no card e a ação no
+              cabeçalho. "Ver todas" só navega (create: false explícito); "Aplicar" abre o formulário. */}
+          {!byInstrument.length && !noScales && canWrite ? (
+            <button type="button" className="pr-link" onClick={() => onGoToSection('escalas', { create: true })}>
+              Aplicar <Icon name="plus" size={14} />
+            </button>
+          ) : (
+            <button type="button" className="pr-link" onClick={() => onGoToSection('escalas', { create: false })}>
+              {byInstrument.length ? 'Ver todas' : 'Abrir'}
+              <Icon name="arrow-up-right" size={14} />
+            </button>
+          )}
         </div>
         {noScales ? (
           <div className="pr-card pr-empty-card"><p className="pr-empty">Não foi possível ler as escalas. Isso não quer dizer que não haja nenhuma aplicada.</p></div>
@@ -91,11 +98,6 @@ export function InsightsColumn({ scales, medications, milestones, allergies = []
         ) : (
           <div className="pr-card pr-empty-card">
             <p className="pr-empty">Nenhuma escala aplicada. A evolução de cada instrumento aparece aqui depois da primeira aplicação.</p>
-            {canWrite ? (
-              <button type="button" className="pr-action" onClick={() => onGoToSection('escalas', { create: true })}>
-                <Icon name="plus" size={16} /> Aplicar escala
-              </button>
-            ) : null}
           </div>
         )}
       </section>

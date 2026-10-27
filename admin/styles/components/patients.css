@@ -333,8 +333,9 @@
 }
 .timeline__mark--consulta   { background: var(--ink-a04); border-color: var(--ink-a08); color: var(--ink-600); }
 .timeline__mark--evolucao   { background: var(--ink-a04); color: var(--ink-600); }
-.timeline__mark--documento  { background: var(--signal-green-bg); border-color: transparent; color: var(--signal-green-ink); }
-.timeline__mark--escala     { background: var(--signal-amber-bg); border-color: transparent; color: var(--signal-amber-ink); }
+/* Categoria se diferencia pelo ícone, em neutro: verde e âmbar são sinal, não decoração. */
+.timeline__mark--documento,
+.timeline__mark--escala     { background: var(--ink-a04); color: var(--ink-600); }
 
 .timeline__body { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; padding-top: var(--s-1); }
 
@@ -433,7 +434,7 @@
 }
 
 .scale-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); }
-.scale-card__head h4 { font-size: var(--t-body); font-weight: var(--w-semibold); color: var(--ink-950); }
+.scale-card__head h4 { font-size: var(--t-body); font-weight: var(--w-medium); color: var(--ink-950); }
 .scale-card__head p { font-size: var(--t-caption); color: var(--ink-400); }
 
 .scale-card__score { display: flex; align-items: baseline; }

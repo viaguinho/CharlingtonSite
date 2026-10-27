@@ -77,7 +77,8 @@ export function AlertPills({ states, onReschedule, compact = false, part = 'all'
     if (teleNext) parts.push(<>próxima em <span className="pr-alert__nowrap">{date(teleNext.inicio)}</span></>);
     if (teleDone.length) parts.push(`${teleDone.length} já ${teleDone.length === 1 ? 'realizada' : 'realizadas'}`);
     items.push({
-      key: 'tele', tone: 'warning', icon: 'video',
+      // Teleconsulta já feita sem consentimento é infração (a mesma gravidade vermelha das linhas de Consentimentos); só a próxima, sem consentimento, ainda é aviso.
+      key: 'tele', tone: teleDone.length ? 'danger' : 'warning', icon: 'video',
       label: 'Sem consentimento para teleconsulta',
       text: parts.map((p, i) => <span key={i}>{i ? ' · ' : null}{p}</span>),
     });

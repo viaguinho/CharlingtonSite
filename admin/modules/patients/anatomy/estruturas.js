@@ -193,13 +193,6 @@ const BASE = [
     funcao: 'São as artérias que levam o sangue do coração até a cabeça e o cérebro.',
     exames: [],
   },
-  {
-    id: 'nervos', camada: 'vasos', cor: '--anat-nervo', opcional: true, // o modelo atual não traz o vago
-    nome: 'Nervo vago', curto: 'Nervo vago',
-    resumo: 'Liga o cérebro ao coração, aos pulmões e à digestão.',
-    funcao: 'Liga o cérebro ao coração, aos pulmões e ao sistema digestivo, e ajuda a regular funções automáticas do corpo.',
-    exames: [],
-  },
   // ——— Pele ———
   {
     id: 'pele', camada: null, cor: null, interativa: false,

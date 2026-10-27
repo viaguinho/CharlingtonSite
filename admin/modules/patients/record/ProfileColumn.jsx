@@ -35,7 +35,7 @@ export function ProfileColumn({
   return (
     <div className="pr-profile">
       <ProfileCard patient={patient} guardians={guardians} appointments={appointments} unreadable={noVisits} guardiansUnreadable={unreadable.has(STORES.GUARDIANS)} onOpenTimeline={() => onGoToSection('linha-do-tempo')} />
-      <DiagnosesCard patient={patient} />
+      {/* A pasta é o herói do card de exames (bar.md #6): vem logo depois do perfil para entrar na dobra de 1440×900. */}
       <Folders
         unreadable={unreadable.has(STORES.ATTACHMENTS)}
         attachments={attachments}
@@ -44,6 +44,7 @@ export function ProfileColumn({
         onPreview={onPreview}
         canUpload={canUpload}
       />
+      <DiagnosesCard patient={patient} />
       <CareCard patient={patient} />
       {noVisits ? null : <NextVisit states={states} onReschedule={onReschedule} onSchedule={onSchedule} />}
     </div>

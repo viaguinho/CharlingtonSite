@@ -197,3 +197,5 @@ Pedido do dono: achar todos os erros e gargalos da página pelos agentes do desi
 ## Passada 8 — 1ª leva e correções (26/10/2026)
 
 Dois críticos de contexto limpo (dados e robustez) depois do lote da passada 7: REPROVAM as quatro peças, com 1 bloqueante (o aviso de alergia não reconhecia "AAS" nem marcas com dipirona) e 14 graves. Registro único, decisões e o que foi aplicado em `p8-registro-de-conflitos.md`; relatórios em `critica-p8-dados.md` e `critica-p8-robustez.md`. Fidelidade, sistema e desempenho não rodaram nesta leva (teto de 80% do limite de 5 horas); a 2ª leva e a verificação vêm depois do reinício da janela.
+
+**2ª leva (27/10/2026):** crítico de sistema REPROVA as 4 peças (1 BLOQUEIA, que era regressão minha no seletor de camadas em toque, já corrigida); crítico de fidelidade REPROVA P1 e P2, APROVA P3 e P4, nota 7/10. Correções aplicadas, sem nova crítica: ver `p8-registro-de-conflitos.md`, seção "2ª leva". Fica para outra rodada a verificação por críticos novos e o crítico de desempenho.

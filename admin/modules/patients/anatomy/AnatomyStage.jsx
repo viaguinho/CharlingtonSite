@@ -158,7 +158,7 @@ function FallbackList({ attachments, onOpenAttachments, kind = 'webgl', onRetry 
         <button type="button" className="an-fallback__retry" onClick={onRetry}>{kind === 'lost' ? 'Recarregar modelo' : 'Tentar de novo'}</button>
       ) : null}
       <ul className="an-fallback__list">
-        {INTERATIVAS.filter((e) => !e.opcional).map((e) => {
+        {INTERATIVAS.map((e) => {
           const expanded = open === e.id;
           return (
             <li key={e.id} className="an-fallback__item">
