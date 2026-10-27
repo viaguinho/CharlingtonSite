@@ -1,4 +1,4 @@
-var Ah=Object.defineProperty;var wh=(s,e,t)=>e in s?Ah(s,e,{enumerable:!0,configurable:!0,writable:!0,value:t}):s[e]=t;var Zo=(s,e,t)=>wh(s,typeof e!="symbol"?e+"":e,t);import{E as lr}from"./estruturas-DJ-vc6Mw.js";/**
+var Ah=Object.defineProperty;var wh=(s,e,t)=>e in s?Ah(s,e,{enumerable:!0,configurable:!0,writable:!0,value:t}):s[e]=t;var Zo=(s,e,t)=>wh(s,typeof e!="symbol"?e+"":e,t);import{E as lr}from"./estruturas-KFKfV33p.js";/**
  * @license
  * Copyright 2010-2026 Three.js Authors
  * SPDX-License-Identifier: MIT
