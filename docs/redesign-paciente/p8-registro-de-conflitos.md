@@ -106,3 +106,11 @@ Relatórios: `critica-p8-sistema.md` (S8) e `critica-p8-fidelidade.md` (F8). Sis
 - S8-9 (rótulos de formulário em caixa alta, estilo global, também na ficha), S8-11 a S8-14 (tamanhos de ícone, receita de foco e hover, famílias de vidro e de raio, espaçamentos em px em `anatomy.css`), S8-17 (data de 11 px na cápsula: guia §3 e tokens divergem), S8-18 (esqueleto de rota é do shell), S8-19, S8-21, S8-23: dívida de sistema, sem risco clínico.
 - F8-3 (arco longe do corpo a 1920), F8-7 no desktop (vidro do painel sem o busto atrás: o véu existe para garantir contraste), F8-10 (card de escala com uma só aplicação), F8-11 (a faixa do gráfico é sempre o intervalo esperado, em verde: o guia §4.4 dizia "cor do risco atual" e está desatualizado), F8-12 (próxima consulta fora da dobra), F8-13 (câmera ao ligar só coração).
 - Desempenho não verificado desde a passada 7.
+
+### Fechamento da 2ª leva (relatório final de fidelidade, 27/10/2026)
+
+O crítico de fidelidade terminou medindo parte da tela já corrigida: P1, P3 e P4 aprovam; P2 reprova só pelo F8-2; 6 mecanismos passam e 1 é parcial (M6, a pasta); nota 7,5/10. O seletor de camadas em toque foi re-medido a 390 e está resolvido.
+
+- **F8-2 (GRAVE) corrigido:** a folha mais alta das pastas ficava a 0 px acima da frente (`--gf-lift: 42px`). Em repouso agora `--gf-lift: -8px` e leque de 1°, com contorno de 1 px na folha branca; o hover continua abrindo mais.
+- **F8-10 (consequência da minha reordenação):** os diagnósticos ativos saíram da dobra de 1440 para as pastas entrarem. Os códigos continuam em chip na barra da página. Decisão do dono: manter a ordem Perfil → Pastas → Diagnósticos, ou compactar os diagnósticos e voltar à ordem do guia.
+- **Abertos como menores:** F8-3 (arco a 1920), F8-4 (a 1280 a primeira cápsula fica cortada), F8-6 e F8-7 (cabeçalho e vidro do painel), F8-11 (card com 1 aplicação), F8-12 (a faixa do gráfico é sempre o intervalo esperado: o texto do guia está desatualizado), F8-13 (próxima consulta fora da dobra).

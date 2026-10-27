@@ -1321,8 +1321,11 @@
    não como mesa vazia. O vidro dos alertas e das camadas segue na receita única. */
 .pr-visit, .an-glass-btn { --glass-filter: blur(8px) saturate(160%); }
 
-/* A folha de uma pasta de 1 arquivo saía 7 px acima da frente e sumia: sobe mais em repouso. */
-.pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) { --gf-lift: 26px; }
+/* Em repouso as folhas saem do bolso (M6 da régua): com `--gf-lift: 42px` a mais alta ficava a 0 px acima da
+   frente e o leque escondido; a 1 arquivo, a folha de PDF sumia. O hover abre mais (-34px), o repouso já mostra. */
+.pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) { --gf-lift: -8px; --gf-fan: 1deg; }
+/* Folha branca sobre pasta cinza-clara: contorno de 1 px, senão o PDF parece vazio. */
+.pr-folder .gf-sheet { box-shadow: inset 0 1px 0 var(--gf-sheet-hi), 0 0 0 1px var(--ink-a08), 0 10px 26px -8px var(--gf-sheet-shadow); }
 
 /* Estados no painel: pílula compacta como a da alergia (o cabeçalho gastava 184 px antes do título). */
 .pr-panel__states { margin-bottom: var(--s-3); }
