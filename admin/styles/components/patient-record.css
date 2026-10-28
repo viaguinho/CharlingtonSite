@@ -1271,8 +1271,15 @@
    inteira e sobravam 12 px de conteúdo. Aqui eles rolam junto com o painel (WCAG 1.4.10). */
 @media (max-height: 520px) {
   .pr-pills { position: static; }
-  .pr-panel__head { position: static; padding-block: var(--s-2); }
+  /* A alergia nunca some (guia §0.6): o cabeçalho segue grudado, mas mínimo, numa linha só (alergia + ×). */
+  .pr-panel__head { position: sticky; padding-block: var(--s-1); gap: 0 var(--s-2); }
   .pr-panel__who { display: none; }
+  .pr-panel__alerts { grid-column: 1; grid-row: 1; }
+  .pr-panel__close { grid-column: 2; grid-row: 1; }
+  .pr-panel__alerts .pr-alerts { flex-wrap: nowrap; }
+  .pr-panel__alerts .pr-alert { min-height: 32px; }
+  .pr-panel__alerts .pr-alert__text,
+  .pr-panel__alerts .pr-alert__text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pr-panel__body { padding-top: var(--s-2); }
 }
 
@@ -1336,3 +1343,25 @@
 
 /* “Mostrar mais” das listas longas do painel (Linha do tempo e Evoluções). */
 .pr-panel :is(.timeline__more, .notes__more) { display: flex; justify-content: center; padding: var(--s-4) 0 var(--s-2); list-style: none; }
+
+/* ——— Passada 10: vidro só nas pílulas e botões pequenos ———
+   O vidro de cards, pastas, escalas e do painel (81% da tela) sobre o fundo animado do shell fazia o processo da
+   GPU gastar de 107 para 405 ms/s enquanto o painel ficava aberto (crítica P9, G9-2). Estas superfícies agora são
+   quase opacas, sem `backdrop-filter`. Ficam com vidro as pílulas (alertas, seções), a faixa de consultas, os
+   botões do palco e as teclas das pastas. */
+.pr-card, .pr-folder, .pr-scale {
+  --card-glass: linear-gradient(180deg, rgba(255, 255, 255, .96) 0%, rgba(255, 255, 255, .9) 100%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.pr-panel {
+  --pr-panel-glass: rgba(255, 255, 255, .96);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.pr-folder .gf-front,
+.pr-folder .gf-key--more,
+.pr-folder .gf-key-face {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

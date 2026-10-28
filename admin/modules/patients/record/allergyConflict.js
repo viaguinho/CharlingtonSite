@@ -42,6 +42,9 @@ const COX1 = ['aas', 'aspirina', 'acido acetilsalicilico', 'acetilsalicilico', '
 const COMBINED = [
   // Associações que CONTÊM o componente em que o paciente reagiu.
   { when: ['trimetoprima'], drugs: ['bactrim', 'cotrimoxazol'] },
+  // E o sentido inverso: quem reagiu ao cotrimoxazol deve evitar os dois componentes, a trimetoprima isolada
+  // inclusive (decisão do dono, 28/10/2026). A alergia só a "sulfa" continua sem avisar a trimetoprima.
+  { when: ['bactrim', 'cotrimoxazol'], drugs: ['trimetoprima'] },
   // Penicilina → cefalosporinas de cadeia lateral parecida (amoxicilina–cefadroxila, ampicilina–cefalexina e
   // cefaclor). Cefazolina, ceftriaxona e cefuroxima têm cadeia diferente e não entram (Drug Allergy Practice Parameter, 2022).
   { when: ['penicilina', 'amoxicilina', 'ampicilina'], drugs: ['cefalexina', 'cefadroxila', 'cefaclor'] },

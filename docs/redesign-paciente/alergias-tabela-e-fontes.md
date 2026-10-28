@@ -11,7 +11,7 @@ Código: `admin/modules/patients/record/allergyConflict.js`. Montada em 26/10/20
 | Penicilina → cefalosporinas de cadeia lateral parecida | cefalexina, cefadroxila, cefaclor | só de penicilina/amoxicilina/ampicilina para elas |
 | Cefalosporinas | cefalexina, cefazolina, cefuroxima, ceftriaxona, cefadroxila, cefepima | os dois sentidos entre si |
 | Sulfonamidas antibióticas | sulfa, sulfonamida, sulfametoxazol, cotrimoxazol, Bactrim, sulfadiazina | os dois sentidos; "sulfa" só vale como palavra inteira (sulfato ferroso não avisa) |
-| Trimetoprima | trimetoprima → Bactrim, cotrimoxazol | só nesse sentido: sulfa não avisa para trimetoprima isolada |
+| Trimetoprima | trimetoprima → Bactrim, cotrimoxazol; Bactrim, cotrimoxazol → trimetoprima | os dois sentidos (decisão do dono em 28/10/2026); a alergia só a "sulfa" não avisa para trimetoprima isolada |
 | Anticonvulsivantes aromáticos | carbamazepina (Tegretol), oxcarbazepina (Trileptal), fenitoína (Hidantal), fenobarbital (Gardenal), primidona, lamotrigina (Lamictal), zonisamida, felbamato | os dois sentidos |
 | Inibidores fortes da COX-1 | AAS, aspirina, ácido acetilsalicílico, Melhoral, Somalgin, Cafiaspirina, ibuprofeno, naproxeno, diclofenaco, cetoprofeno, cetorolaco, piroxicam e marcas (Advil, Alivium, Dalsy, Cataflam, Voltaren, Naprosyn) | os dois sentidos entre si |
 | Classe "AINE" digitada na alergia | os da linha acima, nimesulida, meloxicam, celecoxibe, etoricoxibe | só de AINE para eles |
