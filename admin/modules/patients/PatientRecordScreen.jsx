@@ -159,8 +159,13 @@ export default function PatientRecordScreen() {
       const [guardians, appointments, notes, scales, milestones, medications, attachments, documents, consents] =
         await Promise.all([
           // Só os da ficha: a loja inteira obrigava a decifrar o responsável de todos os pacientes da clínica.
-          Promise.all((patient.responsaveis ?? []).map((gid) => repo.get(STORES.GUARDIANS, gid, { silent: true })))
-            .then((list) => list.filter(Boolean))
+          // Um id da ficha sem registro (null) é leitura que não achou o responsável, não "não cadastrado":
+          // a tela diz que não conseguiu ler. Registro excluído de propósito (excluidoEm) sai em silêncio.
+          Promise.all((Array.isArray(patient.responsaveis) ? patient.responsaveis : []).map((gid) => repo.get(STORES.GUARDIANS, gid, { silent: true })))
+            .then((list) => {
+              if (list.some((g) => !g)) failed.push(STORES.GUARDIANS);
+              return list.filter((g) => g && !g.excluidoEm);
+            })
             .catch(() => { failed.push(STORES.GUARDIANS); return []; }),
           read(STORES.APPOINTMENTS, byPatient),
           read(STORES.NOTES, byPatient),
@@ -182,7 +187,7 @@ export default function PatientRecordScreen() {
       setRecord({
         patient,
         // Na ordem da ficha: o primeiro cadastrado é o responsável principal.
-        guardians: (patient.responsaveis ?? []).map((gid) => guardians.find((g) => g.id === gid)).filter(Boolean),
+        guardians: (Array.isArray(patient.responsaveis) ? patient.responsaveis : []).map((gid) => guardians.find((g) => g.id === gid)).filter(Boolean),
         appointments: sane, notes, scales, milestones, medications, attachments, documents, consents,
         failed, skipped: appointments.length - sane.length,
       });
@@ -325,6 +330,11 @@ export default function PatientRecordScreen() {
 
   return (
     <div className="pr">
+      {/* Janela baixa (≤ 520 px de altura, zoom de 400%): o cabeçalho sozinho passa da altura da janela. A alergia
+          vira uma faixa mínima, grudada no topo desde o primeiro pixel. Escondida nas janelas normais. */}
+      <div className="pr-allergy-strip" {...behindPanel}>
+        <AlertPills states={states} onReschedule={onReschedule} compact part="allergy" />
+      </div>
       <div className="pr-behind" {...behindPanel}>
         <Breadcrumb items={[
           { label: 'Pacientes', to: '/pacientes' },

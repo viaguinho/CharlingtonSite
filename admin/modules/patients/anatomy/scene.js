@@ -50,6 +50,7 @@ const ZOOM_MS = 320;
 const SOLID_HOVER = 0.9;
 // Quanto o busto gira sozinho depois de pronto, antes de parar.
 const AUTO_ROTATE_SECONDS = 14;
+const PICK_GAP_MS = 60;   // intervalo mínimo entre sondagens de hover (raycast)
 const DIM = 0.5;
 const DEEP = new Set(['insula', 'limbico', 'hipocampo', 'amigdala', 'nucleos_base', 'talamo', 'corpo_caloso', 'ventriculos', 'tronco', 'medula']);
 const ON_TOP = 30;
@@ -283,6 +284,9 @@ function look(id, camada, deep) {
  * cérebro) e sem o novelo da malha inteira. Determinístico (mesma figura a
  * cada carga). Tudo em coordenadas locais da malha.
  */
+/** Devolve a thread ao navegador (entrada e quadros) antes de seguir. */
+const yieldToMain = () => (globalThis.scheduler?.yield ? globalThis.scheduler.yield() : new Promise((resolve) => setTimeout(resolve, 0)));
+
 function plexoData(geo, spacing, keepNodes = 1) {
   const pos = geo.attributes.position;
   const nor = geo.attributes.normal;
@@ -473,6 +477,9 @@ export class AnatomyScene {
     this.controls.maxPolarAngle = Math.PI * 0.78;
     this.controls.autoRotate = !this.reducedMotion;
     this.controls.autoRotateSpeed = 0.35;
+    // O OrbitControls registra o `keydown` no nó raiz do canvas e, no dispose, procura o nó raiz de AGORA. Se o
+    // React já tirou o canvas do documento, ele erra o alvo e o ouvinte vaza (um por abertura): guarda o nó certo.
+    this._keyRoot = canvas.getRootNode();
 
     this._bind();
     this.readColors();
@@ -496,7 +503,9 @@ export class AnatomyScene {
         return;
       }
       this.meta = meta;
-      this._build(gltf.scene, meta);
+      await this._build(gltf.scene, meta);
+      // Descartada no meio da montagem (o paciente mudou): nada mais a fazer, o dispose já soltou tudo.
+      if (this._disposed) return;
       this._frame(meta);
       this.revealStart = performance.now();
       this.opts.onReady?.({ ids: [...this.structures.keys()] });
@@ -521,6 +530,8 @@ export class AnatomyScene {
       this.canvas.remove();
       return;
     }
+    this._keyRoot?.removeEventListener('keydown', this.controls._interceptControlDown, { capture: true });
+    this._keyRoot?.removeEventListener('keyup', this.controls._interceptControlUp, { capture: true });
     this.controls.dispose();
     this.scene.traverse((o) => {
       o.geometry?.dispose();
@@ -535,7 +546,10 @@ export class AnatomyScene {
 
   /* ——————————————————————— Montagem do modelo ——————————————————————— */
 
-  _build(model, meta) {
+  async _build(model, meta) {
+    // A montagem cede a thread entre as malhas (o plexo da 1ª abertura da sessão era uma tarefa só de ~390 ms a
+    // 4×). O modelo fica invisível até o fim: nenhum quadro desenha malha pela metade.
+    model.visible = false;
     this.root.add(model);
     model.updateMatrixWorld(true);
 
@@ -569,6 +583,7 @@ export class AnatomyScene {
     }
     maxDist = maxDist || 1;
 
+    let sliceStart = performance.now();
     // Identifica cada malha pela posição no arquivo (estável para o mesmo modelo), para reaproveitar o plexo.
     let ordinal = 0;
     const modelKey = this.opts.modelUrl ?? DEFAULT_MODEL_URL;
@@ -594,6 +609,11 @@ export class AnatomyScene {
       };
 
       for (const mesh of meshes) {
+        if (performance.now() - sliceStart > 20) {
+          await yieldToMain();
+          if (this._disposed) return;
+          sliceStart = performance.now();
+        }
         const meshKey = `${modelKey}#${ordinal++}`;
         let geo = mesh.geometry;
         if (!geo.index) {
@@ -686,6 +706,8 @@ export class AnatomyScene {
       }
     }
     this._pushUniforms();
+    this._built = true;
+    model.visible = true;
   }
 
   _order(camada, id) {
@@ -1191,8 +1213,19 @@ export class AnatomyScene {
     }
 
     if (this._pointer.dirty) {
-      this._pointer.dirty = false;
-      this._pick();
+      // O raycast percorre ~108 mil triângulos (~11 ms a 4×, 615 ms/s de thread principal com o mouse em
+      // movimento): no máximo uma sondagem a cada 60 ms e só se o ponteiro andou 2 px. Se ainda é cedo, o
+      // próximo quadro tenta de novo.
+      if (now - (this._pickedAt ?? -Infinity) >= PICK_GAP_MS) {
+        this._pointer.dirty = false;
+        const { x, y } = this._pointer;
+        const last = this._pickedXY;
+        if (!last || Math.hypot(x - last.x, y - last.y) >= 2) {
+          this._pickedAt = now;
+          this._pickedXY = { x, y };
+          this._pick();
+        }
+      } else busy = true;
     }
 
     this._pushUniforms();
@@ -1343,7 +1376,7 @@ export class AnatomyScene {
   }
 
   _raycastAt(x, y) {
-    if (!this.solids.length) return null;
+    if (!this._built || !this.solids.length) return null;
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     this._ndc.set((x / w) * 2 - 1, -(y / h) * 2 + 1);

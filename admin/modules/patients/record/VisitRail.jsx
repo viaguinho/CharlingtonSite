@@ -15,6 +15,9 @@ import { visitState } from './patientStates.js';
 
 const MONTH = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
 const EDGE = 24; // largura da máscara de esmaecimento nas bordas
+// Cápsulas montadas em volta de "hoje" (para cada lado). Com 300 consultas eram 303 cápsulas e 3.300 nós; o resto
+// entra em blocos pelo botão da ponta.
+const WINDOW = 40;
 
 // Ícone do tipo da consulta (guia §4.3): lê-se o tipo sem texto.
 const TYPE_ICON = { teleconsulta: 'video', laudo: 'file-text', evento: 'calendar' };
@@ -24,6 +27,14 @@ export function VisitRail({ appointments, onOpen }) {
   const todayRef = useRef(null);
   // Tabindex móvel: com 300 consultas eram 303 paradas de Tab. Tab entra uma vez e as setas andam.
   const [stop, setStop] = useState(null);
+  const [more, setMore] = useState({ before: 0, after: 0 });
+  // Largura antes de abrir mais cápsulas à esquerda: a rolagem compensa, e o que estava à vista não pula.
+  const widthBefore = useRef(0);
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (el && widthBefore.current) el.scrollLeft += el.scrollWidth - widthBefore.current;
+    widthBefore.current = 0;
+  }, [more.before]);
 
   const list = appointments
     .filter((a) => a.status !== 'cancelado' && a.inicio)
@@ -71,6 +82,10 @@ export function VisitRail({ appointments, onOpen }) {
   };
   // Parada inicial: a primeira consulta de hoje em diante (a que a faixa centraliza).
   const stopId = stop ?? list[Math.max(0, firstFuture === -1 ? list.length - 1 : firstFuture)]?.id;
+  // Janela em volta de "hoje"; o que sobra de cada lado vira um botão na ponta.
+  const anchor = firstFuture === -1 ? list.length : firstFuture;
+  const from = Math.max(0, anchor - WINDOW - more.before);
+  const to = Math.min(list.length, anchor + WINDOW + more.after);
 
   const today = (
     <span ref={todayRef} className="pr-rail__today">
@@ -82,7 +97,17 @@ export function VisitRail({ appointments, onOpen }) {
   return (
     <nav className="pr-rail" aria-label="Consultas do paciente">
       <ol ref={scroller} className="pr-rail__list" onKeyDown={onKeyDown}>
-        {list.map((a, i) => {
+        {from > 0 ? (
+          <li className="pr-rail__item">
+            <button type="button" className="pr-visit pr-visit--more" onClick={() => { widthBefore.current = scroller.current?.scrollWidth ?? 0; setMore((m) => ({ ...m, before: m.before + WINDOW })); }}
+              tabIndex={-1} aria-label={`Mostrar mais ${Math.min(WINDOW, from)} consultas anteriores (${from} ao todo)`}>
+              <span className="pr-visit__date num">Anteriores</span>
+              <span className="pr-visit__status">+{from}</span>
+            </button>
+          </li>
+        ) : null}
+        {list.slice(from, to).map((a, k) => {
+          const i = from + k;
           const d = new Date(a.inicio);
           const st = visitState(a, now);
           // O ano só aparece quando não é o corrente: a cápsula fica curta e cabem mais delas na faixa.
@@ -107,6 +132,15 @@ export function VisitRail({ appointments, onOpen }) {
             </li>
           );
         })}
+        {to < list.length ? (
+          <li className="pr-rail__item">
+            <button type="button" className="pr-visit pr-visit--more" onClick={() => setMore((m) => ({ ...m, after: m.after + WINDOW }))}
+              tabIndex={-1} aria-label={`Mostrar mais ${Math.min(WINDOW, list.length - to)} consultas posteriores (${list.length - to} ao todo)`}>
+              <span className="pr-visit__date num">Posteriores</span>
+              <span className="pr-visit__status">+{list.length - to}</span>
+            </button>
+          </li>
+        ) : null}
         {firstFuture === -1 ? <li className="pr-rail__item">{today}</li> : null}
       </ol>
     </nav>

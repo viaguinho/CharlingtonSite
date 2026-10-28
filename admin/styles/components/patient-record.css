@@ -128,6 +128,7 @@
 .pr-pills[data-stuck]::before { opacity: 1; }
 .pr-pills__nav { min-width: 0; }
 .pr-pills__alerts { display: none; min-width: 0; }
+.pr-allergy-strip { display: none; }
 .pr-grid :where(*) { scroll-margin-top: calc(var(--pr-sticky-h) + var(--s-2)); }
 /* Os embrulhos de inércia não existem para a grade. */
 .pr-behind { display: contents; }
@@ -234,13 +235,12 @@
   transition: filter var(--dur-4) var(--ease), opacity var(--dur-4) var(--ease), transform var(--dur-4) var(--ease);
 }
 .pr-side { min-width: 0; isolation: isolate; transition: filter var(--dur-4) var(--ease), opacity var(--dur-4) var(--ease); }
-/* Com o painel aberto (guia §4.5), o palco recua: desfoque, esmaecida e um
-   passo para trás. Desfocado só pelo vidro, o busto e os cards viravam manchas
-   cinzentas sob o painel; esmaecido antes, o vidro mostra só profundidade. A
+/* Com o painel aberto (guia §4.5), o palco recua: esmaecido e um passo para trás. Sem `filter`: o desfoque do
+   palco, sob um painel quase opaco, custava ~200 ms/s de GPU para um efeito que ninguém via (passada 10). A
    coluna direita, inteira sob o painel, sai de cena. */
 .pr-grid.has-panel .pr-stage,
 .pr-grid.has-panel .pr-side { pointer-events: none; }
-.pr-grid.has-panel .pr-stage { filter: blur(5px); opacity: .8; transform: scale(.98); }
+.pr-grid.has-panel .pr-stage { opacity: .8; transform: scale(.98); }
 .pr-grid.has-panel .pr-side { opacity: 0; }
 
 .pr-stage__fallback {
@@ -259,16 +259,14 @@
   position: relative;
   padding: var(--s-5);
   border-radius: var(--r-card);
-  background: var(--card-glass);
+  background: var(--pr-card-solid);
   box-shadow: var(--e-glass);
-  -webkit-backdrop-filter: var(--glass-filter);
-  backdrop-filter: var(--glass-filter);
 }
 /* O "Patient Profile" da referência: vidro com luz entrando pelo topo. */
 .pr-card--lit {
   background:
     radial-gradient(120% 70% at 0% 0%, var(--blue-050), transparent 60%),
-    var(--card-glass);
+    var(--pr-card-solid);
 }
 .pr-card__title,
 .pr-insights__head h2 {
@@ -402,10 +400,8 @@
   min-width: 0;
   padding: var(--s-3) var(--s-3) var(--s-2);
   border-radius: var(--r-card);
-  background: var(--card-glass);
+  background: var(--pr-card-solid);
   box-shadow: var(--e-glass);
-  -webkit-backdrop-filter: var(--glass-filter);
-  backdrop-filter: var(--glass-filter);
 }
 /* Título na linha inteira do card ("Neurofisiológico" cabe sem hifenizar);
    o ↗ divide a segunda linha com a data. */
@@ -437,7 +433,9 @@
 .pr-folder__open:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 1px; }
 .pr-folder__stage { flex: 1; display: grid; place-items: end center; margin-top: calc(var(--s-3) * -1); min-width: 0; }
 .pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) {
-  --gf-lift: -42px; --gf-spread: 22px; --gf-fan: 6deg; --gf-stack: 17px; --gf-hinge: -4deg;
+  /* Em repouso as folhas saem do bolso (M6 da régua): com `--gf-lift: 42px` a mais alta ficava a 0 px acima da
+     frente e o leque escondido; a 1 arquivo, a folha de PDF sumia. O hover abre mais (-34px), o repouso já mostra. */
+  --gf-lift: -8px; --gf-spread: 22px; --gf-fan: 1deg; --gf-stack: 17px; --gf-hinge: -4deg;
 }
 .pr-folder:has(.gf-hit:focus-visible) { box-shadow: var(--e-glass), 0 0 0 2px var(--surface), 0 0 0 4px var(--blue-500); }
 
@@ -602,10 +600,8 @@
   font: inherit;
   text-align: left;
   color: inherit;
-  background: var(--card-glass);
+  background: var(--pr-card-solid);
   box-shadow: var(--e-glass);
-  -webkit-backdrop-filter: var(--glass-filter);
-  backdrop-filter: var(--glass-filter);
   cursor: pointer;
   transition: box-shadow var(--dur-3) var(--ease), transform var(--dur-3) var(--ease);
 }
@@ -670,7 +666,6 @@
 /* Em card estreito (1024–1180) os três não cabem lado a lado: quebram em linhas
    em vez de a palavra passar da borda do mini-card. */
 .pr-milestones__tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: var(--s-2); margin: var(--s-3) 0 0; }
-.pr-milestones__tally > div { border-radius: var(--r-sm); }
 .pr-milestones__tally > div { padding: var(--s-3); border-radius: var(--r-md); background: var(--ink-a04); }
 .pr-milestones__tally dt { display: flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--ink-600); }
 .pr-milestones__tally dt::before { content: ''; width: 2px; height: 10px; border-radius: var(--r-pill); background: var(--pr-tick-none); }
@@ -771,17 +766,6 @@
   min-width: 0;
   pointer-events: none;
 }
-/* Véu sobre o que o painel não cobre (a coluna direita mais longa que o
-   palco, o pé da grade): nada da visão geral vaza nítido pela borda. */
-.pr-panel-layer::before {
-  content: '';
-  position: absolute;
-  inset: calc(var(--s-2) * -1) calc(var(--s-2) * -1) 0;
-  border-radius: var(--r-card);
-  background: var(--pr-stage-veil);
-  animation: pr-veil-in var(--dur-3) var(--ease) both;
-}
-@keyframes pr-veil-in { from { opacity: 0; } to { opacity: 1; } }
 .pr-panel {
   position: sticky;
   top: calc(var(--pr-sticky-h) + var(--s-2));
@@ -794,12 +778,9 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   border-radius: var(--r-card);
-  /* Vidro do guia §4.5: o véu da camada clareia o palco antes do desfoque,
-     então o texto secundário segue acima de 4,5:1 sobre o busto. */
-  background: var(--pr-panel-glass);
+  /* Superfície opaca (passada 10): o painel cobre o palco inteiro e não amostra o fundo animado. */
+  background: var(--pr-panel-solid);
   box-shadow: var(--e-4), inset 0 1px 0 var(--rp-glass-edge);
-  -webkit-backdrop-filter: var(--glass-filter);
-  backdrop-filter: var(--glass-filter);
   pointer-events: auto;
   transform-origin: 50% 0;
   animation: pr-panel-in var(--dur-3) var(--ease) both;
@@ -823,7 +804,7 @@
   /* Margem lateral = corpo (--s-5) + a das listas e do título da seção
      (--s-5): pílulas, título, linhas e × começam e terminam juntos. */
   padding: var(--s-4) calc(var(--s-5) * 2) var(--s-3);
-  background: linear-gradient(var(--pr-panel), var(--pr-panel)), var(--surface);
+  background: var(--pr-panel-solid);
   box-shadow: 0 1px 0 var(--ink-a06);
 }
 /* Quem é o paciente: só no celular, onde o painel cobre a página inteira. */
@@ -841,7 +822,7 @@
 }
 .pr-panel__body { flex: 1 0 auto; min-width: 0; padding: var(--s-4) var(--s-5) var(--s-5); }
 .pr-panel__alerts { min-width: 0; }
-.pr-panel__states { margin: 0 0 var(--s-4); }
+.pr-panel__states { margin: 0 0 var(--s-3); }
 .pr-panel__states .pr-alerts { flex-direction: row; flex-wrap: wrap; gap: var(--s-2); }
 .pr-panel__states .pr-alert { max-width: none; }
 /* As pílulas quebram linha, todas inteiras e com o Remarcar à vista: numa
@@ -1104,7 +1085,6 @@
   /* Tela cheia ENTRE a barra global (busca, unidade, sino) e a barra do
      dock no pé: nada do painel fica por baixo delas, e o × é tocável. */
   .pr-panel-layer { position: static; display: contents; }
-  .pr-panel-layer::before { content: none; }
   .pr-panel {
     position: fixed;
     top: calc(var(--topbar) + env(safe-area-inset-top, 0px));
@@ -1114,7 +1094,6 @@
     z-index: var(--z-drawer);
     height: auto;
     border-radius: var(--r-card) var(--r-card) 0 0;
-    background: var(--pr-panel);
   }
   /* Nome do paciente em cima; alertas e × numa fileira só. */
   .pr-panel__head { padding: var(--s-3) var(--s-4); }
@@ -1260,6 +1239,7 @@
   .pr-card, .pr-scale, .pr-folder, .pr-alert, .pr-visit, .pr-next, .pr-panel, .an-glass-btn, .an-layers__btn, .an-popover {
     border: 1px solid CanvasText;
   }
+  .pr-rx-allergy, .doc-allergy-hit, .pr-issue, .pr-unavailable { border: 1px solid CanvasText; }
   .pr-pill { border: 1px solid transparent; }
   .pr-pill.is-active { border-color: Highlight; background: Highlight; color: HighlightText; forced-color-adjust: none; }
   .pr-pill__count { border: 1px solid CanvasText; }
@@ -1268,10 +1248,28 @@
 }
 
 /* Janela baixa (zoom de 400% = 320×256): cabeçalho e barra de seções grudados comiam a janela
-   inteira e sobravam 12 px de conteúdo. Aqui eles rolam junto com o painel (WCAG 1.4.10). */
+   inteira e sobravam 12 px de conteúdo. Aqui eles rolam junto com a página (WCAG 1.4.10), mas a alergia nunca
+   some (guia §0.6): ela vira uma faixa mínima e grudada, na visão geral e dentro do painel. */
 @media (max-height: 520px) {
+  .pr { --pr-sticky-h: 48px; }
+  /* A barra de seções rola com a página; a alergia, que normalmente mora nela, ganha a faixa própria abaixo. */
   .pr-pills { position: static; }
-  /* A alergia nunca some (guia §0.6): o cabeçalho segue grudado, mas mínimo, numa linha só (alergia + ×). */
+  .pr-pills::before { content: none; }
+  .pr-pills__alerts { display: none; }
+  .pr-allergy-strip {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    margin-bottom: var(--s-2);
+    padding: var(--s-1) 0;
+    background: var(--surface);
+  }
+  .pr-allergy-strip .pr-alerts { flex-direction: row; flex-wrap: nowrap; }
+  .pr-allergy-strip .pr-alert { max-width: none; min-height: 32px; padding-block: 2px; }
+  .pr-allergy-strip .pr-alert__text,
+  .pr-allergy-strip .pr-alert__text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Dentro do painel o cabeçalho segue grudado, mínimo, com a alergia e o × numa linha só. */
   .pr-panel__head { position: sticky; padding-block: var(--s-1); gap: 0 var(--s-2); }
   .pr-panel__who { display: none; }
   .pr-panel__alerts { grid-column: 1; grid-row: 1; }
@@ -1328,14 +1326,10 @@
    não como mesa vazia. O vidro dos alertas e das camadas segue na receita única. */
 .pr-visit, .an-glass-btn { --glass-filter: blur(8px) saturate(160%); }
 
-/* Em repouso as folhas saem do bolso (M6 da régua): com `--gf-lift: 42px` a mais alta ficava a 0 px acima da
-   frente e o leque escondido; a 1 arquivo, a folha de PDF sumia. O hover abre mais (-34px), o repouso já mostra. */
-.pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) { --gf-lift: -8px; --gf-fan: 1deg; }
 /* Folha branca sobre pasta cinza-clara: contorno de 1 px, senão o PDF parece vazio. */
 .pr-folder .gf-sheet { box-shadow: inset 0 1px 0 var(--gf-sheet-hi), 0 0 0 1px var(--ink-a08), 0 10px 26px -8px var(--gf-sheet-shadow); }
 
 /* Estados no painel: pílula compacta como a da alergia (o cabeçalho gastava 184 px antes do título). */
-.pr-panel__states { margin-bottom: var(--s-3); }
 .pr-panel__states .pr-alert { min-height: 44px; padding-block: 2px; }
 
 /* Celular: nada do que fica atrás do painel vaza atrás do título. */
@@ -1344,24 +1338,58 @@
 /* “Mostrar mais” das listas longas do painel (Linha do tempo e Evoluções). */
 .pr-panel :is(.timeline__more, .notes__more) { display: flex; justify-content: center; padding: var(--s-4) 0 var(--s-2); list-style: none; }
 
-/* ——— Passada 10: vidro só nas pílulas e botões pequenos ———
-   O vidro de cards, pastas, escalas e do painel (81% da tela) sobre o fundo animado do shell fazia o processo da
-   GPU gastar de 107 para 405 ms/s enquanto o painel ficava aberto (crítica P9, G9-2). Estas superfícies agora são
-   quase opacas, sem `backdrop-filter`. Ficam com vidro as pílulas (alertas, seções), a faixa de consultas, os
-   botões do palco e as teclas das pastas. */
-.pr-card, .pr-folder, .pr-scale {
-  --card-glass: linear-gradient(180deg, rgba(255, 255, 255, .96) 0%, rgba(255, 255, 255, .9) 100%);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-.pr-panel {
-  --pr-panel-glass: rgba(255, 255, 255, .96);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
+/* ——— Passada 10 ——— */
+
+/* Vidro só nas pílulas e botões pequenos: cards, pastas, escalas e o painel são superfícies quase opacas
+   (tokens `--pr-card-solid` e `--pr-panel-solid`). O vidro do GlassFolder (`.gf-front` e as teclas) também sai
+   aqui: eram 3 camadas de desfoque por pasta sobre o fundo animado do shell. */
 .pr-folder .gf-front,
 .pr-folder .gf-key--more,
 .pr-folder .gf-key-face {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+/* Pílula de alerta sobre o cabeçalho opaco do painel: desfocar uma superfície lisa só gasta GPU. */
+.pr-panel .pr-alert {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Alvos de 44 px em toque (guia §8.3): abaixo de 768 px e em ponteiro grosso, em qualquer largura. O painel,
+   os botões e as pílulas de seção seguem o token local. */
+@media (max-width: 767px), (pointer: coarse) {
+  .pr { --touch: 44px; }
+  .pr-pill { min-height: 44px; }
+  .pr :is(.btn--sm, .btn--md) { height: var(--touch); }
+  .pr :is(.icon-btn--sm, .icon-btn--md) { width: var(--touch); height: var(--touch); }
+}
+
+/* Nome comprido (80 caracteres, sem espaço) na trilha: corta com reticências, não abre rolagem lateral. */
+.pr .breadcrumb { min-width: 0; max-width: 100%; }
+.pr .breadcrumb > :last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Abas do painel que rolam no celular: a borda esmaece enquanto há mais para o lado (só onde o navegador
+   liga a animação à rolagem; nos demais as abas rolam como antes). */
+@property --pr-fade-start { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --pr-fade-end { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes pr-tabs-fade {
+  0% { --pr-fade-start: 0px; --pr-fade-end: 28px; }
+  4% { --pr-fade-start: 28px; --pr-fade-end: 28px; }
+  96% { --pr-fade-start: 28px; --pr-fade-end: 28px; }
+  100% { --pr-fade-start: 28px; --pr-fade-end: 0px; }
+}
+@supports (animation-timeline: scroll()) {
+  .pr-panel .tabs {
+    animation: pr-tabs-fade linear both;
+    animation-timeline: scroll(self inline);
+    -webkit-mask: linear-gradient(to right, transparent, #000 var(--pr-fade-start), #000 calc(100% - var(--pr-fade-end)), transparent);
+    mask: linear-gradient(to right, transparent, #000 var(--pr-fade-start), #000 calc(100% - var(--pr-fade-end)), transparent);
+  }
+}
+
+/* O foco programático do “Mostrar mais” precisa aparecer no registro que o recebeu. */
+.pr-panel :is(.timeline__item, .note):focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; border-radius: var(--r-md); }
+
+/* Botão de ponta da faixa de consultas (“Anteriores +120”): mais discreto que uma cápsula de consulta. */
+.pr-visit--more { opacity: .85; }
+.pr-visit--more:hover, .pr-visit--more:focus-visible { opacity: 1; }

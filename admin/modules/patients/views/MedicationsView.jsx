@@ -182,7 +182,7 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
       }
     >
       <div className="med-form">
-        <AllergyNotice patient={patient} typed={`${form.principioAtivo} ${form.nome}`} hint="Confirme com o responsável antes de prescrever." />
+        <AllergyNotice patient={patient} typed={`${form.principioAtivo} ${form.nome} ${form.concentracao} ${form.posologia} ${form.observacoes}`} hint="Confirme com o responsável antes de prescrever." />
         <FieldRow>
           <TextField label="Princípio ativo" required autoFocus value={form.principioAtivo} onChange={set('principioAtivo')} />
           <TextField label="Nome comercial" value={form.nome} onChange={set('nome')} />

@@ -400,9 +400,11 @@
      do modelo, não papel de parede. */
   --pr-dot: rgba(15, 16, 18, .10);   /* legível sobre o granulado do fundo */
   --pr-dot-step: 22px;
-  --pr-stage-veil: rgba(238, 240, 243, .55);   /* palco atrás do painel de seção */
   --pr-panel: rgba(250, 250, 252, .84);
-  --pr-panel-glass: rgba(255, 255, 255, .55);   /* painel de seção sobre o palco: o busto desfocado aparece por baixo */
+  /* Passada 10: vidro (desfoque do fundo) só em pílulas e botões pequenos. Cards, pastas, escalas e o painel de
+     seção são superfícies quase opacas, sem backdrop-filter: o fundo do shell anima e o desfoque custava GPU. */
+  --pr-panel-solid: #ffffff;
+  --pr-card-solid: linear-gradient(180deg, rgba(255, 255, 255, .96) 0%, rgba(255, 255, 255, .9) 100%);
   --pr-tick-none: var(--ink-200);
   --pr-band-low: rgba(39, 196, 98, .10);
   --pr-band-mid: rgba(241, 179, 28, .14);

@@ -6,15 +6,16 @@ Código: `admin/modules/patients/record/allergyConflict.js`. Montada em 26/10/20
 
 | Regra | Termos | Sentido |
 |---|---|---|
-| Dipirona (inclui associações) | dipirona, metamizol, Novalgina, Anador, Magnopyrol, Conmel, Neosaldina, Dorflex, Lisador, Buscopan Composto | os dois sentidos |
-| Penicilinas | penicilina, amoxicilina, ampicilina, benzilpenicilina, oxacilina, piperacilina, Amoxil, clavulanato, Augmentin | os dois sentidos |
-| Penicilina → cefalosporinas de cadeia lateral parecida | cefalexina, cefadroxila, cefaclor | só de penicilina/amoxicilina/ampicilina para elas |
-| Cefalosporinas | cefalexina, cefazolina, cefuroxima, ceftriaxona, cefadroxila, cefepima | os dois sentidos entre si |
-| Sulfonamidas antibióticas | sulfa, sulfonamida, sulfametoxazol, cotrimoxazol, Bactrim, sulfadiazina | os dois sentidos; "sulfa" só vale como palavra inteira (sulfato ferroso não avisa) |
-| Trimetoprima | trimetoprima → Bactrim, cotrimoxazol; Bactrim, cotrimoxazol → trimetoprima | os dois sentidos (decisão do dono em 28/10/2026); a alergia só a "sulfa" não avisa para trimetoprima isolada |
-| Anticonvulsivantes aromáticos | carbamazepina (Tegretol), oxcarbazepina (Trileptal), fenitoína (Hidantal), fenobarbital (Gardenal), primidona, lamotrigina (Lamictal), zonisamida, felbamato | os dois sentidos |
-| Inibidores fortes da COX-1 | AAS, aspirina, ácido acetilsalicílico, Melhoral, Somalgin, Cafiaspirina, ibuprofeno, naproxeno, diclofenaco, cetoprofeno, cetorolaco, piroxicam e marcas (Advil, Alivium, Dalsy, Cataflam, Voltaren, Naprosyn) | os dois sentidos entre si |
-| Classe "AINE" digitada na alergia | os da linha acima, nimesulida, meloxicam, celecoxibe, etoricoxibe | só de AINE para eles |
+| Dipirona (inclui associações) | dipirona, metamizol, Novalgina, Anador, Magnopyrol, Conmel, Neosaldina, Dorflex, Lisador, Buscopan Composto, Cefaliv, Sedalgina, Doralgina | os dois sentidos; a classe "pirazolona" avisa para todos |
+| Penicilinas | penicilina, amoxicilina ("amox"), ampicilina, benzilpenicilina, oxacilina, piperacilina, Amoxil, clavulanato, Augmentin, Clavulin, Benzetacil, Unasyn, Tazocin | os dois sentidos |
+| Penicilina → cefalosporinas de cadeia lateral parecida | cefalexina (Keflex), cefadroxila, cefaclor | só de penicilina/amoxicilina/ampicilina para elas |
+| Cefalosporinas | cefalexina (Keflex), cefazolina, cefuroxima (Zinnat), ceftriaxona (Rocefin), cefadroxila, cefepima, cefaclor, cefixima, cefotaxima, ceftazidima | os dois sentidos entre si |
+| Sulfonamidas antibióticas | sulfa ("sulfas"), sulfonamida, sulfametoxazol, SMX, cotrimoxazol ("co-trimoxazol"), Bactrim, sulfadiazina | os dois sentidos; "sulfa" só vale como palavra inteira (sulfato ferroso não avisa) |
+| Trimetoprima | trimetoprima → Bactrim, cotrimoxazol; Bactrim, cotrimoxazol, "SMX-TMP" → trimetoprima. Alergia a "sulfametoxazol + trimetoprima" vale para os dois componentes | os dois sentidos (decisão do dono em 28/10/2026); a alergia só a "sulfa" não avisa para trimetoprima isolada |
+| Anticonvulsivantes aromáticos | carbamazepina (Tegretol), oxcarbazepina (Trileptal), fenitoína (Hidantal, Epelin), fenobarbital (Gardenal), primidona, lamotrigina (Lamictal, Lamitor), zonisamida, felbamato | os dois sentidos; a classe "anticonvulsivante" avisa para todos |
+| Inibidores fortes da COX-1 | AAS ("A.A.S."), aspirina, ácido acetilsalicílico, Melhoral, Somalgin, Cafiaspirina, ibuprofeno, naproxeno, diclofenaco, cetoprofeno, cetorolaco, piroxicam, indometacina, tenoxicam, ácido mefenâmico e marcas (Advil, Alivium, Dalsy, Cataflam, Voltaren, Naprosyn, Ponstan, Profenid, Buscofem) | os dois sentidos entre si |
+| Classe "AINE", "AINH" ou "anti-inflamatório" digitada na alergia | os da linha acima (marcas inclusive), nimesulida, meloxicam, celecoxibe, etoricoxibe | só da classe para eles |
+| Classe "betalactâmico" digitada na alergia | penicilinas, cefalosporinas, meropenem, imipenem, ertapenem | só da classe para eles |
 
 **Não avisam de propósito:** dipirona ↔ AINEs; paracetamol; sulfonamidas não antibióticas (furosemida, hidroclorotiazida, celecoxibe, topiramato); levetiracetam e valproato; cefazolina, ceftriaxona e cefuroxima para quem tem alergia a penicilina.
 
@@ -30,6 +31,20 @@ Código: `admin/modules/patients/record/allergyConflict.js`. Montada em 26/10/20
 5. **Celecoxibe e etoricoxibe.** Tolerados pela maioria (94,9% em desafio com 309 pacientes), mas não por todos e só testados sob supervisão: mantidos no aviso da classe AINE.
 6. **Política.** Avisar, nunca bloquear; aviso falso custa um clique.
 7. **Texto quando nada bate:** "Sem correspondência automática. A checagem só reconhece nomes e marcas conhecidos: confira o medicamento."
+
+## Como o texto da alergia é lido (passada 10, 28/10/2026)
+
+- **Negação pura.** O texto só deixa de ser alergia quando é inteiro feito de negação mais palavras de enchimento ("Nega alergias medicamentosas", "Nenhuma conhecida", "NKDA", "Alergias: nenhuma", "-"). Qualquer outra palavra mantém o texto como alergia: "exceto", "mas", "só", "látex", nome de fármaco, sintoma ("urticária", "anafilaxia"). Na dúvida, mostrar. Efeito aceito: "Nega alergia a dipirona" aparece como alergia (um clique) em vez de ser engolida.
+- **Forma do dado.** Aceita lista de textos (a ficha), texto solto separado por `;`, vírgula ou quebra de linha, e objeto com `nome`. Forma desconhecida aparece como "Alergia em formato ilegível", nunca como "nenhuma".
+- **Texto digitado.** O que se digita na prescrição (princípio, concentração, quantidade, posologia, observações), na medicação, no plano e no adendo passa pela mesma conta.
+- **Hífen, ponto e abreviação.** "Co-trimoxazol", "A.A.S.", "anti inflamatório" valem como "cotrimoxazol", "AAS", "antiinflamatório". "Amox" vale como amoxicilina.
+- **Combinação.** Alergia a "A + B" ou "A/B" vale para A e para B.
+
+### Marcas acrescentadas em 28/10/2026
+
+- **Com bula conferida pelo crítico da passada 10:** Cefaliv, Sedalgina e Doralgina (levam dipirona).
+- **Por conhecimento geral, a conferir em bula:** Benzetacil (benzilpenicilina benzatina), Clavulin (amoxicilina + clavulanato), Unasyn, Tazocin, Keflex (cefalexina), Rocefin (ceftriaxona), Zinnat (cefuroxima), Ponstan (ácido mefenâmico), Profenid (cetoprofeno), Buscofem (ibuprofeno + butilescopolamina), Epelin (fenitoína), Lamitor (lamotrigina).
+- **Fora da tabela até conferir:** Benegrip e Maxalgina (não consegui afirmar a composição de memória).
 
 ## Limites desta pesquisa
 

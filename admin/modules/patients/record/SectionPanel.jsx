@@ -78,7 +78,7 @@ export function SectionPanel({ label, patientName = null, alerts = null, states 
 
   return (
     <div className="pr-panel-layer">
-      <section ref={ref} tabIndex={-1} className="pr-panel" aria-label={label}>
+      <section ref={ref} tabIndex={-1} className="pr-panel" aria-label={label} data-focus-fallback>
         {/* Grudado no topo do painel: a alergia e o × nunca saem da tela ao rolar. */}
         <header className="pr-panel__head">
           {patientName ? <p className="pr-panel__who">{patientName}</p> : null}

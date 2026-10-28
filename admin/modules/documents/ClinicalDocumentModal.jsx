@@ -29,6 +29,10 @@ import { date, dateLong, age } from '../../core/format.js';
  * servido a qualquer visitante.
  */
 
+// Rascunhos de emissão por paciente e tipo (só na memória da aba): sobrevivem a Esc, ao × e a "Fechar".
+const drafts = new Map();
+const draftKey = (patient, type) => `${patient?.id ?? ''}:${type}`;
+
 // `notice`: faixa opcional acima do editor e da folha (o prontuário passa a alergia).
 export function ClinicalDocumentModal({ open, patient, guardians = [], appointment, initialType, notice = null, allergies = [], onClose, onIssued }) {
   const { user, plaza, requireStepUp } = useSession();
@@ -37,6 +41,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
   const [type, setType] = useState(DOCUMENT_TYPES.PRESCRIPTION);
   const [templateId, setTemplateId] = useState('');
   const [templates, setTemplates] = useState([]);
+  const [templatesFailed, setTemplatesFailed] = useState(false);
   const [text, setText] = useState('');
   const [items, setItems] = useState([]);
   const [provider, setProvider] = useState('birdid');
@@ -55,17 +60,25 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
 
   useEffect(() => {
     if (!open) return;
+    setTemplatesFailed(false);
     repo.list(STORES.TEMPLATES, { where: { tipo: type } })
       .then(setTemplates)
-      .catch(() => setTemplates([]));
+      .catch(() => { setTemplates([]); setTemplatesFailed(true); });
   }, [open, type]);
 
+  // Esc ou × não descartam o que foi digitado: o rascunho fica por paciente e tipo até a emissão.
   useEffect(() => {
     if (!open) return;
-    setText(skeleton.corpo ?? '');
-    setItems(skeleton.estruturada ? [blankItem()] : []);
-    setTemplateId('');
-  }, [type, open]);
+    const draft = drafts.get(draftKey(patient, type));
+    setText(draft?.text ?? skeleton.corpo ?? '');
+    setItems(draft?.items ?? (skeleton.estruturada ? [blankItem()] : []));
+    setTemplateId(draft?.templateId ?? '');
+  }, [type, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const close = () => {
+    drafts.set(draftKey(patient, type), { text, items, templateId });
+    onClose?.();
+  };
 
   const context = useMemo(() => ({
     patient, guardian, appointment,
@@ -77,13 +90,17 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
   // Itens da prescrição também aceitam {{variáveis}}: o que a prévia mostra é o que se grava, faz hash e imprime.
   // Alergia declarada que aparece em algum item da prescrição (sinônimos e marcas inclusos).
   const [ackAllergy, setAckAllergy] = useState(false);
-  // A posologia e as observações também entram: "Paracetamol, se não ceder, dipirona" é prescrição de dipirona.
+  // A posologia, a quantidade e as observações também entram: "Paracetamol, se não ceder, dipirona" é
+  // prescrição de dipirona.
   const itemConflicts = useMemo(() => [...new Set([
     ...items.flatMap((i) => allergyConflict(
-      { principioAtivo: i.principio, nome: `${i.concentracao ?? ''} ${i.posologia ?? ''}` }, allergies)),
+      { principioAtivo: i.principio, concentracao: i.concentracao, quantidade: i.quantidade, posologia: i.posologia }, allergies)),
     ...(skeleton.estruturada ? allergyHits(resolvedText, allergies) : []),
   ])], [items, allergies, resolvedText, skeleton.estruturada]);
-  useEffect(() => { if (!itemConflicts.length) setAckAllergy(false); }, [itemConflicts.length]);
+  // "Revisei" vale para as alergias que estavam em conflito quando foi marcado: se o conjunto muda
+  // (entrou um item que conflita com outra alergia), a confirmação volta a ser pedida.
+  const conflictKey = itemConflicts.join('|');
+  useEffect(() => { setAckAllergy(false); }, [conflictKey]);
 
   const resolvedItems = useMemo(() => items
     .filter((i) => i.principio?.trim())
@@ -172,6 +189,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
       });
 
       toast.success(signature ? 'Documento assinado e emitido.' : 'Documento salvo.');
+      drafts.delete(draftKey(patient, type));
       setPin('');
       onIssued?.(saved);
     } catch (error) {
@@ -202,7 +220,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={close}
       size="full"
       title="Emissão de documento clínico"
       description="O que você escreve à esquerda aparece à direita exatamente como será impresso no papel timbrado."
@@ -212,7 +230,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
             <Icon name="lock" size={13} />
             Depois de assinado, o documento não pode ser editado.
           </span>
-          <Button onClick={onClose} disabled={busy}>Fechar</Button>
+          <Button onClick={close} disabled={busy}>Fechar</Button>
           <Button variant="primary" icon="signature" onClick={issue} loading={busy} disabled={tooLong || (itemConflicts.length > 0 && !ackAllergy)}>
             {REQUIRES_SIGNATURE.has(type) ? 'Assinar e emitir' : 'Emitir documento'}
           </Button>
@@ -243,9 +261,9 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
               label="Modelo"
               value={templateId}
               onChange={(e) => applyTemplate(e.target.value)}
-              placeholder={templates.length ? 'Começar em branco' : 'Nenhum modelo salvo'}
+              placeholder={templates.length ? 'Começar em branco' : templatesFailed ? 'Não foi possível ler os modelos' : 'Nenhum modelo salvo'}
               options={templates.map((t) => ({ value: t.id, label: t.nome }))}
-              hint={templates.length ? undefined : 'Crie modelos em Documentos › Modelos.'}
+              hint={templates.length ? undefined : templatesFailed ? 'Isso não significa que não haja modelos. Feche e abra de novo; o documento pode ser escrito em branco.' : 'Crie modelos em Documentos › Modelos.'}
             />
           </FieldRow>
 

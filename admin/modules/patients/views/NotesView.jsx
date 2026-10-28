@@ -26,6 +26,14 @@ const PAGE = 30;
 export const NotesView = memo(function NotesView({ patient, notes, appointments, reload, intent = null }) {
   const { can } = useSession();
   const [limit, setLimit] = useState(PAGE);
+  // "Mostrar mais" leva o foco à primeira evolução nova: o botão pula para o fim da lista.
+  const pendingFocus = useRef(null);
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    const el = document.getElementById(pendingFocus.current);
+    pendingFocus.current = null;
+    if (el) { el.tabIndex = -1; el.focus(); }
+  }, [limit]);
   const [composing, setComposing] = useState(false);
   // Vindo de "Registrar primeira evolução" fora do painel: o formulário já abre.
   useEffect(() => { if (intent?.create) setComposing(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -62,7 +70,7 @@ export const NotesView = memo(function NotesView({ patient, notes, appointments,
           {ordered.length ? (
             <ol className="notes">
               {ordered.slice(0, limit).map((note) => (
-                <li key={note.id} className={`note ${note.travada ? 'is-locked' : 'is-draft'}`}>
+                <li key={note.id} id={`note-${note.id}`} className={`note ${note.travada ? 'is-locked' : 'is-draft'}`}>
                   <header className="note__head">
                     <div className="note__meta">
                       <strong>{note.travada ? 'Evolução assinada' : 'Rascunho'}</strong>
@@ -113,7 +121,11 @@ export const NotesView = memo(function NotesView({ patient, notes, appointments,
               ))}
               {ordered.length > limit ? (
                 <li className="notes__more">
-                  <Button size="sm" onClick={() => setLimit(limit + PAGE)}>
+                  <Button size="sm" onClick={() => {
+                    const next = ordered[limit];
+                    pendingFocus.current = next ? `note-${next.id}` : null;
+                    setLimit(limit + PAGE);
+                  }}>
                     Mostrar mais {Math.min(PAGE, ordered.length - limit)} de {ordered.length - limit} evoluções anteriores
                   </Button>
                 </li>
@@ -147,6 +159,7 @@ export const NotesView = memo(function NotesView({ patient, notes, appointments,
 
       <SignDialog
         note={signing}
+        patient={patient}
         onClose={() => setSigning(null)}
         onSigned={() => { setSigning(null); reload(); }}
       />
@@ -336,7 +349,7 @@ function AddendumDialog({ note, patient, onClose, onSaved }) {
 
 /* ═══════════════════════════ Assinatura ═══════════════════════════ */
 
-function SignDialog({ note, onClose, onSigned }) {
+function SignDialog({ note, patient, onClose, onSigned }) {
   const { user, requireStepUp } = useSession();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -371,6 +384,8 @@ function SignDialog({ note, onClose, onSigned }) {
       loading={busy}
       tone="primary"
       title="Assinar esta evolução?"
+      // Assinar trava a conduta: o rascunho pode ser anterior ao registro da alergia.
+      notice={<AllergyNotice patient={patient} typed={`${note?.plano ?? ''} ${note?.avaliacao ?? ''}`} hint="Confirme com o responsável antes de assinar a conduta." />}
       message="Depois de assinada, a evolução não pode mais ser editada. Correções só podem ser feitas por adendo, que fica registrado com data própria."
       confirmLabel="Assinar e travar"
     />

@@ -160,7 +160,7 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection, int
     <Card variant="flush">
       <CardHeader
         title="Marcos do desenvolvimento"
-        subtitle={months != null ? `Idade atual: ${age(patient.dataNascimento).label}` : 'Data de nascimento não informada'}
+        subtitle={months != null ? `Idade atual: ${age(patient.dataNascimento).label}` : patient.dataNascimento ? 'Data de nascimento inválida' : 'Data de nascimento não informada'}
         actions={
           <Tabs
             variant="underline"
@@ -205,8 +205,10 @@ export function MilestonesView({ patient, milestones, reload, onGoToSection, int
         ) : months == null ? (
           <EmptyState
             icon="baby"
-            title="Informe a data de nascimento"
-            description="A grade de marcos precisa da idade da criança para indicar o que é esperado em cada fase."
+            title={patient.dataNascimento ? 'A data de nascimento não pôde ser lida' : 'Informe a data de nascimento'}
+            description={patient.dataNascimento
+              ? 'A data da ficha é inválida ou está no futuro. Corrija a data de nascimento na ficha: a grade de marcos precisa da idade da criança.'
+              : 'A grade de marcos precisa da idade da criança para indicar o que é esperado em cada fase.'}
           />
         ) : (
           <>

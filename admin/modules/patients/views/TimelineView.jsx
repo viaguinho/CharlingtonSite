@@ -1,5 +1,5 @@
 import { displayStatus, canReschedule, stateOf } from '../../../core/appointments.js';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ORIGINS } from './AttachmentsView.jsx';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, Chip, CidCode } from '../../../components/primitives.jsx';
@@ -46,6 +46,8 @@ const PAGE = 60;
 export const TimelineView = memo(function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection, focusId = null }) {
   const [filter, setFilter] = useState('all');
   const [limit, setLimit] = useState(PAGE);
+  // "Mostrar mais" leva o foco ao primeiro registro novo: o botão pula para o fim da lista.
+  const pendingFocus = useRef(null);
 
   const events = useMemo(() => {
     const list = [
@@ -119,6 +121,12 @@ export const TimelineView = memo(function TimelineView({ appointments, notes, do
   const focusIndex = focusId ? events.findIndex((e) => e.id === focusId) : -1;
   const shown = Math.max(limit, focusIndex + 1);
   const grouped = useMemo(() => groupByMonth(events.slice(0, shown)), [events, shown]);
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    const el = document.getElementById(pendingFocus.current);
+    pendingFocus.current = null;
+    if (el) { el.tabIndex = -1; el.focus(); }
+  }, [shown]);
 
   // Vindo da faixa de consultas do palco: rola até o atendimento clicado.
   useEffect(() => {
@@ -128,14 +136,16 @@ export const TimelineView = memo(function TimelineView({ appointments, notes, do
     // Dentro do painel, rola só o painel: scrollIntoView rolava também a
     // página e levava o cabeçalho com a alergia para fora da tela.
     const scroller = el.closest('.pr-panel');
-    if (!scroller) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    // Movimento reduzido: vai direto, sem a rolagem animada.
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    if (!scroller) { el.scrollIntoView({ block: 'center', behavior }); return; }
     const box = scroller.getBoundingClientRect();
     const head = scroller.querySelector('.pr-panel__head')?.offsetHeight ?? 0;
     const at = el.getBoundingClientRect();
     const visible = box.height - head;
     scroller.scrollTo({
       top: scroller.scrollTop + (at.top - box.top - head) - Math.max(0, (visible - at.height) / 2),
-      behavior: 'smooth',
+      behavior,
     });
   }, [focusId]);
 
@@ -205,7 +215,11 @@ export const TimelineView = memo(function TimelineView({ appointments, notes, do
             ))}
             {events.length > shown ? (
               <div className="timeline__more">
-                <Button size="sm" onClick={() => setLimit(shown + PAGE)}>
+                <Button size="sm" onClick={() => {
+                  const next = events[shown];
+                  pendingFocus.current = next ? `tl-${next.kind}-${next.id}` : null;
+                  setLimit(shown + PAGE);
+                }}>
                   Mostrar mais {Math.min(PAGE, events.length - shown)} de {events.length - shown} registros anteriores
                 </Button>
               </div>
