@@ -1,5 +1,5 @@
 import { displayStatus, canReschedule, stateOf } from '../../../core/appointments.js';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { ORIGINS } from './AttachmentsView.jsx';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, Chip, CidCode } from '../../../components/primitives.jsx';
@@ -39,8 +39,13 @@ const ICONS = {
   mensagem: 'message-circle',
 };
 
-export function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection, focusId = null }) {
+// Cerca de dois meses de histórico por vez: 300 consultas viravam 5.500 nós e quase um segundo de tela travada.
+const PAGE = 60;
+
+// Memoizada: o relógio do prontuário (60 s) não passa por aqui, então o tique não refaz a lista inteira.
+export const TimelineView = memo(function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection, focusId = null }) {
   const [filter, setFilter] = useState('all');
+  const [limit, setLimit] = useState(PAGE);
 
   const events = useMemo(() => {
     const list = [
@@ -110,7 +115,10 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
       .sort((a, b) => (timeOf(b.at) ?? -Infinity) - (timeOf(a.at) ?? -Infinity));
   }, [appointments, notes, documents, attachments, scales, medications, messages, filter]);
 
-  const grouped = useMemo(() => groupByMonth(events), [events]);
+  // Vindo da faixa de consultas, o atendimento pedido tem que estar montado mesmo se for antigo.
+  const focusIndex = focusId ? events.findIndex((e) => e.id === focusId) : -1;
+  const shown = Math.max(limit, focusIndex + 1);
+  const grouped = useMemo(() => groupByMonth(events.slice(0, shown)), [events, shown]);
 
   // Vindo da faixa de consultas do palco: rola até o atendimento clicado.
   useEffect(() => {
@@ -140,7 +148,7 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
           /* Filtro sobre conjunto vazio é ruído: seis abas para peneirar zero
              registros denunciam protótipo. Só aparecem quando há o que filtrar. */
           events.length || filter !== 'all'
-            ? <Tabs variant="underline" value={filter} onChange={setFilter} items={FILTERS} ariaLabel="Filtrar linha do tempo" />
+            ? <Tabs variant="underline" value={filter} onChange={(value) => { setFilter(value); setLimit(PAGE); }} items={FILTERS} ariaLabel="Filtrar linha do tempo" />
             : null
         }
       />
@@ -195,6 +203,13 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
                 </ol>
               </section>
             ))}
+            {events.length > shown ? (
+              <div className="timeline__more">
+                <Button size="sm" onClick={() => setLimit(shown + PAGE)}>
+                  Mostrar mais {Math.min(PAGE, events.length - shown)} de {events.length - shown} registros anteriores
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : (
           <EmptyState
@@ -222,7 +237,7 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
       </CardBody>
     </Card>
   );
-}
+});
 
 function groupByMonth(events) {
   const map = new Map();

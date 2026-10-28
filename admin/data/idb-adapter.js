@@ -126,7 +126,12 @@ export const idbAdapter = {
   async list(store, { where = {}, includeDeleted = false } = {}) {
     assertUnlocked();
     const os = await transaction(store);
-    const envelopes = await promisify(os.getAll());
+    // Paciente conhecido e índice presente: lê só as linhas dele. A loja inteira (milhares de envelopes) custava
+    // 10 vezes mais a cada abertura de prontuário e cresce para sempre com o histórico da clínica.
+    const byPatient = where.pacienteId != null && os.indexNames.contains('pacienteId');
+    const envelopes = await promisify(
+      byPatient ? os.index('pacienteId').getAll(IDBKeyRange.only(where.pacienteId)) : os.getAll(),
+    );
 
     const records = [];
     for (const envelope of envelopes) {

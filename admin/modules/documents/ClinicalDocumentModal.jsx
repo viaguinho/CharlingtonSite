@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../data/repository.js';
-import { allergyConflict } from '../patients/record/allergyConflict.js';
+import { allergyConflict, allergyHits } from '../patients/record/allergyConflict.js';
 import { STORES, DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, DOCUMENT_STATUS, newDocument } from '../../data/schema.js';
 import {
   DOCUMENT_SKELETONS, REQUIRES_SIGNATURE, SIGNATURE_PROVIDERS, VARIABLES,
@@ -77,8 +77,12 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
   // Itens da prescrição também aceitam {{variáveis}}: o que a prévia mostra é o que se grava, faz hash e imprime.
   // Alergia declarada que aparece em algum item da prescrição (sinônimos e marcas inclusos).
   const [ackAllergy, setAckAllergy] = useState(false);
-  const itemConflicts = useMemo(() => [...new Set(items.flatMap((i) => allergyConflict(
-    { principioAtivo: i.principio, nome: `${i.concentracao ?? ''}` }, allergies)))], [items, allergies]);
+  // A posologia e as observações também entram: "Paracetamol, se não ceder, dipirona" é prescrição de dipirona.
+  const itemConflicts = useMemo(() => [...new Set([
+    ...items.flatMap((i) => allergyConflict(
+      { principioAtivo: i.principio, nome: `${i.concentracao ?? ''} ${i.posologia ?? ''}` }, allergies)),
+    ...(skeleton.estruturada ? allergyHits(resolvedText, allergies) : []),
+  ])], [items, allergies, resolvedText, skeleton.estruturada]);
   useEffect(() => { if (!itemConflicts.length) setAckAllergy(false); }, [itemConflicts.length]);
 
   const resolvedItems = useMemo(() => items
@@ -218,7 +222,7 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
       {notice ? <div className="doc-notice">{notice}</div> : null}
       {itemConflicts.length ? (
         <div className="doc-notice doc-allergy-hit" role="alert">
-          <p><strong>Alergia declarada: {itemConflicts.join(', ')}.</strong> Um item desta prescrição é, contém ou pertence à mesma família.</p>
+          <p><strong>Alergia declarada: {itemConflicts.join(', ')}.</strong> Um item, a posologia ou as observações desta prescrição citam o fármaco ou a mesma família.</p>
           <label className="doc-allergy-hit__ack">
             <input type="checkbox" checked={ackAllergy} onChange={(e) => setAckAllergy(e.target.checked)} />
             Revisei a alergia com o responsável e mantenho este item.

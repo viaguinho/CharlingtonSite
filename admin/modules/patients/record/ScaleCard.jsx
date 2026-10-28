@@ -36,7 +36,9 @@ export function ScaleCard({ instrumentId, applications: all, onOpen }) {
     return (
       <button type="button" className="pr-scale pr-scale--none" onClick={onOpen}>
         <span className="pr-scale__title"><span className="pr-scale__tick" aria-hidden="true" />{last.instrumento || 'Instrumento fora do catálogo'}</span>
-        <span className="pr-scale__note">Escore {last.escore ?? '—'} registrado; sem faixa de interpretação aqui</span>
+        <span className="pr-scale__note">{last.interpretacao
+          ? `Escore ${last.escore ?? '—'} · ${last.interpretacao}${last.risco ? ` (risco ${last.risco})` : ''}`
+          : `Escore ${last.escore ?? '—'} registrado; sem faixa de interpretação aqui`}</span>
       </button>
     );
   }

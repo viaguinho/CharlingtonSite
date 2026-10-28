@@ -26,7 +26,7 @@ export function AllergyNotice({ patient, allergies, typed = '', hint = null, cla
       <Icon name="alert-triangle" size={16} />
       <span>
         <strong>Alergias: {declared.join(' · ')}</strong>
-        {hits.length ? <span className="pr-rx-allergy__hit" role="alert">O que foi digitado contém {hits.join(', ')}: confirme antes de registrar.</span> : null}
+        {hits.length ? <span className="pr-rx-allergy__hit" role="alert">O que foi digitado é, contém ou é da mesma família de {hits.join(', ')}: confirme antes de registrar.</span> : null}
         {String(typed).trim() && !hits.length ? <span className="pr-rx-allergy__caveat">Sem correspondência automática. A checagem só reconhece nomes e marcas conhecidos: confira o medicamento.</span> : null}
       </span>
     </p>

@@ -49,23 +49,35 @@ const COMBINED = [
 // Classe citada na alergia → fármacos que ela alcança. Celecoxibe e etoricoxibe (COX-2) avisam: a maioria
 // os tolera, mas só depois de desafio supervisionado.
 const CLASSES = [
-  { when: ['aine', 'aines', 'anti-inflamatorio', 'antiinflamatorio'], drugs: ['ibuprofeno', 'naproxeno', 'diclofenaco', 'cetoprofeno', 'nimesulida', 'meloxicam', 'piroxicam', 'cetorolaco', 'etoricoxibe', 'celecoxibe', 'aas', 'aspirina', 'acido acetilsalicilico'] },
+  // Os da linha COX1 (inclusive as marcas) mais os preferenciais COX-2 e a nimesulida.
+  { when: ['aine', 'aines', 'anti-inflamatorio', 'antiinflamatorio'], drugs: [...COX1, 'nimesulida', 'meloxicam', 'etoricoxibe', 'celecoxibe'] },
   ...COMBINED,
 ];
 
-/** "Nega alergias", "nenhuma", "NKDA", "-" ou vazio não são alergia. */
-const NEGATION = /^(nega\w*\b.*|nenhum\w*\b.*|nao\s+(tem|possui|refere|apresenta|ha|conhecid\w*)\b.*|sem\s+(alergia\w*|reacoes?|historico)\b.*|nkda|nka|n\/?a|nd|\W*)$/;
+/** "Nega alergias", "nenhuma", "NKDA", "não", "-" ou vazio não são alergia. */
+const NEGATION = /^(nega\w*\b.*|nenhum\w*\b.*|nao|nada|nao\s+(tem|possui|refere|apresenta|ha|conhecid\w*)\b.*|sem\s+(alergia\w*|reacoes?|historico)\b.*|nkda|nka|n\/?a|nd|\W*)$/;
+// A negação só vale quando é a frase inteira. Uma ressalva ("exceto", "mas", "só a", ";") ou uma segunda
+// oração falando de alergia ou reação ("Nega alergia a remédio. Alergia a látex") mantém o texto como alergia.
+// Na dúvida, mostra: aviso a mais custa um clique, alergia engolida custa um paciente.
+const RESSALVA = /\b(exceto|excecao|salvo|tirando|a\s+nao\s+ser|mas|porem|contudo|todavia|so|somente|apenas|alem)\b|[;:]/;
+const SEGUNDA_ORACAO = /[.,;](?!\s*(?:nenhum|nega|nao|sem\b))(?=.*\b(alerg\w*|reag\w*|reac\w*|sensibil\w*|intoleran\w*))/;
 
 export function declaredAllergies(list = []) {
   return (list ?? [])
     .map((a) => String(a ?? '').trim())
-    .filter((a) => a && !NEGATION.test(plain(a).replace(/[.;,]+$/g, '')));
+    .filter((a) => {
+      if (!a) return false;
+      const text = plain(a).replace(/[.;,]+$/g, '');
+      return !NEGATION.test(text) || RESSALVA.test(text) || SEGUNDA_ORACAO.test(text);
+    });
 }
 
 /** Sigla curta ("AAS") e "sulfa" só valem como palavra inteira: "sulfato ferroso" não é sulfa. */
 const WHOLE = new Set(['sulfa']);
+const PLURAL = new Set(['sulfa']); // "sulfas" também é a família; "sulfato" e "sulfito" continuam fora
 const contains = (text, term) => (
-  term.length > 4 && !WHOLE.has(term) ? text.includes(term) : new RegExp(`(^|[^a-z0-9])${term}([^a-z0-9]|$)`).test(text)
+  term.length > 4 && !WHOLE.has(term) ? text.includes(term)
+    : new RegExp(`(^|[^a-z0-9])${term}${PLURAL.has(term) ? 's?' : ''}([^a-z0-9]|$)`).test(text)
 );
 
 /** Termos a procurar no medicamento para uma alergia declarada. */

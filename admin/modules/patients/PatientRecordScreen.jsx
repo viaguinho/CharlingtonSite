@@ -70,6 +70,11 @@ const SECTION_STORES = {
   documentos: STORES.DOCUMENTS,
   consentimentos: STORES.CONSENTS,
 };
+// Leituras de que a seção também depende. Sem os responsáveis, "Responsável legal não cadastrado" seria
+// uma afirmação legal falsa (art. 14 da LGPD): o painel diz que não conseguiu ler.
+const SECTION_EXTRA_STORES = {
+  consentimentos: [STORES.GUARDIANS],
+};
 
 const STORE_LABELS = {
   [STORES.GUARDIANS]: 'responsáveis',
@@ -153,7 +158,10 @@ export default function PatientRecordScreen() {
       const read = (store, options) => repo.list(store, options).catch(() => { failed.push(store); return []; });
       const [guardians, appointments, notes, scales, milestones, medications, attachments, documents, consents] =
         await Promise.all([
-          read(STORES.GUARDIANS),
+          // Só os da ficha: a loja inteira obrigava a decifrar o responsável de todos os pacientes da clínica.
+          Promise.all((patient.responsaveis ?? []).map((gid) => repo.get(STORES.GUARDIANS, gid, { silent: true })))
+            .then((list) => list.filter(Boolean))
+            .catch(() => { failed.push(STORES.GUARDIANS); return []; }),
           read(STORES.APPOINTMENTS, byPatient),
           read(STORES.NOTES, byPatient),
           read(STORES.SCALES, byPatient),
@@ -258,6 +266,7 @@ export default function PatientRecordScreen() {
 
   // Uma leitura que falhou não é "zero": contagem e pendência dela não se afirmam.
   const unreadable = new Set(record.failed);
+  const unreadableStores = [SECTION_STORES[section], ...(SECTION_EXTRA_STORES[section] ?? [])].filter((store) => store && unreadable.has(store));
 
   const counts = {
     'linha-do-tempo': null,
@@ -444,9 +453,9 @@ export default function PatientRecordScreen() {
           <SectionPanel key={section} label={SECTION_TITLES[section]} patientName={name} onClose={closePanel}
             alerts={<AlertPills states={states} onReschedule={onReschedule} compact part="allergy" />}
             states={<AlertPills states={states} onReschedule={onReschedule} compact part="others" />}>
-            {SECTION_STORES[section] && unreadable.has(SECTION_STORES[section]) ? (
+            {unreadableStores.length ? (
               // Sem a leitura não há como saber o que já existe: criar agora duplicaria registro.
-              <RecordUnavailable inline what={STORE_LABELS[SECTION_STORES[section]]} onRetry={load} />
+              <RecordUnavailable inline what={joinNames(unreadableStores.map((store) => STORE_LABELS[store]))} onRetry={load} />
             ) : (
               <>
                 {section === 'linha-do-tempo' ? (

@@ -149,6 +149,8 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
       return;
     }
     if (!form.posologia.trim()) { toast.error('Informe a posologia.'); return; }
+    // Início no futuro entraria em "Medicações em uso" hoje. Como a suspensão e as escalas, recusa.
+    if (form.iniciadaEm && form.iniciadaEm > isoDay()) { toast.error('A data de início do uso não pode ser futura.'); return; }
 
     if (lock.current) return;
     lock.current = true;
@@ -187,7 +189,7 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
         </FieldRow>
         <FieldRow>
           <TextField label="Concentração" placeholder="Ex.: 1 mg/mL" value={form.concentracao} onChange={set('concentracao')} />
-          <TextField label="Início do uso" type="date" value={form.iniciadaEm} onChange={set('iniciadaEm')} />
+          <TextField label="Início do uso" type="date" value={form.iniciadaEm} max={isoDay()} onChange={set('iniciadaEm')} />
         </FieldRow>
         <TextField
           label="Posologia" required

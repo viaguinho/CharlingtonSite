@@ -1333,3 +1333,6 @@
 
 /* Celular: nada do que fica atrás do painel vaza atrás do título. */
 @media (max-width: 1023px) { .pr-panel { background: var(--surface); } }
+
+/* “Mostrar mais” das listas longas do painel (Linha do tempo e Evoluções). */
+.pr-panel :is(.timeline__more, .notes__more) { display: flex; justify-content: center; padding: var(--s-4) 0 var(--s-2); list-style: none; }

@@ -116,7 +116,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
       return;
     }
 
-    if (lock.current) return;
+    if (lock.current) { toast.warning('Aguarde a gravação anterior terminar e registre de novo.'); return; }
     lock.current = true;
     setBusy(purpose.id);
     try {
@@ -145,7 +145,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
   }
 
   async function revoke() {
-    if (lock.current) return;
+    if (lock.current) { toast.warning('Aguarde a gravação anterior terminar e revogue de novo.'); return; }
     lock.current = true;
     setBusy(revoking.finalidade);
     try {
@@ -232,7 +232,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                       <Button
                         size="sm"
                         loading={busy === purpose.id}
-                        disabled={!guardian}
+                        disabled={!guardian || !!busy}
                         aria-label={`Registrar nova informação: ${CONSENT_PURPOSE_LABELS[purpose.id]}`}
                         onClick={() => setGranting(purpose)}
                       >
@@ -243,6 +243,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                         size="sm"
                         variant="danger"
                         loading={busy === purpose.id}
+                        disabled={!!busy}
                         aria-label={`Revogar consentimento: ${CONSENT_PURPOSE_LABELS[purpose.id]}`}
                         onClick={() => setRevoking(record)}
                       >
@@ -253,7 +254,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                         size="sm"
                         variant="primary"
                         loading={busy === purpose.id}
-                        disabled={!guardian}
+                        disabled={!guardian || !!busy}
                         aria-label={`${purpose.basis.requiresConsent ? 'Registrar consentimento' : 'Registrar que o responsável foi informado'}: ${CONSENT_PURPOSE_LABELS[purpose.id]}`}
                         onClick={() => setGranting(purpose)}
                       >

@@ -50,7 +50,9 @@ function useFocusTrap(active, onEscape) {
       const first = items[0];
       const last = items[items.length - 1];
       if (node && !node.contains(document.activeElement)) {
-        // Sem preventDefault: o Tab segue a partir do controle recolocado.
+        // O Tab é consumido aqui: pousa no controle recolocado. Sem o preventDefault, o Tab padrão
+        // seguia dele para fora do diálogo (o botão de enviar é o último controle).
+        event.preventDefault();
         (lastInside && node.contains(lastInside) && !lastInside.disabled ? lastInside : first).focus();
         return;
       }

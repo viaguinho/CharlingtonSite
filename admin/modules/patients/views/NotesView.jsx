@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { memo, useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES, newNote, APPOINTMENT_TYPE_LABELS } from '../../../data/schema.js';
 import { useSession } from '../../../core/session.jsx';
@@ -19,8 +19,13 @@ import { CID10 } from '../../../data/cid10.js';
  * original permanece visível. Prontuário que se edita em silêncio não serve
  * como prova nem para o médico nem para a família.
  */
-export function NotesView({ patient, notes, appointments, reload, intent = null }) {
+// 150 evoluções montadas de uma vez custavam mais de meio segundo: as mais recentes primeiro, o resto sob pedido.
+const PAGE = 30;
+
+// Memoizada: o relógio do prontuário (60 s) não refaz a lista.
+export const NotesView = memo(function NotesView({ patient, notes, appointments, reload, intent = null }) {
   const { can } = useSession();
+  const [limit, setLimit] = useState(PAGE);
   const [composing, setComposing] = useState(false);
   // Vindo de "Registrar primeira evolução" fora do painel: o formulário já abre.
   useEffect(() => { if (intent?.create) setComposing(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -56,7 +61,7 @@ export function NotesView({ patient, notes, appointments, reload, intent = null 
         <CardBody>
           {ordered.length ? (
             <ol className="notes">
-              {ordered.map((note) => (
+              {ordered.slice(0, limit).map((note) => (
                 <li key={note.id} className={`note ${note.travada ? 'is-locked' : 'is-draft'}`}>
                   <header className="note__head">
                     <div className="note__meta">
@@ -106,6 +111,13 @@ export function NotesView({ patient, notes, appointments, reload, intent = null 
                   ) : null}
                 </li>
               ))}
+              {ordered.length > limit ? (
+                <li className="notes__more">
+                  <Button size="sm" onClick={() => setLimit(limit + PAGE)}>
+                    Mostrar mais {Math.min(PAGE, ordered.length - limit)} de {ordered.length - limit} evoluções anteriores
+                  </Button>
+                </li>
+              ) : null}
             </ol>
           ) : (
             <EmptyState
@@ -140,7 +152,7 @@ export function NotesView({ patient, notes, appointments, reload, intent = null 
       />
     </>
   );
-}
+});
 
 function SoapBlock({ letter, label, text }) {
   if (!text?.trim()) return null;

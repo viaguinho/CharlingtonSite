@@ -57,7 +57,31 @@ export function ScalesView({ patient, scales, reload, intent = null }) {
                 const scale = findScale(id);
                 const latest = applications[applications.length - 1];
                 const band = interpretScore(id, latest.escore);
-                if (!scale) return null;
+                if (!scale) {
+                  // Instrumento que o catálogo não conhece (renomeado, removido ou importado): o painel mostra o que foi gravado.
+                  return (
+                    <article key={id} className="scale-card">
+                      <header className="scale-card__head">
+                        <div>
+                          <h4>{latest.instrumento || 'Instrumento fora do catálogo'}</h4>
+                          <p>{applications.length} {applications.length === 1 ? 'aplicação' : 'aplicações'} · fora do catálogo</p>
+                        </div>
+                        <div className="scale-card__score">
+                          <span className="scale-card__value num">{latest.escore ?? '—'}</span>
+                        </div>
+                      </header>
+                      {latest.interpretacao ? (
+                        <p className="scale-card__conduct">
+                          <Icon name="info" size={13} />
+                          {latest.interpretacao}{latest.risco ? ` · risco ${latest.risco}` : ''}
+                        </p>
+                      ) : null}
+                      <footer className="scale-card__foot">
+                        <span>Aplicada {relative(latest.aplicadaEm)} · {latest.aplicadaPorNome || 'profissional não informado'}</span>
+                      </footer>
+                    </article>
+                  );
+                }
 
                 return (
                   <article key={id} className="scale-card">

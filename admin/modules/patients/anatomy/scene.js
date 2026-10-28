@@ -283,7 +283,7 @@ function look(id, camada, deep) {
  * cérebro) e sem o novelo da malha inteira. Determinístico (mesma figura a
  * cada carga). Tudo em coordenadas locais da malha.
  */
-function plexoGraph(geo, spacing, keepNodes = 1) {
+function plexoData(geo, spacing, keepNodes = 1) {
   const pos = geo.attributes.position;
   const nor = geo.attributes.normal;
   const dist = geo.attributes.aDist;
@@ -356,6 +356,23 @@ function plexoGraph(geo, spacing, keepNodes = 1) {
     N[k * 3] = nor.getX(v); N[k * 3 + 1] = nor.getY(v); N[k * 3 + 2] = nor.getZ(v);
     D[k] = dist.getX(v);
   });
+  const nodes = [];
+  for (let k = 0; k < m; k++) if (keepNodes >= 1 || hash(k + 7919) < keepNodes) nodes.push(k);
+  return { P, N, D, edges, nodes, m };
+}
+
+/**
+ * O grafo só depende da malha do modelo, que não muda entre pacientes: o cálculo (centenas de milhares de
+ * vizinhanças, ~70% da tarefa de 300 ms que travava a thread a cada abertura) roda uma vez por sessão. Cada
+ * cena só monta as geometrias WebGL, que dividem os mesmos arrays e nunca os alteram.
+ */
+const plexoCache = new Map();
+
+function plexoGraph(geo, spacing, keepNodes, cacheKey) {
+  const key = `${cacheKey}|${spacing}|${keepNodes}`;
+  let data = plexoCache.get(key);
+  if (!data) { data = plexoData(geo, spacing, keepNodes); plexoCache.set(key, data); }
+  const { P, N, D, edges, nodes, m } = data;
   const attrs = () => ({
     position: new THREE.BufferAttribute(P, 3),
     normal: new THREE.BufferAttribute(N, 3),
@@ -367,8 +384,6 @@ function plexoGraph(geo, spacing, keepNodes = 1) {
   lines.setIndex(new Idx(edges, 1));
   const points = new THREE.BufferGeometry();
   for (const [k, a] of Object.entries(attrs())) points.setAttribute(k, a);
-  const nodes = [];
-  for (let k = 0; k < m; k++) if (keepNodes >= 1 || hash(k + 7919) < keepNodes) nodes.push(k);
   points.setIndex(new Idx(nodes, 1));
   lines.computeBoundingSphere();
   points.boundingSphere = lines.boundingSphere;
@@ -554,6 +569,9 @@ export class AnatomyScene {
     }
     maxDist = maxDist || 1;
 
+    // Identifica cada malha pela posição no arquivo (estável para o mesmo modelo), para reaproveitar o plexo.
+    let ordinal = 0;
+    const modelKey = this.opts.modelUrl ?? DEFAULT_MODEL_URL;
     for (const [id, meshes] of groups) {
       const info = ESTRUTURAS[id];
       const metaInfo = meta?.estruturas?.[id] ?? meta?.[id] ?? null;
@@ -576,6 +594,7 @@ export class AnatomyScene {
       };
 
       for (const mesh of meshes) {
+        const meshKey = `${modelKey}#${ordinal++}`;
         let geo = mesh.geometry;
         if (!geo.index) {
           geo = mergeVertices(geo);
@@ -632,7 +651,7 @@ export class AnatomyScene {
         if (!lk.edge) continue;
         const localScale = mesh.matrixWorld.getMaxScaleOnAxis() || 1;
         // Espaçamento do disco de Poisson: arestas de 1× a 1,8× dele (média ≈ lk.edge).
-        const { lines, points } = plexoGraph(geo, (lk.edge * (camada === 'cerebro' && !deep ? 0.4 : id === 'pele' ? 0.36 : 0.5)) / localScale, lk.node ? lk.keep ?? 1 : 0);
+        const { lines, points } = plexoGraph(geo, (lk.edge * (camada === 'cerebro' && !deep ? 0.4 : id === 'pele' ? 0.36 : 0.5)) / localScale, lk.node ? lk.keep ?? 1 : 0, meshKey);
         const cortical = rec.cortical;
         const lineMat = this._plexoMaterial(false, cortical);
         const pointMat = this._plexoMaterial(true, cortical);
