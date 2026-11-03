@@ -207,7 +207,7 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
             <ul className="attachments">
               {attachments
                 .filter((a) => !filter || filter.includes(a.origem))
-                .sort((a, b) => (b.realizadoEm ?? b.criadoEm).localeCompare(a.realizadoEm ?? a.criadoEm))
+                .sort((a, b) => (b.realizadoEm ?? b.criadoEm ?? '').localeCompare(a.realizadoEm ?? a.criadoEm ?? ''))
                 .map((attachment) => (
                   <li key={attachment.id}>
                     <button type="button" className="attachment" onClick={() => open(attachment)}>

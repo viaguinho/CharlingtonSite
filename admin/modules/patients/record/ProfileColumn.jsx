@@ -6,6 +6,7 @@ import Icon from '../../../components/Icon.jsx';
 import { age, date, dateTime, phone as formatPhone, relative } from '../../../core/format.js';
 import { useAttachmentThumbs } from './useAttachmentThumbs.js';
 import { findCID10 } from '../../../data/cid10.js';
+import { diagnosesOf } from './diagnoses.js';
 import { firstVisit } from './patientStates.js';
 
 /**
@@ -202,7 +203,7 @@ function CareCard({ patient }) {
 /* ───────────────────────── Diagnósticos ───────────────────────── */
 
 function DiagnosesCard({ patient }) {
-  const list = patient.clinico?.diagnosticos ?? [];
+  const list = diagnosesOf(patient);
   return (
     <section className="pr-card pr-dx" aria-labelledby="pr-dx-title">
       <h2 id="pr-dx-title" className="pr-card__title">Diagnósticos ativos</h2>
@@ -211,12 +212,11 @@ function DiagnosesCard({ patient }) {
           {list.map((d) => {
             // A maioria das fichas guarda só o código ("F90.0"): a descrição
             // vem do catálogo CID-10, e sem catálogo fica só o código.
-            const code = typeof d === 'string' ? d : d.codigo;
-            const description = (typeof d === 'string' ? null : d.descricao) ?? findCID10(code)?.descricao ?? null;
+            const description = d.description ?? (d.code ? findCID10(d.code)?.descricao : null) ?? null;
             return (
-              <li key={code ?? String(d)}>
+              <li key={d.code || d.description}>
                 <span className="pr-dx__dot" aria-hidden="true" />
-                <strong className="num">{code ?? '—'}</strong>
+                <strong className="num">{d.code || '—'}</strong>
                 {description ? <span>{description}</span> : null}
               </li>
             );

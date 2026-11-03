@@ -41,7 +41,7 @@ export function DocumentsView({ patient, documents, appointments = [], onIssueDo
 
   const rows = useMemo(
     () => [...documents].sort((a, b) =>
-      (b.assinatura?.assinadoEm ?? b.criadoEm).localeCompare(a.assinatura?.assinadoEm ?? a.criadoEm)),
+      (b.assinatura?.assinadoEm ?? b.criadoEm ?? '').localeCompare(a.assinatura?.assinadoEm ?? a.criadoEm ?? '')),
     [documents],
   );
 

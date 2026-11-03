@@ -14,6 +14,7 @@ import { Tabs } from '../../components/Tabs.jsx';
 import { TextField } from '../../components/Field.jsx';
 import Icon from '../../components/Icon.jsx';
 import { PatientForm } from './PatientForm.jsx';
+import { diagnosesOf } from './record/diagnoses.js';
 import { age, date, phone as formatPhone, relative, time } from '../../core/format.js';
 
 /**
@@ -470,10 +471,10 @@ function PatientCardGrid({ rows, loading, onOpen }) {
                 Sem retorno agendado
               </p>
             )}
-            {row.clinico?.diagnosticos?.length ? (
+            {diagnosesOf(row).length ? (
               <div className="patient-card__tags">
-                {row.clinico.diagnosticos.slice(0, 2).map((d) => (
-                  <Chip key={d.codigo ?? d} tone="info">{d.codigo ?? d}</Chip>
+                {diagnosesOf(row).slice(0, 2).map((d) => (
+                  <Chip key={d.code || d.description} tone="info">{d.code || d.description}</Chip>
                 ))}
               </div>
             ) : null}

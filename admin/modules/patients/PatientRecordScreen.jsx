@@ -27,6 +27,7 @@ import { VisitRail } from './record/VisitRail.jsx';
 import { SectionPanel } from './record/SectionPanel.jsx';
 import { AllergyNotice } from './record/AllergyNotice.jsx';
 import { patientStates, firstVisit } from './record/patientStates.js';
+import { diagnosesOf } from './record/diagnoses.js';
 
 // O palco 3D (three + modelo) só carrega nesta rota. A cadeia rota → palco → cena
 // era pedida em série (a cena só era pedida depois de o palco montar: ~1 s até o
@@ -317,6 +318,7 @@ export default function PatientRecordScreen() {
 
   const issueNames = record.failed.map((store) => STORE_LABELS[store]).filter(Boolean);
   const ageInfo = patient.dataNascimento ? age(patient.dataNascimento) : null;
+  const diagnoses = diagnosesOf(patient);
   const first = firstVisit(record.appointments);
   const name = patient.nomeSocial || patient.nome;
 
@@ -374,15 +376,15 @@ export default function PatientRecordScreen() {
             {patient.status === 'ativo'
               ? <span className="pr-bar__status">{PATIENT_STATUS_LABELS[patient.status]}</span>
               : <StatusDot tone="neutral" label={PATIENT_STATUS_LABELS[patient.status]} />}
-            {patient.clinico?.diagnosticos?.length ? (
+            {diagnoses.length ? (
               // Os códigos quebram juntos: "F90.0" nunca fica sozinho na linha de baixo.
               <span className="pr-bar__codes">
-                {patient.clinico.diagnosticos.slice(0, 3).map((d) => (
-                  <Chip key={d.codigo ?? d} tone="code">{d.codigo ?? d}</Chip>
+                {diagnoses.slice(0, 3).map((d) => (
+                  <Chip key={d.code || d.description} tone="code">{d.code || d.description}</Chip>
                 ))}
                 {/* O card de diagnósticos lista todos; o cabeçalho diz quantos ficaram de fora. */}
-                {patient.clinico.diagnosticos.length > 3 ? (
-                  <Chip tone="muted">+{patient.clinico.diagnosticos.length - 3}</Chip>
+                {diagnoses.length > 3 ? (
+                  <Chip tone="muted">+{diagnoses.length - 3}</Chip>
                 ) : null}
               </span>
             ) : null}
@@ -467,7 +469,8 @@ export default function PatientRecordScreen() {
               // Sem a leitura não há como saber o que já existe: criar agora duplicaria registro.
               <RecordUnavailable inline what={joinNames(unreadableStores.map((store) => STORE_LABELS[store]))} onRetry={load} />
             ) : (
-              <>
+              // Um registro ruim dentro da seção não derruba o cabeçalho, a alergia nem a tela.
+              <ErrorBoundary scope="seção do prontuário" fallback={<RegionFailed label="esta seção" />}>
                 {section === 'linha-do-tempo' ? (
                   <>
                     {TIMELINE_STORES.some((s) => unreadable.has(s)) ? (
@@ -486,7 +489,7 @@ export default function PatientRecordScreen() {
                 {section === 'anexos' ? <AttachmentsView {...viewProps} intent={attachIntent} /> : null}
                 {section === 'documentos' ? <DocumentsView {...viewProps} /> : null}
                 {section === 'consentimentos' ? <ConsentsView {...viewProps} /> : null}
-              </>
+              </ErrorBoundary>
             )}
           </SectionPanel>
         ) : null}

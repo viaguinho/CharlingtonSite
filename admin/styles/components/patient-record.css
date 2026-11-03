@@ -1063,6 +1063,13 @@
   .pr-pills__alerts .pr-alert { max-width: none; min-height: 44px; padding-block: 2px; }
 }
 
+/* 1024–1179 px com o painel aberto: a alergia já está no cabeçalho do painel. Repeti-la na barra de seções
+   deixava duas pílulas iguais e tirava 52 px do painel. */
+@media (min-width: 1024px) and (max-width: 1179px) and (min-height: 601px) {
+  .pr:has(.pr-panel) .pr-pills__alerts { display: none; }
+  .pr:has(.pr-panel) { --pr-sticky-h: 76px; }
+}
+
 @media (max-width: 1023px) {
   .pr-bar { grid-template-columns: auto minmax(0, 1fr); }
   .pr-bar__actions { grid-column: 1 / -1; justify-content: flex-start; }
@@ -1213,6 +1220,7 @@
 }
 .doc-allergy-hit p { margin: 0; }
 .doc-allergy-hit__ack { display: flex; gap: var(--s-2); align-items: center; font-weight: var(--w-medium); }
+.doc-allergy-caveat p { margin: 0; color: var(--ink-900); }
 
 /* Resumo dos estados no palco: um botão com a mesma cara das pílulas. */
 .pr-alert--summary { padding: 0; }
@@ -1247,10 +1255,13 @@
   .pr-link:focus-visible, .pr-pill:focus-visible, .pr-visit:focus-visible { outline: 2px solid Highlight; }
 }
 
-/* Janela baixa (zoom de 400% = 320×256): cabeçalho e barra de seções grudados comiam a janela
-   inteira e sobravam 12 px de conteúdo. Aqui eles rolam junto com a página (WCAG 1.4.10), mas a alergia nunca
-   some (guia §0.6): ela vira uma faixa mínima e grudada, na visão geral e dentro do painel. */
-@media (max-height: 520px) {
+/* Janela baixa (zoom de 400% = 320×256, notebook com muita barra de ferramentas): cabeçalho e barra de seções
+   grudados comiam a janela inteira e sobravam 12 px de conteúdo. Aqui eles rolam junto com a página (WCAG 1.4.10),
+   mas a alergia nunca some (guia §0.6): ela vira uma faixa mínima e grudada, na visão geral e dentro do painel.
+   A faixa QUEBRA em linhas e nunca corta com reticência: alergia escondida pela borda é alergia que não foi lida. Se
+   faltar altura, a faixa rola por dentro (no máximo 40% da janela), com tudo ao alcance. O limite é 600 px de altura
+   (a 521–575 px a alergia ficava sob a barra de seções no fim da rolagem). */
+@media (max-height: 600px) {
   .pr { --pr-sticky-h: 48px; }
   /* A barra de seções rola com a página; a alergia, que normalmente mora nela, ganha a faixa própria abaixo. */
   .pr-pills { position: static; }
@@ -1263,22 +1274,35 @@
     z-index: var(--z-sticky);
     margin-bottom: var(--s-2);
     padding: var(--s-1) 0;
+    max-height: 40vh;
+    overflow-y: auto;
     background: var(--surface);
   }
-  .pr-allergy-strip .pr-alerts { flex-direction: row; flex-wrap: nowrap; }
-  .pr-allergy-strip .pr-alert { max-width: none; min-height: 32px; padding-block: 2px; }
+  .pr-allergy-strip .pr-alerts { flex-direction: row; flex-wrap: wrap; }
+  .pr-allergy-strip .pr-alert { max-width: none; min-height: 32px; padding-block: 2px; border-radius: var(--r-md); }
   .pr-allergy-strip .pr-alert__text,
-  .pr-allergy-strip .pr-alert__text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-allergy-strip .pr-alert__text span { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   /* Dentro do painel o cabeçalho segue grudado, mínimo, com a alergia e o × numa linha só. */
   .pr-panel__head { position: sticky; padding-block: var(--s-1); gap: 0 var(--s-2); }
   .pr-panel__who { display: none; }
-  .pr-panel__alerts { grid-column: 1; grid-row: 1; }
+  .pr-panel__alerts { grid-column: 1; grid-row: 1; max-height: 40vh; overflow-y: auto; }
   .pr-panel__close { grid-column: 2; grid-row: 1; }
-  .pr-panel__alerts .pr-alerts { flex-wrap: nowrap; }
-  .pr-panel__alerts .pr-alert { min-height: 32px; }
+  .pr-panel__alerts .pr-alerts { flex-wrap: wrap; }
+  .pr-panel__alerts .pr-alert { min-height: 32px; border-radius: var(--r-md); }
   .pr-panel__alerts .pr-alert__text,
-  .pr-panel__alerts .pr-alert__text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-panel__alerts .pr-alert__text span { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .pr-panel__body { padding-top: var(--s-2); }
+}
+
+/* Diálogos clínicos em janela baixa: o cabeçalho, a descrição e o rodapé comiam a altura e o corpo ficava com 40 px.
+   A alergia gruda no topo do corpo, que rola por baixo dela. */
+@media (max-height: 600px) {
+  .modal:has(.pr-rx-allergy) .modal__description { display: none; }
+  .modal:has(.pr-rx-allergy) .modal__header { padding: var(--s-2) var(--s-4); }
+  .modal:has(.pr-rx-allergy) .modal__footer { padding: var(--s-2) var(--s-4); }
+  .modal__body > .doc-notice:has(.pr-rx-allergy) { position: sticky; top: 0; z-index: 2; }
+  .modal__body .pr-rx-allergy { position: sticky; top: 0; z-index: 2; }
+  .doc-notice .pr-rx-allergy { position: static; }
 }
 
 /* Texto sem espaço (URL, código, nome longo) quebra em vez de passar por baixo do vizinho. */

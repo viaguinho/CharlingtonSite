@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../data/repository.js';
-import { allergyConflict, allergyHits } from '../patients/record/allergyConflict.js';
+import { allergyConflict, allergyHits, declaredAllergies } from '../patients/record/allergyConflict.js';
 import { STORES, DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, DOCUMENT_STATUS, newDocument } from '../../data/schema.js';
 import {
   DOCUMENT_SKELETONS, REQUIRES_SIGNATURE, SIGNATURE_PROVIDERS, VARIABLES,
@@ -245,6 +245,11 @@ export function ClinicalDocumentModal({ open, patient, guardians = [], appointme
             <input type="checkbox" checked={ackAllergy} onChange={(e) => setAckAllergy(e.target.checked)} />
             Revisei a alergia com o responsável e mantenho este item.
           </label>
+        </div>
+      ) : null}
+      {!itemConflicts.length && resolvedItems.length && declaredAllergies(allergies).length ? (
+        <div className="doc-notice doc-allergy-caveat" role="note">
+          <p>Sem correspondência automática com as alergias declaradas. A checagem só reconhece nomes e marcas conhecidos: confira cada item.</p>
         </div>
       ) : null}
       <div className="doc-split">

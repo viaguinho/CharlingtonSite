@@ -63,6 +63,13 @@ export function SectionPanel({ label, patientName = null, alerts = null, states 
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(measure); };
 
+    // Abaixo de 1180px o palco não gruda e o painel nasce onde a camada começa, a ~350px do topo: sobravam 30% de
+    // conteúdo a 1024×768. Ao abrir, a página rola até o ponto onde o painel grudaria (sem animação).
+    if (wide.matches && scroller) {
+      const layer = panel.parentElement.getBoundingClientRect();
+      const stuckTop = scroller.getBoundingClientRect().top + (parseFloat(getComputedStyle(scroller).paddingTop) || 0) + (parseFloat(getComputedStyle(panel).top) || 0);
+      if (layer.top > stuckTop + 1) scroller.scrollTop += layer.top - stuckTop;
+    }
     measure();
     const target = scroller ?? window;
     target.addEventListener('scroll', schedule, { passive: true });
