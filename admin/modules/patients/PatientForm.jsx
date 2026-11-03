@@ -524,6 +524,7 @@ function ChipListField({ label, hint, values = [], onChange, placeholder, tone =
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          onBlur={add}
         />
         <IconButton name="plus" label={`Adicionar em ${label}`} size="sm" className="field__trailing" onClick={add} />
       </div>
