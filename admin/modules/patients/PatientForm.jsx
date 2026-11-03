@@ -159,7 +159,8 @@ export function PatientForm({ open, onClose, onSaved, patient: existing }) {
             telefone: g.telefone ? g.telefone.replace(/\D/g, '') : '',
           };
 
-          if (g.id) {
+          // `newGuardian()` já nasce com id: só é atualização o responsável que a ficha já tem.
+          if (g.id && existing?.responsaveis?.includes(g.id)) {
             await repo.update(STORES.GUARDIANS, g.id, payload);
             guardianIds.push(g.id);
           } else {
@@ -393,7 +394,7 @@ export function PatientForm({ open, onClose, onSaved, patient: existing }) {
           />
           <ChipListField
             label="Alergias"
-            hint="Aparecem em destaque vermelho no painel de contexto do prontuário."
+            hint="Aparecem em destaque vermelho no topo do prontuário e de cada seção."
             values={data.clinico.alergias}
             onChange={(list) => set('clinico.alergias')(list)}
             placeholder="Adicionar alergia e pressionar Enter"
@@ -523,6 +524,7 @@ function ChipListField({ label, hint, values = [], onChange, placeholder, tone =
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          onBlur={add}
         />
         <IconButton name="plus" label={`Adicionar em ${label}`} size="sm" className="field__trailing" onClick={add} />
       </div>

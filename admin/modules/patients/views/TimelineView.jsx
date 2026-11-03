@@ -1,5 +1,6 @@
-import { displayStatus, canReschedule } from '../../../core/appointments.js';
-import { useMemo, useState } from 'react';
+import { displayStatus, canReschedule, stateOf } from '../../../core/appointments.js';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { ORIGINS } from './AttachmentsView.jsx';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, Chip, CidCode } from '../../../components/primitives.jsx';
 import { Tabs } from '../../../components/Tabs.jsx';
@@ -8,7 +9,7 @@ import {
   APPOINTMENT_TYPE_LABELS, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE,
   DOCUMENT_TYPE_LABELS,
 } from '../../../data/schema.js';
-import { dateTime, date, relative, time } from '../../../core/format.js';
+import { dateTime, date, relative, timeOf, number as num } from '../../../core/format.js';
 
 /**
  * Linha do tempo unificada.
@@ -38,8 +39,15 @@ const ICONS = {
   mensagem: 'message-circle',
 };
 
-export function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection }) {
+// Cerca de dois meses de histórico por vez: 300 consultas viravam 5.500 nós e quase um segundo de tela travada.
+const PAGE = 60;
+
+// Memoizada: o relógio do prontuário (60 s) não passa por aqui, então o tique não refaz a lista inteira.
+export const TimelineView = memo(function TimelineView({ appointments, notes, documents, attachments, scales, medications, messages = [], onIssueDocument, onReschedule, patient, onGoToSection, focusId = null }) {
   const [filter, setFilter] = useState('all');
+  const [limit, setLimit] = useState(PAGE);
+  // "Mostrar mais" leva o foco ao primeiro registro novo: o botão pula para o fim da lista.
+  const pendingFocus = useRef(null);
 
   const events = useMemo(() => {
     const list = [
@@ -50,17 +58,20 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
         status: a.status,
         appointment: a,
       })),
-      ...notes.map((n) => ({
-        id: n.id, kind: 'evolucao', at: n.assinadaEm ?? n.criadoEm,
+      ...notes.map((n) => {
+        // A data clínica da evolução é a da consulta; a assinatura é outro fato, dito à parte.
+        const linked = appointments.find((a) => a.id === n.atendimentoId);
+        return {
+        id: n.id, kind: 'evolucao', at: linked?.inicio ?? n.assinadaEm ?? n.criadoEm,
+        signedAt: n.assinadaEm ?? n.criadoEm,
         title: 'Evolução clínica',
-        // A que consulta a evolução pertence: dois registros no mesmo dia só
-        // se distinguem pelo horário do atendimento.
-        linked: appointments.find((a) => a.id === n.atendimentoId),
+        linked,
         detail: n.avaliacao || n.subjetivo,
         badge: n.cidPrincipal,
         isCid: true,
         locked: n.travada,
-      })),
+        };
+      }),
       ...documents.map((d) => ({
         id: d.id, kind: 'documento', at: d.assinatura?.assinadoEm ?? d.criadoEm,
         title: DOCUMENT_TYPE_LABELS[d.tipo] ?? 'Documento',
@@ -69,20 +80,29 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
       })),
       ...attachments.map((a) => ({
         id: a.id, kind: 'exame', at: a.realizadoEm ?? a.criadoEm,
-        title: a.titulo || a.nomeArquivo,
-        detail: a.origem,
+        title: a.titulo || 'Exame sem título',
+        // O rótulo do tipo, nunca a chave do banco ("exame_imagem").
+        detail: ORIGINS.find((o) => o.value === a.origem)?.label ?? 'Documento',
       })),
       ...scales.map((s) => ({
         id: s.id, kind: 'escala', at: s.aplicadaEm ?? s.criadoEm,
         title: s.instrumento,
         detail: s.interpretacao,
-        badge: s.escore != null ? `${s.escore}${s.escoreMaximo ? `/${s.escoreMaximo}` : ''}` : null,
+        badge: s.escore != null ? `${num(s.escore)}${s.escoreMaximo ? `/${num(s.escoreMaximo)}` : ''}` : null,
       })),
-      ...medications.map((m) => ({
-        id: m.id, kind: 'medicacao', at: m.iniciadaEm ?? m.criadoEm,
-        title: `Início de ${m.principioAtivo || m.nome}`,
-        detail: m.posologia,
-      })),
+      ...medications.flatMap((m) => [
+        {
+          id: m.id, kind: 'medicacao', at: m.iniciadaEm ?? m.criadoEm,
+          title: `Início de ${m.principioAtivo || m.nome}`,
+          detail: m.posologia,
+        },
+        // A saída de uso é um fato clínico tão importante quanto a entrada.
+        ...(m.suspensaEm ? [{
+          id: `${m.id}-suspensao`, kind: 'medicacao', at: m.suspensaEm,
+          title: `Suspensão de ${m.principioAtivo || m.nome}`,
+          detail: m.motivoSuspensao ? `Motivo: ${m.motivoSuspensao}` : undefined,
+        }] : []),
+      ]),
       ...messages.map((m) => ({
         id: m.id, kind: 'mensagem', at: m.enviadaEm ?? m.criadoEm,
         title: m.canal === 'whatsapp' ? 'Mensagem por WhatsApp' : 'E-mail enviado',
@@ -90,24 +110,55 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
       })),
     ];
 
+    // Por instante, não por texto ("2026-10-26" e "2026-10-26T…" não se comparam como string);
+    // o que não tem data legível vai para o fim, sem inventar uma.
     return list
-      .filter((e) => e.at)
       .filter((e) => filter === 'all' || e.kind === filter)
-      .sort((a, b) => b.at.localeCompare(a.at));
+      .sort((a, b) => (timeOf(b.at) ?? -Infinity) - (timeOf(a.at) ?? -Infinity));
   }, [appointments, notes, documents, attachments, scales, medications, messages, filter]);
 
-  const grouped = useMemo(() => groupByMonth(events), [events]);
+  // Vindo da faixa de consultas, o atendimento pedido tem que estar montado mesmo se for antigo.
+  const focusIndex = focusId ? events.findIndex((e) => e.id === focusId) : -1;
+  const shown = Math.max(limit, focusIndex + 1);
+  const grouped = useMemo(() => groupByMonth(events.slice(0, shown)), [events, shown]);
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    const el = document.getElementById(pendingFocus.current);
+    pendingFocus.current = null;
+    if (el) { el.tabIndex = -1; el.focus(); }
+  }, [shown]);
+
+  // Vindo da faixa de consultas do palco: rola até o atendimento clicado.
+  useEffect(() => {
+    if (!focusId) return;
+    const el = document.getElementById(`tl-consulta-${focusId}`);
+    if (!el) return;
+    // Dentro do painel, rola só o painel: scrollIntoView rolava também a
+    // página e levava o cabeçalho com a alergia para fora da tela.
+    const scroller = el.closest('.pr-panel');
+    // Movimento reduzido: vai direto, sem a rolagem animada.
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    if (!scroller) { el.scrollIntoView({ block: 'center', behavior }); return; }
+    const box = scroller.getBoundingClientRect();
+    const head = scroller.querySelector('.pr-panel__head')?.offsetHeight ?? 0;
+    const at = el.getBoundingClientRect();
+    const visible = box.height - head;
+    scroller.scrollTo({
+      top: scroller.scrollTop + (at.top - box.top - head) - Math.max(0, (visible - at.height) / 2),
+      behavior,
+    });
+  }, [focusId]);
 
   return (
     <Card variant="flush">
       <CardHeader
         title="Linha do tempo"
-        subtitle={events.length ? `${events.length} registros` : undefined}
+        subtitle={events.length ? `${events.length} ${events.length === 1 ? 'registro' : 'registros'}` : undefined}
         actions={
           /* Filtro sobre conjunto vazio é ruído: seis abas para peneirar zero
              registros denunciam protótipo. Só aparecem quando há o que filtrar. */
           events.length || filter !== 'all'
-            ? <Tabs variant="underline" value={filter} onChange={setFilter} items={FILTERS} ariaLabel="Filtrar linha do tempo" />
+            ? <Tabs variant="underline" value={filter} onChange={(value) => { setFilter(value); setLimit(PAGE); }} items={FILTERS} ariaLabel="Filtrar linha do tempo" />
             : null
         }
       />
@@ -119,7 +170,8 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
                 <h3 className="timeline__month">{month}</h3>
                 <ol className="timeline__list">
                   {items.map((event) => (
-                    <li key={`${event.kind}-${event.id}`} className="timeline__item">
+                    <li key={`${event.kind}-${event.id}`} id={`tl-${event.kind}-${event.id}`}
+                      className={`timeline__item ${focusId === event.id ? 'is-focused' : ''}`.trim()}>
                       <span className={`timeline__mark timeline__mark--${event.kind}`}>
                         <Icon name={ICONS[event.kind] ?? 'info'} size={13} />
                       </span>
@@ -133,16 +185,21 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
                             </span>
                           ) : null}
                           {event.status ? (() => {
-                            const shown = displayStatus({ status: event.status, inicio: event.at }, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE);
-                            return <Chip tone={shown.tone} icon={shown.icon}>{shown.label}</Chip>;
+                            // O agendamento inteiro (tipo e check-in contam para "sem desfecho"):
+                            // o item diz o mesmo que a cápsula da faixa que levou até ele.
+                            const subject = event.appointment ?? { status: event.status, inicio: event.at };
+                            const shown = displayStatus(subject, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE);
+                            const label = stateOf(subject) === 'aguardando' ? 'Na recepção' : shown.label;
+                            return <Chip tone={shown.tone} icon={shown.icon}>{label}</Chip>;
                           })() : null}
                         </div>
                         {event.detail ? <p className="timeline__detail">{truncate(event.detail, 180)}</p> : null}
                         <span className="timeline__time" title={dateTime(event.at)}>
-                          {event.kind === 'consulta' || event.kind === 'evolucao'
-                            ? `${dateTime(event.at)} · ${relative(event.at)}`
-                            : `${date(event.at)} · ${relative(event.at)}`}
-                          {event.linked ? ` · referente à consulta das ${time(event.linked.inicio)}` : ''}
+                          {timeOf(event.at) == null ? 'Sem data' : event.kind === 'evolucao' && event.linked
+                            ? `Consulta de ${dateTime(event.at)} · assinada em ${dateTime(event.signedAt)}`
+                            : event.kind === 'consulta' || event.kind === 'evolucao'
+                              ? `${dateTime(event.at)} · ${relative(event.at)}`
+                              : `${date(event.at)} · ${relative(event.at)}`}
                         </span>
                         {/* Só consulta ainda por acontecer (agendada ou confirmada) se remarca. */}
                         {onReschedule && event.appointment && canReschedule(event.appointment) ? (
@@ -156,6 +213,17 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
                 </ol>
               </section>
             ))}
+            {events.length > shown ? (
+              <div className="timeline__more">
+                <Button size="sm" onClick={() => {
+                  const next = events[shown];
+                  pendingFocus.current = next ? `tl-${next.kind}-${next.id}` : null;
+                  setLimit(shown + PAGE);
+                }}>
+                  Mostrar mais {Math.min(PAGE, events.length - shown)} de {events.length - shown} registros anteriores
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : (
           <EmptyState
@@ -167,7 +235,7 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
             action={filter === 'all' ? (
               <div className="empty__actions">
                 <Button size="sm" icon="clipboard"
-                  onClick={() => onGoToSection?.('evolucoes')}>
+                  onClick={() => onGoToSection?.('evolucoes', { create: true })}>
                   Registrar primeira evolução
                 </Button>
                 <Button size="sm" icon="file-text"
@@ -183,12 +251,13 @@ export function TimelineView({ appointments, notes, documents, attachments, scal
       </CardBody>
     </Card>
   );
-}
+});
 
 function groupByMonth(events) {
   const map = new Map();
   for (const event of events) {
-    const key = new Date(event.at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const stamp = timeOf(event.at);
+    const key = stamp == null ? 'sem data' : new Date(stamp).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     const label = key.charAt(0).toUpperCase() + key.slice(1);
     if (!map.has(label)) map.set(label, []);
     map.get(label).push(event);

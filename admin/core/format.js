@@ -85,6 +85,12 @@ function toDate(input) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Instante em milissegundos (data pura ancorada ao meio-dia local), ou null se ilegível. */
+export function timeOf(input) {
+  const d = toDate(input);
+  return d ? d.getTime() : null;
+}
+
 /** 2026-09-15 → "15/09/2026" */
 export function date(input) {
   const d = toDate(input);
@@ -128,7 +134,10 @@ export function isoDay(input) {
 export function age(birthDate, reference = new Date()) {
   const b = toDate(birthDate);
   const r = toDate(reference);
-  if (!b || !r || b > r) return { years: null, months: null, label: EMPTY };
+  // Idade conta dias de CALENDÁRIO: a data de nascimento vale meio-dia, e comparar
+  // instantes fazia o recém-nascido de hoje virar "—" e os dias saírem a menos.
+  const dayNumber = (d) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000);
+  if (!b || !r || dayNumber(b) > dayNumber(r)) return { years: null, months: null, label: EMPTY };
 
   let years = r.getFullYear() - b.getFullYear();
   let months = r.getMonth() - b.getMonth();
@@ -138,7 +147,7 @@ export function age(birthDate, reference = new Date()) {
   const totalMonths = years * 12 + months;
   let label;
   if (totalMonths < 1) {
-    const days = Math.floor((r - b) / 86_400_000);
+    const days = dayNumber(r) - dayNumber(b);
     label = `${days} ${days === 1 ? 'dia' : 'dias'}`;
   } else if (years < 2) {
     label = `${totalMonths} ${totalMonths === 1 ? 'mês' : 'meses'}`;

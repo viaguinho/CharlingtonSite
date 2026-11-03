@@ -9,10 +9,12 @@ import { PageHeader } from '../../components/Shell.jsx';
 import { Card, EmptyState, Metric, MetricStrip, Skeleton } from '../../components/Card.jsx';
 import { DataTable, TableToolbar } from '../../components/DataTable.jsx';
 import { Button, IconButton, Chip, Avatar, StatusDot } from '../../components/primitives.jsx';
+import { withViewTransition, vtName } from '../../core/viewTransition.js';
 import { Tabs } from '../../components/Tabs.jsx';
 import { TextField } from '../../components/Field.jsx';
 import Icon from '../../components/Icon.jsx';
 import { PatientForm } from './PatientForm.jsx';
+import { diagnosesOf } from './record/diagnoses.js';
 import { age, date, phone as formatPhone, relative, time } from '../../core/format.js';
 
 /**
@@ -150,9 +152,13 @@ export default function PatientsScreen() {
       sortable: true,
       render: (row) => (
         <span className="table__primary">
-          <Avatar name={row.nome} src={row.foto} size={34} />
+          {/* Mesmo nome de transição do Card: trocar Lista ⇄ Cards faz a
+              criança "viajar" da linha para o cartão. */}
+          <span className="vt-avatar" style={{ viewTransitionName: vtName('patient', row.id) }}>
+            <Avatar name={row.nome} src={row.foto} size={34} />
+          </span>
           <span className="table__primary-text">
-            <strong>{row.nomeSocial || row.nome}</strong>
+            <strong style={{ viewTransitionName: vtName('patient-name', row.id) }}>{row.nomeSocial || row.nome}</strong>
             <span>{row.dataNascimento ? age(row.dataNascimento).label : 'Idade não informada'}</span>
           </span>
         </span>
@@ -243,7 +249,7 @@ export default function PatientsScreen() {
           <Tabs
             variant="segment"
             value={view}
-            onChange={setView}
+            onChange={(next) => withViewTransition(() => setView(next))}
             ariaLabel="Modo de visualização"
             items={[
               { value: 'table', label: 'Lista', icon: 'list' },
@@ -272,6 +278,7 @@ export default function PatientsScreen() {
             ? <Button size="sm" onClick={() => setStatus('atencao')}>Ver quem</Button>
             : null}
           tone={attention.length ? 'danger' : undefined}
+          mood={attention.length ? 'attention' : 'positive'}
           target={attention.length
             ? [
               [attention.filter((x) => x.noShowRun >= CONSECUTIVE_NO_SHOW_ALERT).length, 'com faltas seguidas'],
@@ -431,9 +438,11 @@ function PatientCardGrid({ rows, loading, onOpen }) {
       {rows.map((row) => (
         <article key={row.id} className="patient-card">
           <header className="patient-card__head">
-            <Avatar name={row.nome} src={row.foto} size={40} />
+            <span className="vt-avatar" style={{ viewTransitionName: vtName('patient', row.id) }}>
+              <Avatar name={row.nome} src={row.foto} size={40} />
+            </span>
             <div className="patient-card__id">
-              <strong>{row.nomeSocial || row.nome}</strong>
+              <strong style={{ viewTransitionName: vtName('patient-name', row.id) }}>{row.nomeSocial || row.nome}</strong>
               <span>{row.dataNascimento ? age(row.dataNascimento).label : '—'}</span>
             </div>
             <IconButton name="arrow-up-right" label={`Abrir prontuário de ${row.nome}`} shape="circle" onClick={() => onOpen(row)} />
@@ -462,10 +471,10 @@ function PatientCardGrid({ rows, loading, onOpen }) {
                 Sem retorno agendado
               </p>
             )}
-            {row.clinico?.diagnosticos?.length ? (
+            {diagnosesOf(row).length ? (
               <div className="patient-card__tags">
-                {row.clinico.diagnosticos.slice(0, 2).map((d) => (
-                  <Chip key={d.codigo ?? d} tone="info">{d.codigo ?? d}</Chip>
+                {diagnosesOf(row).slice(0, 2).map((d) => (
+                  <Chip key={d.code || d.description} tone="info">{d.code || d.description}</Chip>
                 ))}
               </div>
             ) : null}
@@ -480,8 +489,10 @@ function PatientCardGrid({ rows, loading, onOpen }) {
               <StatusDot tone="neutral" label={PATIENT_STATUS_LABELS[row.status]} />
             ))}
             <span className="spacer" />
-            <IconButton name="whatsapp" label="Mensagem" shape="circle" variant="surface" />
-            <IconButton name="file-text" label="Documentos" shape="circle" variant="solid" onClick={() => onOpen(row)} />
+            <div className="patient-card__actions">
+              <IconButton name="whatsapp" label="Mensagem" shape="circle" size="sm" variant="surface" />
+              <IconButton name="file-text" label="Documentos" shape="circle" size="sm" variant="solid" onClick={() => onOpen(row)} />
+            </div>
           </footer>
         </article>
       ))}

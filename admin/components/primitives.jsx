@@ -25,8 +25,8 @@ export const Button = forwardRef(function Button(
       ref={ref}
       type="button"
       className={`btn btn--${variant} btn--${size} ${loading ? 'is-loading' : ''} ${className}`.trim()}
-      disabled={rest.disabled || loading}
       {...rest}
+      disabled={Boolean(rest.disabled || loading)}
     >
       {loading ? <span className="btn__spinner" aria-hidden="true" /> : null}
       {icon && !loading ? <Icon name={icon} size={size === 'sm' ? 14 : 16} /> : null}

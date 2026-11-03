@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../data/repository.js';
 import { STORES, APPOINTMENT_STATUS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS } from '../../data/schema.js';
 import { useSession } from '../../core/session.jsx';
@@ -50,12 +50,14 @@ const isEvent = (a) => a?.tipo === APPOINTMENT_TYPES.EVENT || !!a?.titulo;
  * @param suggested   Date opcional que já vem preenchida (arrastar no card)
  * @param onDone      chamado depois de gravar, para a tela recarregar
  */
-export default function RescheduleDialog({ appointment, suggested = null, onClose, onDone }) {
+// `notice`: faixa opcional no topo (o prontuário passa a alergia do paciente).
+export default function RescheduleDialog({ appointment, suggested = null, notice = null, onClose, onDone }) {
   const { plaza } = useSession();
   const toast = useToast();
   const [form, setForm] = useState(null);
   const [others, setOthers] = useState({ appointments: [], patients: [] });
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   useEffect(() => {
     if (!appointment) { setForm(null); return undefined; }
@@ -113,6 +115,8 @@ export default function RescheduleDialog({ appointment, suggested = null, onClos
 
   async function save() {
     if (!check || check.error || check.same) return;
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       const from = new Date(appointment.inicio);
@@ -129,6 +133,7 @@ export default function RescheduleDialog({ appointment, suggested = null, onClos
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -150,6 +155,7 @@ export default function RescheduleDialog({ appointment, suggested = null, onClos
       }
     >
       <div className="reschedule">
+        {notice}
         <dl className="reschedule__move">
           <div>
             <dt>Horário atual</dt>

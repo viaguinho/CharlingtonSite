@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import * as repo from '../../../data/repository.js';
 import {
   STORES, CONSENT_PURPOSES, CONSENT_PURPOSE_LABELS, LEGAL_BASIS,
@@ -66,10 +66,22 @@ const PURPOSES = [
 
 const TEXT_VERSION = '1.0';
 
+// O que a revogação muda na prática, por finalidade: "deixa de enviar mensagens" não vale para teleconsulta.
+const REVOKE_EFFECT = {
+  comunicacao_whatsapp: 'O sistema deixa de enviar mensagens por WhatsApp a esta família.',
+  comunicacao_email: 'O sistema deixa de enviar e-mails a esta família.',
+  teleconsulta: 'As próximas teleconsultas passam a exigir novo consentimento.',
+  uso_de_imagem: 'Imagens deste paciente deixam de poder ser usadas.',
+  pesquisa_academica: 'Os dados deste paciente deixam de poder entrar em pesquisa.',
+};
+
 export function ConsentsView({ patient, guardians, consents, appointments = [], reload }) {
   const toast = useToast();
   const [revoking, setRevoking] = useState(null);
+  // Registrar é um ato legal (LGPD): passa por uma confirmação, como a revogação.
+  const [granting, setGranting] = useState(null);
   const [busy, setBusy] = useState(null);
+  const lock = useRef(false);
 
   const current = useMemo(() => {
     const map = new Map();
@@ -104,6 +116,8 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
       return;
     }
 
+    if (lock.current) { toast.warning('Aguarde a gravação anterior terminar e registre de novo.'); return; }
+    lock.current = true;
     setBusy(purpose.id);
     try {
       await repo.create(STORES.CONSENTS, {
@@ -125,11 +139,14 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(null);
     }
   }
 
   async function revoke() {
+    if (lock.current) { toast.warning('Aguarde a gravação anterior terminar e revogue de novo.'); return; }
+    lock.current = true;
     setBusy(revoking.finalidade);
     try {
       await repo.update(STORES.CONSENTS, revoking.id, { revogadoEm: new Date().toISOString() }, {
@@ -142,6 +159,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(null);
     }
   }
@@ -177,7 +195,12 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                   <div className="consent__text">
                     <div className="consent__head">
                       <strong>{CONSENT_PURPOSE_LABELS[purpose.id]}</strong>
-                      <Chip tone={purpose.basis.requiresConsent ? (violation ? 'danger' : 'warning') : 'info'}>
+                      {/* Estado como rótulo, não como cartão tingido. */}
+                      <span className={`consent__state ${active ? 'is-on' : violation ? 'is-danger' : ''}`.trim()}>
+                        {active ? (purpose.basis.requiresConsent ? 'Vigente' : 'Informado') : record ? 'Revogado' : 'Não registrado'}
+                      </span>
+                      {/* A base legal é categoria, não estado: sempre neutra. O estado é o rótulo ao lado. */}
+                      <Chip tone="neutral">
                         {purpose.basis.label}
                       </Chip>
                     </div>
@@ -201,7 +224,7 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                   </div>
 
                   <div className="consent__action">
-                    {!purpose.basis.requiresConsent && <Chip tone="info" style={{ marginRight: 8 }}>Base legal própria</Chip>}
+                    {!purpose.basis.requiresConsent && <Chip tone="neutral" style={{ marginRight: 8 }}>Base legal própria</Chip>}
                     
                     {active && !purpose.basis.requiresConsent ? (
                       // Base legal própria não se revoga: o que existe é um novo
@@ -209,8 +232,9 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                       <Button
                         size="sm"
                         loading={busy === purpose.id}
-                        disabled={!guardian}
-                        onClick={() => grant(purpose)}
+                        disabled={!guardian || !!busy}
+                        aria-label={`Registrar nova informação: ${CONSENT_PURPOSE_LABELS[purpose.id]}`}
+                        onClick={() => setGranting(purpose)}
                       >
                         Registrar nova informação
                       </Button>
@@ -219,6 +243,8 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                         size="sm"
                         variant="danger"
                         loading={busy === purpose.id}
+                        disabled={!!busy}
+                        aria-label={`Revogar consentimento: ${CONSENT_PURPOSE_LABELS[purpose.id]}`}
                         onClick={() => setRevoking(record)}
                       >
                         Revogar
@@ -228,8 +254,9 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
                         size="sm"
                         variant="primary"
                         loading={busy === purpose.id}
-                        disabled={!guardian}
-                        onClick={() => grant(purpose)}
+                        disabled={!guardian || !!busy}
+                        aria-label={`${purpose.basis.requiresConsent ? 'Registrar consentimento' : 'Registrar que o responsável foi informado'}: ${CONSENT_PURPOSE_LABELS[purpose.id]}`}
+                        onClick={() => setGranting(purpose)}
                       >
                         {purpose.basis.requiresConsent ? 'Registrar consentimento' : 'Registrar que o responsável foi informado'}
                       </Button>
@@ -250,12 +277,23 @@ export function ConsentsView({ patient, guardians, consents, appointments = [], 
       </Card>
 
       <ConfirmDialog
+        open={!!granting}
+        onCancel={() => setGranting(null)}
+        onConfirm={() => { const purpose = granting; setGranting(null); return grant(purpose); }}
+        loading={!!busy}
+        title={granting?.basis.requiresConsent ? 'Registrar este consentimento?' : 'Registrar que o responsável foi informado?'}
+        message={granting ? `${CONSENT_PURPOSE_LABELS[granting.id]}, em nome de ${guardian?.nome || 'responsável não cadastrado'}, texto versão ${TEXT_VERSION}. O registro leva a data e a hora de agora e não pode ser editado depois.` : ''}
+        confirmLabel="Registrar"
+        tone="primary"
+      />
+
+      <ConfirmDialog
         open={!!revoking}
         onCancel={() => setRevoking(null)}
         onConfirm={revoke}
         loading={!!busy}
         title="Revogar este consentimento?"
-        message="A finalidade correspondente é bloqueada imediatamente — o sistema deixa de enviar mensagens por esse canal. A revogação é um direito do titular e pode ser exercida a qualquer momento."
+        message={`${REVOKE_EFFECT[revoking?.finalidade] ?? 'A finalidade correspondente passa a exigir novo consentimento.'} A revogação é um direito do titular e pode ser exercida a qualquer momento.`}
         confirmLabel="Revogar"
       />
     </>

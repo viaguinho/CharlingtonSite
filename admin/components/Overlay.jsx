@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from './Icon.jsx';
 import { Button, IconButton } from './primitives.jsx';
@@ -9,13 +9,30 @@ import { useSession } from '../core/session.jsx';
    Um modal que não prende o foco é inacessível, e um que não o devolve ao
    gatilho deixa quem navega por teclado perdido no fim da página.        */
 
+// Diálogos abertos, do mais antigo ao mais novo. Cada um escuta o teclado no `document`, em captura: sem
+// pilha, o Esc de "Confirme sua identidade" fechava também a emissão por baixo (o documento era descartado) e o
+// Tab do de baixo roubava o foco do de cima. Só o último da pilha trata Esc e Tab.
+const trapStack = [];
+let overflowBefore = '';
+
 function useFocusTrap(active, onEscape) {
   const ref = useRef(null);
   const previouslyFocused = useRef(null);
+  // O Esc lê a função mais recente pela ref: com ela nas dependências, cada
+  // render do pai (que passa uma função nova) refazia o efeito e o foco
+  // voltava ao primeiro controle no meio do uso.
+  const escapeRef = useRef(onEscape);
+  escapeRef.current = onEscape;
+
+  // O gatilho se captura ANTES da montagem (na renderização em que `active` vira
+  // verdadeiro): um campo com `autoFocus` já tomou o foco quando o efeito roda, e
+  // o "foco anterior" passava a ser o próprio campo — ao fechar, o foco ia ao body.
+  const wasActive = useRef(false);
+  if (active && !wasActive.current) previouslyFocused.current = document.activeElement;
+  wasActive.current = active;
 
   useEffect(() => {
     if (!active) return undefined;
-    previouslyFocused.current = document.activeElement;
 
     const node = ref.current;
     const focusables = () => Array.from(
@@ -25,35 +42,60 @@ function useFocusTrap(active, onEscape) {
     // Formulário: o primeiro campo recebe o foco; só diálogos sem campo caem no primeiro controle (o X).
     (node?.querySelector(':is(.modal__body, .sheet__body) :is(input, select, textarea):not(:disabled)') ?? focusables()[0])?.focus();
 
+    // Último controle focado dentro do diálogo: quando o botão de enviar se desabilita durante a
+    // gravação, o foco cai no <body>; o próximo Tab volta a ele em vez de sair do diálogo.
+    let lastInside = null;
+    const onFocusIn = (event) => { if (node?.contains(event.target)) lastInside = event.target; };
+    node?.addEventListener('focusin', onFocusIn);
+
+    const token = {};
+    // O corpo trava com o primeiro diálogo e só destrava quando o último fecha, em qualquer ordem.
+    if (!trapStack.length) { overflowBefore = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
+    trapStack.push(token);
+
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') { event.stopPropagation(); onEscape?.(); return; }
+      if (trapStack[trapStack.length - 1] !== token) return;
+      if (event.key === 'Escape') { event.stopPropagation(); escapeRef.current?.(); return; }
       if (event.key !== 'Tab') return;
       const items = focusables();
       if (!items.length) return;
       const first = items[0];
       const last = items[items.length - 1];
+      if (node && !node.contains(document.activeElement)) {
+        // O Tab é consumido aqui: pousa no controle recolocado. Sem o preventDefault, o Tab padrão
+        // seguia dele para fora do diálogo (o botão de enviar é o último controle).
+        event.preventDefault();
+        (lastInside && node.contains(lastInside) && !lastInside.disabled ? lastInside : first).focus();
+        return;
+      }
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
 
     document.addEventListener('keydown', onKeyDown, true);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     return () => {
+      node?.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('keydown', onKeyDown, true);
-      document.body.style.overflow = previousOverflow;
-      previouslyFocused.current?.focus?.();
+      const at = trapStack.indexOf(token);
+      if (at >= 0) trapStack.splice(at, 1);
+      if (!trapStack.length) document.body.style.overflow = overflowBefore;
+      // O gatilho pode ter sumido (medicação suspensa) ou estar desabilitado (gravação em curso): o foco
+      // vai ao painel da seção, nunca ao <body>.
+      const trigger = previouslyFocused.current;
+      if (trigger?.isConnected && !trigger.disabled) trigger.focus?.();
+      else if (!trapStack.length) document.querySelector('[data-focus-fallback]')?.focus?.();
     };
-  }, [active, onEscape]);
+  }, [active]);
 
   return ref;
 }
 
 /* ═══════════════════════════════ Modal ═══════════════════════════════ */
 
-export function Modal({ open, onClose, title, description, size = 'md', footer, children, dismissable = true }) {
+export function Modal({ open, onClose, title, description, describedBy, size = 'md', footer, children, dismissable = true }) {
   const ref = useFocusTrap(open, dismissable ? onClose : undefined);
+  const descriptionId = useId();
   if (!open) return null;
 
   return createPortal(
@@ -65,11 +107,12 @@ export function Modal({ open, onClose, title, description, size = 'md', footer, 
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        aria-describedby={describedBy ?? (description ? descriptionId : undefined)}
       >
         <header className="modal__header">
           <div className="modal__heading">
             <h2 className="modal__title">{title}</h2>
-            {description ? <p className="modal__description">{description}</p> : null}
+            {description ? <p id={descriptionId} className="modal__description">{description}</p> : null}
           </div>
           {dismissable ? <IconButton name="x" label="Fechar" onClick={onClose} /> : null}
         </header>
@@ -116,14 +159,16 @@ export function Sheet({ open, onClose, title, description, width = 460, footer, 
 /* ═══════════════════════ Confirmação destrutiva ═══════════════════════ */
 
 export function ConfirmDialog({
-  open, onCancel, onConfirm, title, message,
+  open, onCancel, onConfirm, title, message, notice = null,
   confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', tone = 'danger', loading,
 }) {
+  const messageId = useId();
   return (
     <Modal
       open={open}
       onClose={onCancel}
       title={title}
+      describedBy={messageId}
       size="sm"
       footer={
         <>
@@ -134,7 +179,8 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="confirm__message">{message}</p>
+      {notice}
+      <p id={messageId} className="confirm__message">{message}</p>
     </Modal>
   );
 }
@@ -178,7 +224,7 @@ export function ToastProvider({ children }) {
       {createPortal(
         <div className="toasts" role="status" aria-live="polite" aria-atomic="false">
           {toasts.map((toast) => (
-            <div key={toast.id} className={`toast toast--${toast.tone}`}>
+            <div key={toast.id} className={`toast toast--${toast.tone}`} role={toast.tone === 'danger' ? 'alert' : undefined}>
               <Icon name={TOAST_ICONS[toast.tone] ?? 'info'} size={16} />
               <div className="toast__text">
                 {toast.title ? <strong>{toast.title}</strong> : null}

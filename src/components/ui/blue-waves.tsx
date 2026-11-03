@@ -292,7 +292,7 @@ void main() {
  * - Sky Blue #cfe4fb (--blue-100): [0.812, 0.894, 0.984]
  * - Future Blue #0071e3 suavemente dosado (--blue-500): [0.0, 0.443, 0.890]
  */
-export const CHARLINGTON_PALETTE: [number, number, number][] = [
+export const LOGIN_PALETTE: [number, number, number][] = [
   [1.0, 1.0, 1.0],                 // Branco puro
   [0.949, 0.957, 0.980],           // Ghost Canvas suave #f2f4fa
   [0.812, 0.894, 0.984],           // Azul sutil #cfe4fb (--blue-100)
@@ -303,8 +303,21 @@ export const CHARLINGTON_PALETTE: [number, number, number][] = [
   [1.0, 1.0, 1.0],
 ]
 
-const DEFAULT_UNIFORMS = {
-  colors: CHARLINGTON_PALETTE,
+export const DASHBOARD_PALETTE: [number, number, number][] = [
+  [1.0, 1.0, 1.0],                 // Branco puro
+  [0.965, 0.973, 0.988],           // Ghost Canvas ultrassuave #f6f8fc
+  [0.890, 0.935, 0.985],           // Azul bebê muito sutil #e3eefb
+  [0.680, 0.825, 0.965],           // Azul suave e etéreo (sutil, sem peso) #ade0f6
+  [0.935, 0.960, 0.992],           // Gelo sutil
+  [0.780, 0.880, 0.975],           // Céu suave
+  [1.0, 1.0, 1.0],
+  [1.0, 1.0, 1.0],
+]
+
+export const CHARLINGTON_PALETTE = LOGIN_PALETTE
+
+const LOGIN_UNIFORMS = {
+  colors: LOGIN_PALETTE,
   colorCount: 4,
   scale: 1.300,
   intensity: 0.560,
@@ -331,10 +344,41 @@ const DEFAULT_UNIFORMS = {
   timeScale: -1.373,
 }
 
+const DASHBOARD_UNIFORMS = {
+  colors: DASHBOARD_PALETTE,
+  colorCount: 4,
+  scale: 1.300,
+  intensity: 0.380,
+  paramA: 0.670,
+  warp: 0.192,
+  detail: 2.016,
+  contrast: 1.030,
+  brightness: 0.020,
+  saturation: 0.850,
+  hue: 0.0000,
+  vignette: 0.060,
+  blur: 0.0072,
+  grain: 0.098,
+  seed: 5069.0,
+  rotate: 2.7227,
+  offsetX: 0.090,
+  offsetY: 0.150,
+  drift: 0.148,
+  cursorEnabled: false,
+  cursorEffect: 2.0,
+  cursorStrength: 0.650,
+  cursorRadius: 0.460,
+  oklab: 0.0,
+  timeScale: -1.373,
+}
+
+export const DEFAULT_UNIFORMS = LOGIN_UNIFORMS
+
 const pendingContextReleases = new WeakMap<HTMLCanvasElement, number>()
 
 export interface ShaderBackgroundProps {
   className?: string
+  variant?: "login" | "dashboard"
   colors?: [number, number, number][]
   colorCount?: number
   speed?: number
@@ -350,6 +394,7 @@ export interface ShaderBackgroundProps {
 
 export function ShaderBackground({
   className,
+  variant = "login",
   colors,
   colorCount,
   speed,
@@ -373,16 +418,17 @@ export function ShaderBackground({
     const gl = canvas.getContext("webgl", { antialias: false })
     if (!gl) return
 
-    const activeColors = colors || DEFAULT_UNIFORMS.colors
-    const activeColorCount = colorCount ?? DEFAULT_UNIFORMS.colorCount
-    const activeScale = scale ?? DEFAULT_UNIFORMS.scale
-    const activeIntensity = intensity ?? DEFAULT_UNIFORMS.intensity
-    const activeContrast = contrast ?? DEFAULT_UNIFORMS.contrast
-    const activeBrightness = brightness ?? DEFAULT_UNIFORMS.brightness
-    const activeBlur = blur ?? DEFAULT_UNIFORMS.blur
-    const activeGrain = grain ?? DEFAULT_UNIFORMS.grain
-    const activeCursor = cursorEnabled ?? DEFAULT_UNIFORMS.cursorEnabled
-    const activeTimeScale = speed !== undefined ? -Math.abs(speed) : DEFAULT_UNIFORMS.timeScale
+    const baseUniforms = variant === "dashboard" ? DASHBOARD_UNIFORMS : LOGIN_UNIFORMS
+    const activeColors = colors || baseUniforms.colors
+    const activeColorCount = colorCount ?? baseUniforms.colorCount
+    const activeScale = scale ?? baseUniforms.scale
+    const activeIntensity = intensity ?? baseUniforms.intensity
+    const activeContrast = contrast ?? baseUniforms.contrast
+    const activeBrightness = brightness ?? baseUniforms.brightness
+    const activeBlur = blur ?? baseUniforms.blur
+    const activeGrain = grain ?? baseUniforms.grain
+    const activeCursor = cursorEnabled ?? baseUniforms.cursorEnabled
+    const activeTimeScale = speed !== undefined ? -Math.abs(speed) : baseUniforms.timeScale
 
     const compile = (type: number, src: string) => {
       const s = gl.createShader(type)!
@@ -426,36 +472,36 @@ export function ShaderBackground({
       uni.shape,
       activeScale,
       activeIntensity,
-      DEFAULT_UNIFORMS.paramA,
-      DEFAULT_UNIFORMS.warp,
+      baseUniforms.paramA,
+      baseUniforms.warp,
     )
     gl.uniform4f(
       uni.surface,
-      DEFAULT_UNIFORMS.detail,
+      baseUniforms.detail,
       activeContrast,
       activeBrightness,
-      DEFAULT_UNIFORMS.saturation,
+      baseUniforms.saturation,
     )
     gl.uniform4f(
       uni.finish,
-      DEFAULT_UNIFORMS.hue,
-      DEFAULT_UNIFORMS.vignette,
+      baseUniforms.hue,
+      baseUniforms.vignette,
       activeBlur,
       activeGrain,
     )
     gl.uniform4f(
       uni.transform,
-      DEFAULT_UNIFORMS.seed,
-      DEFAULT_UNIFORMS.rotate,
-      DEFAULT_UNIFORMS.drift,
-      DEFAULT_UNIFORMS.oklab,
+      baseUniforms.seed,
+      baseUniforms.rotate,
+      baseUniforms.drift,
+      baseUniforms.oklab,
     )
     gl.uniform4f(
       uni.cursor,
       0,
-      DEFAULT_UNIFORMS.cursorEffect,
-      DEFAULT_UNIFORMS.cursorStrength,
-      DEFAULT_UNIFORMS.cursorRadius,
+      baseUniforms.cursorEffect,
+      baseUniforms.cursorStrength,
+      baseUniforms.cursorRadius,
     )
 
     let targetX = 0
@@ -594,17 +640,17 @@ export function ShaderBackground({
       )
       gl.uniform4f(
         uni.space,
-        DEFAULT_UNIFORMS.offsetX,
-        DEFAULT_UNIFORMS.offsetY,
+        baseUniforms.offsetX,
+        baseUniforms.offsetY,
         mouseX,
         mouseY,
       )
       gl.uniform4f(
         uni.cursor,
         activeCursor ? cursorPresence : 0,
-        DEFAULT_UNIFORMS.cursorEffect,
-        DEFAULT_UNIFORMS.cursorStrength,
-        DEFAULT_UNIFORMS.cursorRadius,
+        baseUniforms.cursorEffect,
+        baseUniforms.cursorStrength,
+        baseUniforms.cursorRadius,
       )
       gl.drawArrays(gl.TRIANGLES, 0, 3)
       const pointerSettling =
@@ -644,6 +690,7 @@ export function ShaderBackground({
       pendingContextReleases.set(canvas, releaseTimer)
     }
   }, [
+    variant,
     colors,
     colorCount,
     speed,

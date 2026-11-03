@@ -156,6 +156,7 @@ function ConversationsTab({ plaza }) {
       <MetricStrip>
         <Metric
           featured
+          mood="clinical"
           label="Crianças com opt-in"
           value={optedIn.size}
           denominator={patients.length || null}

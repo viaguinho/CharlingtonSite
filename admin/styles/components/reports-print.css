@@ -1,0 +1,305 @@
+/* ==========================================================================
+   CRIAR RELATÓRIO — assistente (CreateReportDialog) e documento em PDF (ReportDocument)
+   ==========================================================================
+   Duas partes:
+     1. `.rp-dialog*`  o assistente na tela.
+     2. `.rp-doc*`     o documento. Vive numa portal fora da tela e é o que
+                       `printElement` imprime. Cada página é uma `.sheet-a4`,
+                       a folha dos documentos clínicos, com as regras de
+                       `print.css` (A4, timbrado, margens do papel impresso).
+
+   O documento usa as MESMAS medidas na tela (fora de vista) e no papel: a
+   paginação mede o layout antes de imprimir, e o que foi medido tem de ser
+   o que sai. Por isso as regras de `.rp-doc` não ficam só em @media print.
+   Só tokens de tokens.css: nenhuma cor escrita à mão.
+   ========================================================================== */
+
+/* ————————————————————————————— Assistente ————————————————————————————— */
+
+.rp-dialog {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-8);
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .rp-dialog { grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+  .rp-dialog__themes { display: grid; grid-template-columns: 1fr 1fr; }
+  .rp-dialog__theme { padding: var(--s-3); }
+}
+
+.rp-dialog__col { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+
+.rp-dialog__group { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; margin: 0; padding: 0; border: 0; }
+
+.rp-dialog__legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  height: calc(var(--t-micro) * var(--lh-micro));
+  padding: 0;
+  margin-bottom: var(--s-2);
+}
+
+.rp-dialog__links { display: inline-flex; gap: var(--s-3); }
+
+.rp-dialog__link {
+  /* Alvo de 40 px de altura sem mudar o desenho do link. */
+  padding: 10px 4px;
+  margin: -10px -4px;
+  font-size: var(--t-caption);
+  font-weight: var(--w-medium);
+  color: var(--blue-600);
+  border-radius: var(--r-xs);
+}
+.rp-dialog__link:hover { text-decoration: underline; }
+
+.rp-dialog__themes { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.rp-dialog__theme {
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid transparent;
+  border-radius: var(--rp-radius-sm);
+  background: var(--rp-card);
+  transition: border-color var(--dur-2) var(--ease), background var(--dur-2) var(--ease);
+}
+/* Neutro + azul (16/10): escolhido em tinta, como as pílulas ativas; o azul fica no check. */
+.rp-dialog__theme.is-on { border-color: var(--rp-ink); background: var(--rp-pill); }
+.rp-dialog__theme.is-off { opacity: .6; }
+
+.rp-dialog__dates { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+
+.rp-dialog__caption { margin: 0; font-size: var(--t-caption); color: var(--ink-400); }
+.rp-dialog__caption.is-error { color: var(--signal-red-ink); }
+
+/* ——————————————————————————— Documento (PDF) ——————————————————————————— */
+
+/* Fora da tela mas COM layout: `printElement` e a medição precisam dele renderizado. */
+.rp-doc {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 210mm;
+  margin: 0;
+  pointer-events: none;
+  font-family: var(--font);
+  font-size: 9pt;
+  line-height: 1.4;
+  font-weight: var(--w-regular);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* A folha de documentos clínicos, em tamanho de papel também na tela: a
+   medição acontece fora de vista e precisa enxergar o que o papel vai ver. */
+.rp-doc .sheet-a4 {
+  width: 210mm;
+  height: 297mm;
+  max-width: none;
+  aspect-ratio: auto;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+}
+.rp-doc .sheet-a4__inner { padding: 63mm 20mm 50mm 27mm; }
+
+/* Caixa útil da folha: 163 mm × 184 mm. `probe` é a altura útil, lida pelo JS. */
+.rp-doc--measure .rp-doc__flow { width: 163mm; }
+.rp-doc__probe { position: absolute; top: 0; left: 0; width: 1px; height: 184mm; visibility: hidden; }
+.rp-doc__probe-table { position: absolute; top: 0; left: 0; width: 163mm; visibility: hidden; }
+
+.rp-doc__body { flex: 1; min-height: 0; }
+
+/* Faixa entre o cabeçalho impresso do papel (termina em ~52 mm) e o texto (63 mm). */
+.rp-doc__running {
+  position: absolute;
+  top: 55.5mm;
+  left: 27mm;
+  right: 20mm;
+  display: flex;
+  justify-content: space-between;
+  gap: 6mm;
+  font-size: 7.5pt;
+  line-height: 1.2;
+  color: var(--ink-400);
+}
+
+/* ————— Cabeçalho do relatório ————— */
+
+.rp-doc__atom.is-header { padding-bottom: 7mm; }
+
+.rp-doc__eyebrow {
+  font-size: 8pt;
+  font-weight: var(--w-semibold);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+.rp-doc__title {
+  margin: 1mm 0 4.5mm;
+  font-size: 21pt;
+  line-height: 1.1;
+  font-weight: var(--w-regular);
+  letter-spacing: var(--ls-title);
+  color: var(--ink-950);
+}
+.rp-doc__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5mm 6mm;
+  margin: 0;
+  padding-top: 3.5mm;
+  border-top: .4mm solid var(--rp-accent);
+}
+.rp-doc__meta dt {
+  font-size: 6.5pt;
+  font-weight: var(--w-semibold);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.rp-doc__meta dd { margin: 0; font-size: 9pt; color: var(--ink-900); }
+
+/* ————— Tema ————— */
+
+.rp-doc__atom.is-section { padding-bottom: 5mm; }
+.rp-doc__section-title {
+  padding-bottom: 1.8mm;
+  font-size: 15pt;
+  line-height: 1.2;
+  font-weight: var(--w-medium);
+  letter-spacing: var(--ls-title);
+  color: var(--ink-950);
+  border-bottom: .4mm solid var(--rp-accent);
+}
+.rp-doc__section-caption { margin-top: 1.5mm; font-size: 8.5pt; color: var(--ink-400); }
+
+/* ————— Card ————— */
+
+.rp-doc__atom.is-lead { padding-bottom: 2.5mm; }
+.rp-doc__card-title {
+  font-size: 11.5pt;
+  line-height: 1.25;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0;
+  color: var(--ink-950);
+}
+.rp-doc__head { margin-top: 1.2mm; font-size: 9pt; color: var(--ink-600); }
+.rp-doc__kicker { color: var(--ink-400); }
+.rp-doc__figure { font-weight: var(--w-semibold); color: var(--ink-950); }
+.rp-doc__delta { font-weight: var(--w-semibold); color: var(--ink-900); }
+.rp-doc__sep { color: var(--ink-300); }
+.rp-doc__table-caption { margin-top: 1mm; font-size: 8pt; color: var(--ink-400); }
+
+.rp-doc__atom.is-empty { padding-bottom: 1mm; }
+.rp-doc__empty { font-size: 9pt; color: var(--ink-500); }
+
+/* ————— Tabela ————— */
+
+/* `separate` + borda só embaixo da célula: a altura de uma linha não depende
+   da vizinha, então medir a tabela inteira vale para qualquer trecho dela. */
+.rp-doc__table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 8.5pt;
+  line-height: 1.3;
+}
+.rp-doc__table th,
+.rp-doc__table td {
+  padding: 1.3mm 1.6mm;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  border-bottom: .2mm solid var(--ink-a12);
+}
+.rp-doc__table th:first-child,
+.rp-doc__table td:first-child { padding-left: 0; }
+.rp-doc__table th:last-child,
+.rp-doc__table td:last-child { padding-right: 0; }
+
+.rp-doc__table thead th {
+  vertical-align: bottom;
+  font-size: 6.8pt;
+  font-weight: var(--w-semibold);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  border-bottom: .25mm solid var(--ink-a60);
+}
+.rp-doc__table .is-num { text-align: right; }
+/* Número alinhado à direita colado numa coluna de texto: dá um respiro. */
+.rp-doc__table .is-num + :not(.is-num) { padding-left: 5mm; }
+.rp-doc__table td.is-label { font-weight: var(--w-medium); color: var(--ink-950); }
+
+/* Título repetido no alto do trecho que continua na página seguinte. */
+.rp-doc__table thead .rp-doc__cont th {
+  padding-bottom: 1.2mm;
+  font-size: 8pt;
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-600);
+  border-bottom: 0;
+}
+
+.rp-doc__table tr { break-inside: avoid; page-break-inside: avoid; }
+.rp-doc__table thead { display: table-header-group; }
+
+/* ————— Notas "Como ler" ————— */
+
+.rp-doc__atom.is-notes { padding-top: 3mm; padding-bottom: 7mm; }
+.rp-doc__notes-title {
+  margin-bottom: 1mm;
+  font-size: 6.8pt;
+  font-weight: var(--w-semibold);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.rp-doc__notes li {
+  position: relative;
+  padding-left: 3.5mm;
+  font-size: 7.8pt;
+  line-height: 1.4;
+  color: var(--ink-500);
+}
+.rp-doc__notes li + li { margin-top: .8mm; }
+.rp-doc__notes li::before {
+  content: '';
+  position: absolute;
+  left: .6mm;
+  top: .6em;
+  width: 1mm;
+  height: 1mm;
+  border-radius: var(--r-circle);
+  background: var(--ink-200);
+}
+
+.rp-doc__atom.is-gap { height: 7mm; }
+
+/* ————— Impressão ————— */
+
+@media print {
+  /* Na tela a portal fica fora de vista (fixed); no papel é o fluxo normal da página. */
+  .rp-doc {
+    position: static;
+    left: auto;
+    width: auto;
+  }
+
+  /* print.css devolve `display: block !important` a todo `.overlay` (para o
+     modal virar a página de um documento clínico). Aqui o assistente está
+     ABERTO ao lado do documento: `printElement` o marcou para sumir, e sem
+     esta regra ele imprimiria na frente da primeira página. */
+  body > .overlay[data-print-hide] { display: none !important; }
+}

@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { DOCUMENT_TYPE_LABELS, DOCUMENT_STATUS, DOCUMENT_TYPES } from '../../../data/schema.js';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, Chip, StatusDot } from '../../../components/primitives.jsx';
 import { DataTable } from '../../../components/DataTable.jsx';
-import { DocumentSheet } from '../../documents/DocumentSheet.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
+import { declaredAllergies } from '../record/allergyConflict.js';
 import Icon from '../../../components/Icon.jsx';
 import { date, dateTime, relative } from '../../../core/format.js';
+
+// Só o painel Documentos usa a folha (e o timbrado): fora dele, 40 kB a menos na abertura do prontuário.
+const DocumentSheet = lazy(() => import('../../documents/DocumentSheet.jsx').then((m) => ({ default: m.DocumentSheet })));
 
 /**
  * Documentos emitidos para este paciente.
@@ -39,7 +43,7 @@ export function DocumentsView({ patient, documents, appointments = [], onIssueDo
 
   const rows = useMemo(
     () => [...documents].sort((a, b) =>
-      (b.assinatura?.assinadoEm ?? b.criadoEm).localeCompare(a.assinatura?.assinadoEm ?? a.criadoEm)),
+      (b.assinatura?.assinadoEm ?? b.criadoEm ?? '').localeCompare(a.assinatura?.assinadoEm ?? a.criadoEm ?? '')),
     [documents],
   );
 
@@ -115,7 +119,7 @@ export function DocumentsView({ patient, documents, appointments = [], onIssueDo
       <Card variant="flush">
         <CardHeader
           title="Documentos emitidos"
-          subtitle={rows.length ? `${rows.length} documentos` : undefined}
+          subtitle={`${rows.length} ${rows.length === 1 ? 'documento' : 'documentos'}`}
           actions={
             <Button size="sm" variant="primary" icon="plus" onClick={() => onIssueDocument({ patient })}>
               Emitir documento
@@ -142,11 +146,15 @@ export function DocumentsView({ patient, documents, appointments = [], onIssueDo
         />
       </Card>
 
+      <Suspense fallback={null}>
       <DocumentSheet
         document={viewing}
         patient={patient}
+        notice={<AllergyNotice patient={patient} hint="Confirme com o responsável antes de prescrever." />}
+        allergies={declaredAllergies(patient.clinico?.alergias ?? [])}
         onClose={() => setViewing(null)}
       />
+      </Suspense>
     </>
   );
 }

@@ -17,7 +17,7 @@ import { printElement } from '../../core/print.js';
  * se algo está errado, emite-se um novo que referencia este, e este fica
  * marcado como substituído. O histórico completo permanece.
  */
-export function DocumentSheet({ document: doc, patient, guardian, onClose, onReplace }) {
+export function DocumentSheet({ document: doc, patient, guardian, onClose, onReplace, notice = null }) {
   const toast = useToast();
   const [printing, setPrinting] = useState(false);
 
@@ -57,6 +57,8 @@ export function DocumentSheet({ document: doc, patient, guardian, onClose, onRep
       }
     >
       <div className="doc-view">
+        {/* Aberta do prontuário, a folha cobre as pílulas de alerta: a alergia vem junto. */}
+        {notice}
         <div className="doc-view__meta">
           <div>
             <span className="eyebrow">Situação</span>

@@ -117,13 +117,15 @@ const HELPERS = `
   window.__sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 `;
 
-async function session(route, { w = 1280, h = 800 } = {}) {
+async function session(route, { w = 1280, h = 800, live = false } = {}) {
   await ensureChrome();
   const page = await openPage();
   const { send } = page;
   await send('Page.enable');
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+  // Celular (≤ 480): ponteiro de toque, para as regras `pointer: coarse` valerem na captura.
+  await send('Emulation.setTouchEmulationEnabled', { enabled: w <= 480, maxTouchPoints: w <= 480 ? 5 : 1 });
   await send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await send('Page.navigate', { url: `${BASE}${route}` });
   await sleep(2500);
@@ -142,7 +144,8 @@ async function session(route, { w = 1280, h = 800 } = {}) {
     `);
   }
   // Congela animações de entrada para a captura mostrar o estado final.
-  await evaluate(send, `
+  // `--live` deixa as animações rodando (quadros de movimento para a crítica).
+  if (!live) await evaluate(send, `
     const s = document.createElement('style');
     s.textContent = '*,*::before,*::after{animation-delay:-10s!important;animation-duration:.001s!important;transition-duration:.001s!important;}';
     document.head.appendChild(s);
@@ -170,7 +173,7 @@ try {
     const [route, out] = args;
     const w = Number(flag('w', 1280));
     const h = Number(flag('h', 800));
-    const page = await session(route, { w, h });
+    const page = await session(route, { w, h, live: args.includes('--live') });
     for (const text of flags('click')) {
       await evaluate(page.send, `__btn(${JSON.stringify(text)})?.click(); await __sleep(700);`);
     }

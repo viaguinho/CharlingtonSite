@@ -6,6 +6,7 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "dev:admin": "vite --open /admin.html",
     "build": "npm run check:security && vite build",
     "check:security": "node scripts/check-secrets.mjs",
     "check:security:legacy": "node scripts/check-secrets.mjs legacy/admin-v1"
@@ -21,6 +22,7 @@
     "vite": "^5.2.11"
   },
   "dependencies": {
+    "@paper-design/shaders-react": "^0.0.81",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@supabase/supabase-js": "^2.116.0",

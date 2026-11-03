@@ -13,9 +13,9 @@ import RescheduleDialog from '../agenda/RescheduleDialog.jsx';
 import { Card, CardHeader, CardBody, Metric, MetricStrip, EmptyState, Skeleton, MoneyValue } from '../../components/Card.jsx';
 import { Button, Chip, StatusDot, Avatar, IconButton } from '../../components/primitives.jsx';
 import { BarChart, Gauge, StackedRatioBar } from '../../charts/index.jsx';
-import DitherDonut from '../../charts/DitherDonut.tsx';
+import TickRuler from '../../charts/TickRuler.jsx';
 import { PERIOD_OPTIONS } from '../../components/Tabs.jsx';
-import { localDay, periodRange, inRange } from '../../core/periods.js';
+import { localDay, periodRange, inRange, bucketsFor, bucketKey, grainLabel } from '../../core/periods.js';
 import { isLate, isUpcoming, isUnresolved, canReschedule, displayStatus, waitInfo, confirmationWindow, oldestByDay, namesList, trailingNoShows, CONSECUTIVE_NO_SHOW_ALERT, teleconsultsWithoutConsent, messagingOptIn } from '../../core/appointments.js';
 import Icon from '../../components/Icon.jsx';
 import { time, money, age, isoDay, duration } from '../../core/format.js';
@@ -164,11 +164,33 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
   const confirmations = useMemo(() => confirmationWindow(appointments, 7), [appointments]);
   const shortDay = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
   const addDays = (iso, n) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+
+  const next7DaysAppointments = useMemo(() => {
+    if (!confirmations?.range) return [];
+    return appointments
+      .filter((a) => {
+        const d = localDay(a.inicio);
+        return d >= confirmations.range.from
+          && d <= confirmations.range.to
+          && a.status !== APPOINTMENT_STATUS.CANCELLED
+          && (a.status === APPOINTMENT_STATUS.CONFIRMED || a.status === APPOINTMENT_STATUS.SCHEDULED)
+          && !a.titulo;
+      })
+      .sort((a, b) => (a.inicio ?? '').localeCompare(b.inicio ?? ''));
+  }, [appointments, confirmations]);
+
+  const formatAppointmentSchedule = (isoString) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    const weekday = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+    const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    const dayMonth = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return `${capitalizedWeekday}, ${dayMonth} às ${time(isoString)}`;
+  };
   // Nenhuma família com opt-in: a mensagem de confirmação não sai, e a tela
   // que oferece a ação diz isso antes do clique.
   const optIn = messagingOptIn(consents);
 
-  const weekBars = useMemo(() => buildWeekBars(appointments), [appointments]);
 
   // Quanto entrou: recebido no mês corrente, até agora. Sem ele a tela das 8h
   // respondia três das quatro perguntas do dia.
@@ -194,6 +216,26 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
   // mês, trimestre e ano corrente), com o mesmo critério de "sem desfecho"
   // dos KPIs ao lado. Reunião interna não é atendimento e fica fora.
   const statusPeriods = useMemo(() => buildStatusPeriods(appointments, today), [appointments, today]);
+  const [heroPeriod, setHeroPeriod] = useState('month');
+  const currentStatusPeriod = useMemo(
+    () => statusPeriods.find((p) => p.key === heroPeriod) ?? statusPeriods[1] ?? statusPeriods[0],
+    [statusPeriods, heroPeriod],
+  );
+  const productionBars = useMemo(
+    () => buildProductionBars(appointments, heroPeriod, today),
+    [appointments, heroPeriod, today],
+  );
+  const heroBarsTotal = useMemo(
+    () => productionBars.reduce((t, d) => t + d.value, 0),
+    [productionBars],
+  );
+  const heroBarsActive = useMemo(
+    () => productionBars.filter((d) => d.value > 0).length,
+    [productionBars],
+  );
+  const singleNoun = heroPeriod === 'year' ? 'mês' : heroPeriod === 'quarter' ? 'semana' : 'dia';
+  const pluralNoun = heroPeriod === 'year' ? 'meses' : heroPeriod === 'quarter' ? 'semanas' : 'dias';
+  const periodNounDesc = heroPeriod === 'week' ? 'nesta semana' : heroPeriod === 'month' ? 'neste mês' : heroPeriod === 'quarter' ? 'neste trimestre' : 'neste ano';
 
   // Quantas linhas a fila de pendências mostra (o texto do cartão conta).
   const pendingCount = late.length + waiting.length + unresolved.length + repeatedNoShows.length
@@ -202,8 +244,7 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
 
   return (
     <Bento>
-      {/* ——— Atividade dos pacientes: os indicadores do dia à esquerda e o
-          skyline de produção à direita (referência Luma) ——— */}
+      {/* ——— Atividade dos pacientes: os indicadores do dia e a situação/produção (Lado Esquerdo Superior) ——— */}
       <Card span={7} className="ov-hero">
         <CardHeader
           icon="activity"
@@ -212,22 +253,11 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
         />
         <div className="ov-hero__body">
           <div className="ov-rail">
-        {/* O número grande é o que pede ação agora. Consulta sem desfecho (o
-            registro que falta de um horário passado) vem primeiro quando
-            existe; sem ela, quem espera na recepção; sem ninguém, o dia. */}
-        {needsRecord.length ? (
-          <Metric
-            featured
-            label="Consultas sem desfecho"
-            value={needsRecord.length}
-            tone="danger"
-            target={`${needsRecord.length > 1 ? 'A mais antiga de' : 'De'} ${new Date(needsRecord[0].inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${time(needsRecord[0].inicio)} · registrar chegada, atendimento ou falta`}
-          />
-        ) : null}
         <Metric
-          featured={!needsRecord.length && !waiting.length}
+          featured
           label="Consultas hoje"
           value={todays.length}
+          mood="volume"
           target={todays.length
             ? [done.length ? `${done.length} ${done.length === 1 ? 'concluída' : 'concluídas'}` : null,
               upcomingToday.length ? `${upcomingToday.length} por acontecer` : null,
@@ -237,236 +267,244 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
             : cancelledToday ? `Nenhuma consulta · ${cancelledToday} ${cancelledToday === 1 ? 'cancelada' : 'canceladas'}` : 'Nenhuma consulta agendada para hoje'}
         />
         <Metric
-          featured={!needsRecord.length && waiting.length > 0}
+          featured
           label="Na recepção"
           value={waiting.length}
-          tone={waiting.length ? 'warning' : undefined}
+          mood="clinical"
           target={waiting.length
             ? `${nameOf(waiting[0].pacienteId).split(' ')[0]} espera há ${duration(waitMinutes(waiting[0]))}`
             : 'Ninguém esperando'}
         />
-        {/* "Documentos pendentes" misturava o que falta EMITIR com o que falta
-            ASSINAR. O número é o de laudos a emitir, com o mesmo nome de
-            Pacientes e Documentos; a assinatura aparece como nota. */}
-        {reportsToIssue.length || !pendingDocs.length ? (
-          <Metric
-            label="Laudos a emitir"
-            value={reportsToIssue.length}
-            tone={reportsToIssue.length ? 'warning' : undefined}
-            target={[
-              reportsToIssue.length
-                ? `atendimentos sem laudo emitido`
-                : 'Nenhum laudo a emitir',
-              pendingDocs.length ? `${pendingDocs.length} ${pendingDocs.length === 1 ? 'documento aguarda' : 'documentos aguardam'} assinatura` : null,
-            ].filter(Boolean).join(' · ')}
-          />
-        ) : (
-          <Metric
-            label="A assinar"
-            value={pendingDocs.length}
-            tone="warning"
-            target="documentos emitidos aguardando assinatura"
-          />
-        )}
-        {canFinance ? (
-          <Metric
-            label="Recebido no mês"
-            value={<MoneyValue value={receivedTotal} cents={false} />}
-            target={receivedMonth.length
-              ? `${receivedMonth.length} ${receivedMonth.length === 1 ? 'recebimento' : 'recebimentos'} até hoje`
-              : 'Nenhum recebimento neste mês'}
-          />
-        ) : null}
-        {needsRecord.length || canFinance ? null : (
-          <Metric
-            label="Em acompanhamento"
-            value={activePatients.length}
-            target={withoutReturn.length
-              ? `${withoutReturn.length} sem retorno marcado`
-              : 'Todos com retorno marcado'}
-          />
-        )}
+        <Metric
+          featured
+          label="Consultas sem desfecho"
+          value={needsRecord.length}
+          mood="attention"
+          tone={needsRecord.length ? 'danger' : undefined}
+          target={needsRecord.length
+            ? `${needsRecord.length > 1 ? 'A mais antiga de' : 'De'} ${new Date(needsRecord[0].inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${time(needsRecord[0].inicio)} · registrar chegada, atendimento ou falta`
+            : 'Todas as consultas com desfecho registrado'}
+        />
           </div>
 
           <div className="ov-hero__chart">
-            <DitherDonut
+            <TickRuler
               periods={statusPeriods}
-              defaultPeriod="month"
+              activePeriod={heroPeriod}
+              onPeriodChange={setHeroPeriod}
               title="Situação dos atendimentos"
               unit="atendimento"
             />
+
+            <div className="ov-production-embed">
+              <div className="ov-production-embed__head">
+                <div className="ov-production-embed__title">
+                  <Icon name="activity" size={14} />
+                  <strong>Produção assistencial</strong>
+                  <span className="ov-production-embed__caption">
+                    {currentStatusPeriod?.caption ? `· ${currentStatusPeriod.caption}` : ''}
+                  </span>
+                </div>
+                {heroBarsTotal > 0 ? (
+                  <span className="ov-production-embed__summary">
+                    <strong className="num">{heroBarsTotal}</strong> {heroBarsTotal === 1 ? 'concluído' : 'concluídos'}
+                    <span className="ov-production-embed__days"> · {heroBarsActive} {heroBarsActive === 1 ? singleNoun : pluralNoun} com produção</span>
+                  </span>
+                ) : (
+                  <span className="ov-production-embed__summary">
+                    0 concluídos
+                  </span>
+                )}
+              </div>
+
+              <BarChart
+                key={heroPeriod}
+                data={productionBars}
+                tone="positive"
+                height={140}
+                title={`Atendimentos concluídos ${grainLabel(heroPeriod)} no período`}
+                valueLabel="Atendimentos concluídos"
+                bucketNoun={pluralNoun}
+                zeroLabel="sem atendimento concluído"
+                emptyMessage={`Nenhum atendimento concluído ${periodNounDesc} até o momento.`}
+                emptyAction={<Button size="sm" icon="calendar" onClick={() => navigate('/agenda')}>Abrir agenda</Button>}
+              />
+            </div>
           </div>
         </div>
       </Card>
 
-      {/* ——— Precisa de você + Confirmações: o card do assistente da referência ——— */}
-      <Card span={5} className="ov-helper">
-        <CardHeader icon="clipboard" title="Precisa de você" />
-        <p className="ov-helper__lead">
-          {pendingCount
-            ? <>Você tem <strong>{pendingCount} {pendingCount === 1 ? 'pendência' : 'pendências'}</strong> no consultório, da mais urgente à rotina.</>
-            : <>Nenhuma pendência no consultório <strong>agora</strong>.</>}
-        </p>
+      {/* ——— Coluna Lateral: Precisa de você + Confirmações (Lado Direito Superior, pareado com Atividade dos pacientes) ——— */}
+      <div className="ov-side-column">
+        {/* ——— Precisa de você (Metade Superior) ——— */}
+        <Card className="ov-helper">
+          <CardHeader icon="clipboard" title="Precisa de você" />
+          <p className="ov-helper__lead">
+            {pendingCount
+              ? <>Você tem <strong>{pendingCount} {pendingCount === 1 ? 'pendência' : 'pendências'}</strong> no consultório, da mais urgente à rotina.</>
+              : <>Nenhuma pendência no consultório <strong>agora</strong>.</>}
+          </p>
 
-        <section className="ov-insights" aria-label="Fila de pendências">
-          <header className="ov-insights__head">
-            <span className="ov-insights__title"><Icon name="list" size={16} /> Fila de pendências</span>
-            {pendingCount ? <span className="ov-chip ov-chip--ink"><strong className="num">{pendingCount}</strong></span> : null}
-          </header>
-          <div className="ov-insights__body">
-          {(pendingDocs.length || checkedIn.length || reportsToIssue.length || late.length || unresolved.length || overdueTitles.length || payableSoonTitles.length || repeatedNoShows.length || tele.children.size) ? (
-            <ul className="pending">
-              {late.map((a) => (
-                <li key={a.id}>
-                  <span className="pending__icon pending__icon--danger"><Icon name="alert-triangle" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>{nameOf(a.pacienteId)} não chegou</strong>
-                    <span>Consulta das {time(a.inicio)} · {duration(Math.round((Date.now() - new Date(a.inicio)) / 60000))} de atraso · registrar chegada ou falta na agenda</span>
-                  </span>
-                  {rescheduleButton(a)}
-                  <IconButton name="chevron-right" label="Abrir agenda" onClick={() => navigate('/agenda')} />
-                </li>
-              ))}
-              {waiting.map((a) => (
-                <li key={a.id}>
-                  <span className="pending__icon pending__icon--warning"><Icon name="clock" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>{nameOf(a.pacienteId)} está na recepção</strong>
-                    <span>
-                      Chegou às {time(a.checkInEm)} · espera há {duration(waitMinutes(a))} · consulta das {time(a.inicio)}
+          <section className="ov-insights" aria-label="Fila de pendências">
+            <header className="ov-insights__head">
+              <span className="ov-insights__title"><Icon name="list" size={16} /> Fila de pendências</span>
+              {pendingCount ? <span className="ov-chip ov-chip--ink"><strong className="num">{pendingCount}</strong></span> : null}
+            </header>
+            <div className="ov-insights__body">
+            {(pendingDocs.length || checkedIn.length || reportsToIssue.length || late.length || unresolved.length || overdueTitles.length || payableSoonTitles.length || repeatedNoShows.length || tele.children.size) ? (
+              <ul className="pending">
+                {late.map((a) => (
+                  <li key={a.id}>
+                    <span className="pending__icon pending__icon--danger"><Icon name="alert-triangle" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>{nameOf(a.pacienteId)} não chegou</strong>
+                      <span>Consulta das {time(a.inicio)} · {duration(Math.round((Date.now() - new Date(a.inicio)) / 60000))} de atraso · registrar chegada ou falta na agenda</span>
                     </span>
-                  </span>
-                  <IconButton name="chevron-right" label="Abrir prontuário" onClick={() => navigate(`/pacientes/${a.pacienteId}`)} />
-                </li>
-              ))}
-              {unresolved.slice(0, 3).map((a) => (
-                <li key={a.id}>
-                  <span className="pending__icon pending__icon--danger"><Icon name="history" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>{nameOf(a.pacienteId)}: consulta sem desfecho</strong>
-                    <span>
-                      {new Date(a.inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às {time(a.inicio)}
-                      {' · '}{a.status === APPOINTMENT_STATUS.CHECKED_IN ? `chegou às ${time(a.checkInEm)} e não há atendimento` : `ainda "${APPOINTMENT_STATUS_LABELS[a.status].toLowerCase()}"`}
-                      {' · '}registrar na agenda
+                    {rescheduleButton(a)}
+                    <IconButton name="chevron-right" label="Abrir agenda" onClick={() => navigate('/agenda')} />
+                  </li>
+                ))}
+                {waiting.map((a) => (
+                  <li key={a.id}>
+                    <span className="pending__icon pending__icon--warning"><Icon name="clock" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>{nameOf(a.pacienteId)} está na recepção</strong>
+                      <span>
+                        Chegou às {time(a.checkInEm)} · espera há {duration(waitMinutes(a))} · consulta das {time(a.inicio)}
+                      </span>
                     </span>
-                  </span>
-                  {rescheduleButton(a)}
-                  <IconButton name="chevron-right" label="Abrir agenda" onClick={() => navigate('/agenda')} />
-                </li>
-              ))}
-              {unresolved.length > 3 ? (
-                <li className="pending__more">E mais {unresolved.length - 3} {unresolved.length - 3 === 1 ? 'consulta' : 'consultas'} sem desfecho na agenda.</li>
-              ) : null}
-              {repeatedNoShows.map(({ patient, run }) => (
-                <li key={`faltas-${patient.id}`}>
-                  {/* Falta repetida é padrão a conversar, não urgência de hoje:
-                      a cor fica para o que precisa de ação agora. */}
-                  <span className="pending__icon pending__icon--info"><Icon name="alert-triangle" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>{patient.nome} faltou às {run.length} últimas consultas</strong>
-                    <span>
-                      {(() => {
-                        // "20/07, 10/08 e 31/08": vírgulas e "e" só antes da última.
-                        const days = run.slice().reverse().map((a) => new Date(a.inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
-                        return days.length > 1 ? `${days.slice(0, -1).join(', ')} e ${days[days.length - 1]}` : days[0];
-                      })()}
-                      {' · '}falar com a família
+                    <IconButton name="chevron-right" label="Abrir prontuário" onClick={() => navigate(`/pacientes/${a.pacienteId}`)} />
+                  </li>
+                ))}
+                {unresolved.slice(0, 3).map((a) => (
+                  <li key={a.id}>
+                    <span className="pending__icon pending__icon--danger"><Icon name="history" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>{nameOf(a.pacienteId)}: consulta sem desfecho</strong>
+                      <span>
+                        {new Date(a.inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às {time(a.inicio)}
+                        {' · '}{a.status === APPOINTMENT_STATUS.CHECKED_IN ? `chegou às ${time(a.checkInEm)} e não há atendimento` : `ainda "${APPOINTMENT_STATUS_LABELS[a.status].toLowerCase()}"`}
+                        {' · '}registrar na agenda
+                      </span>
                     </span>
-                  </span>
-                  <IconButton name="chevron-right" label="Abrir prontuário" onClick={() => navigate(`/pacientes/${patient.id}`)} />
-                </li>
-              ))}
-              {tele.children.size ? (
-                <li>
-                  {/* Âmbar só quando a próxima teleconsulta sem consentimento é
-                      hoje ou amanhã; o resto é rotina a registrar. */}
-                  <span className={`pending__icon pending__icon--${teleUrgent ? 'warning' : 'info'}`}><Icon name="video" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>
-                      Teleconsulta sem consentimento: {tele.children.size} {tele.children.size === 1 ? 'criança' : 'crianças'}
-                    </strong>
-                    <span>
-                      {[
-                        tele.done.length ? `${tele.done.length} ${tele.done.length === 1 ? 'consulta já realizada' : 'consultas já realizadas'}` : null,
-                        tele.upcoming.length ? `${tele.upcoming.length} ${tele.upcoming.length === 1 ? 'consulta futura' : 'consultas futuras'} (próxima: ${nameOf(tele.upcoming[0].pacienteId).split(' ')[0]}, ${new Date(tele.upcoming[0].inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})` : null,
-                      ].filter(Boolean).join(' · ')}
-                      {' · '}registrar no prontuário
+                    {rescheduleButton(a)}
+                    <IconButton name="chevron-right" label="Abrir agenda" onClick={() => navigate('/agenda')} />
+                  </li>
+                ))}
+                {unresolved.length > 3 ? (
+                  <li className="pending__more">E mais {unresolved.length - 3} {unresolved.length - 3 === 1 ? 'consulta' : 'consultas'} sem desfecho na agenda.</li>
+                ) : null}
+                {repeatedNoShows.map(({ patient, run }) => (
+                  <li key={`faltas-${patient.id}`}>
+                    {/* Falta repetida é padrão a conversar, não urgência de hoje:
+                        a cor fica para o que precisa de ação agora. */}
+                    <span className="pending__icon pending__icon--info"><Icon name="alert-triangle" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>{patient.nome} faltou às {run.length} últimas consultas</strong>
+                      <span>
+                        {(() => {
+                          // "20/07, 10/08 e 31/08": vírgulas e "e" só antes da última.
+                          const days = run.slice().reverse().map((a) => new Date(a.inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+                          return days.length > 1 ? `${days.slice(0, -1).join(', ')} e ${days[days.length - 1]}` : days[0];
+                        })()}
+                        {' · '}falar com a família
+                      </span>
                     </span>
-                  </span>
-                  <IconButton name="chevron-right" label="Abrir prontuário"
-                    onClick={() => navigate(`/pacientes?tab=attention`)} />
-                </li>
-              ) : null}
-              {reportsToIssue.length ? (
-                <li>
-                  {/* Documento pendente é âmbar em toda tela, como o KPI acima. */}
-                  <span className="pending__icon pending__icon--warning"><Icon name="file-text" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>
-                      {reportsToIssue.length} {reportsToIssue.length === 1 ? 'atendimento de laudo concluído' : 'atendimentos de laudo concluídos'} sem o documento emitido
-                      {canFinance && reportsPaid ? ` · ${money(reportsPaid)} já recebidos` : ''}
-                    </strong>
-                    <span>
-                      {oldestReports.items.length === 1 ? 'Mais antigo' : `${oldestReports.items.length} mais antigos`}:{' '}
-                      {namesList(oldestReports.items.map((a) => nameOf(a.pacienteId)))},{' '}
-                      {oldestReports.items.length === 1 ? 'atendido' : 'atendidos'} em {new Date(`${oldestReports.day}T12:00:00`).toLocaleDateString('pt-BR')}.
+                    <IconButton name="chevron-right" label="Abrir prontuário" onClick={() => navigate(`/pacientes/${patient.id}`)} />
+                  </li>
+                ))}
+                {tele.children.size ? (
+                  <li>
+                    {/* Âmbar só quando a próxima teleconsulta sem consentimento é
+                        hoje ou amanhã; o resto é rotina a registrar. */}
+                    <span className={`pending__icon pending__icon--${teleUrgent ? 'warning' : 'info'}`}><Icon name="video" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>
+                        Teleconsulta sem consentimento: {tele.children.size} {tele.children.size === 1 ? 'criança' : 'crianças'}
+                      </strong>
+                      <span>
+                        {[
+                          tele.done.length ? `${tele.done.length} ${tele.done.length === 1 ? 'consulta já realizada' : 'consultas já realizadas'}` : null,
+                          tele.upcoming.length ? `${tele.upcoming.length} ${tele.upcoming.length === 1 ? 'consulta futura' : 'consultas futuras'} (próxima: ${nameOf(tele.upcoming[0].pacienteId).split(' ')[0]}, ${new Date(tele.upcoming[0].inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})` : null,
+                        ].filter(Boolean).join(' · ')}
+                        {' · '}registrar no prontuário
+                      </span>
                     </span>
-                  </span>
-                  <IconButton name="chevron-right" label="Ver documentos" onClick={() => navigate('/documentos')} />
-                </li>
-              ) : null}
-              {overdueTitles.length ? (
-                <li>
-                  <span className="pending__icon pending__icon--danger"><Icon name="wallet" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>{overdueTitles.length} {overdueTitles.length === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'} · {money(overdueTotal)}</strong>
-                    <span>O mais antigo venceu em {new Date(`${overdueTitles[0].vencimento}T12:00:00`).toLocaleDateString('pt-BR')}.</span>
-                  </span>
-                  <IconButton name="chevron-right" label="Ver no financeiro" onClick={() => navigate('/financeiro')} />
-                </li>
-              ) : null}
-              {payableSoonTitles.length ? (
-                <li>
-                  <span className="pending__icon pending__icon--warning"><Icon name="wallet" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>{payableSoonTitles.length} {payableSoonTitles.length === 1 ? 'título a pagar vence' : 'títulos a pagar vencem'} em até 7 dias · {money(payableSoonTotal)}</strong>
-                    <span>O próximo vence em {new Date(`${payableSoonTitles[0].vencimento}T12:00:00`).toLocaleDateString('pt-BR')}.</span>
-                  </span>
-                  <IconButton name="chevron-right" label="Ver no financeiro" onClick={() => navigate('/financeiro')} />
-                </li>
-              ) : null}
-              {pendingDocs.length ? (
-                <li>
-                  <span className="pending__icon pending__icon--info"><Icon name="signature" size={15} /></span>
-                  <span className="pending__text">
-                    <strong>{pendingDocs.length} {pendingDocs.length === 1 ? 'documento aguardando assinatura' : 'documentos aguardando assinatura'}</strong>
-                    <span>Assine em lote com um único código.</span>
-                  </span>
-                  <IconButton name="chevron-right" label="Ver" onClick={() => navigate('/documentos')} />
-                </li>
-              ) : null}
-            </ul>
-          ) : (
-            <EmptyState
-              icon="check"
-              title="Nada pendente"
-              description="Nenhum documento a assinar, nenhum laudo a emitir e ninguém esperando na recepção."
-              compact
-            />
-          )}
-          </div>
-        </section>
+                    <IconButton name="chevron-right" label="Abrir prontuário"
+                      onClick={() => navigate(`/pacientes?tab=attention`)} />
+                  </li>
+                ) : null}
+                {reportsToIssue.length ? (
+                  <li>
+                    {/* Documento pendente é âmbar em toda tela, como o KPI acima. */}
+                    <span className="pending__icon pending__icon--warning"><Icon name="file-text" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>
+                        {reportsToIssue.length} {reportsToIssue.length === 1 ? 'atendimento de laudo concluído' : 'atendimentos de laudo concluídos'} sem o documento emitido
+                        {canFinance && reportsPaid ? ` · ${money(reportsPaid)} já recebidos` : ''}
+                      </strong>
+                      <span>
+                        {oldestReports.items.length === 1 ? 'Mais antigo' : `${oldestReports.items.length} mais antigos`}:{' '}
+                        {namesList(oldestReports.items.map((a) => nameOf(a.pacienteId)))},{' '}
+                        {oldestReports.items.length === 1 ? 'atendido' : 'atendidos'} em {new Date(`${oldestReports.day}T12:00:00`).toLocaleDateString('pt-BR')}.
+                      </span>
+                    </span>
+                    <IconButton name="chevron-right" label="Ver documentos" onClick={() => navigate('/documentos')} />
+                  </li>
+                ) : null}
+                {overdueTitles.length ? (
+                  <li>
+                    <span className="pending__icon pending__icon--danger"><Icon name="wallet" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>{overdueTitles.length} {overdueTitles.length === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'} · {money(overdueTotal)}</strong>
+                      <span>O mais antigo venceu em {new Date(`${overdueTitles[0].vencimento}T12:00:00`).toLocaleDateString('pt-BR')}.</span>
+                    </span>
+                    <IconButton name="chevron-right" label="Ver no financeiro" onClick={() => navigate('/financeiro')} />
+                  </li>
+                ) : null}
+                {payableSoonTitles.length ? (
+                  <li>
+                    <span className="pending__icon pending__icon--warning"><Icon name="wallet" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>{payableSoonTitles.length} {payableSoonTitles.length === 1 ? 'título a pagar vence' : 'títulos a pagar vencem'} em até 7 dias · {money(payableSoonTotal)}</strong>
+                      <span>O próximo vence em {new Date(`${payableSoonTitles[0].vencimento}T12:00:00`).toLocaleDateString('pt-BR')}.</span>
+                    </span>
+                    <IconButton name="chevron-right" label="Ver no financeiro" onClick={() => navigate('/financeiro')} />
+                  </li>
+                ) : null}
+                {pendingDocs.length ? (
+                  <li>
+                    <span className="pending__icon pending__icon--info"><Icon name="signature" size={15} /></span>
+                    <span className="pending__text">
+                      <strong>{pendingDocs.length} {pendingDocs.length === 1 ? 'documento aguardando assinatura' : 'documentos aguardando assinatura'}</strong>
+                      <span>Assine em lote com um único código.</span>
+                    </span>
+                    <IconButton name="chevron-right" label="Ver" onClick={() => navigate('/documentos')} />
+                  </li>
+                ) : null}
+              </ul>
+            ) : (
+              <EmptyState
+                icon="check"
+                title="Nada pendente"
+                description="Nenhum documento a assinar, nenhum laudo a emitir e ninguém esperando na recepção."
+                compact
+              />
+            )}
+            </div>
+          </section>
+        </Card>
 
-        {/* ——— Confirmações dos próximos 7 dias: o que a recepção faz com a
-            próxima semana é confirmar; aqui, quantas faltam. ——— */}
-        <div className="ov-confirm">
-          {confirmations.total ? (
-            <>
-              <div className="ov-confirm__row">
+        {/* ——— Confirmações dos próximos 7 dias (Metade Inferior) ——— */}
+        <Card className="ov-confirm-card">
+          <CardHeader title="Confirmações · próximos 7 dias" />
+          <div className="ov-confirm">
+            {confirmations.total ? (
+              <>
                 <div className="ov-confirm__pill">
                   <span className="ov-confirm__caption">
                     <Icon name="calendar" size={14} />
-                    Confirmações · próximos 7 dias
+                    Próximos 7 dias
                   </span>
                   <span className="ov-confirm__count">
                     <strong className="num">{confirmations.confirmed}</strong>{' '}
@@ -485,47 +523,66 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
                     {confirmations.unconfirmed ? <span className="ov-confirm__warn"> · {confirmations.unconfirmed} sem confirmação</span> : null}
                   </span>
                 </div>
-                {confirmations.unconfirmed ? (
-                  <button
-                    type="button"
-                    className="ov-confirm__send"
-                    onClick={() => navigate('/comunicacao')}
-                    aria-label={optIn ? 'Pedir confirmação' : 'Registrar consentimento'}
-                    title={optIn ? 'Pedir confirmação' : 'Registrar consentimento'}
-                  >
-                    <Icon name="message-circle" size={20} />
-                  </button>
+
+                <div className="ov-confirm__list">
+                  {next7DaysAppointments.map((a) => {
+                    const isConfirmed = a.status === APPOINTMENT_STATUS.CONFIRMED;
+                    const patientName = nameOf(a.pacienteId);
+
+                    return (
+                      <div key={a.id} className="ov-confirm__item">
+                        <div className="ov-confirm__item-info">
+                          <strong className="ov-confirm__item-name">{patientName}</strong>
+                          <span className="ov-confirm__item-time">
+                            {formatAppointmentSchedule(a.inicio)}
+                          </span>
+                        </div>
+                        <div className="ov-confirm__item-actions">
+                          {isConfirmed ? (
+                            <Chip tone="success">Confirmada</Chip>
+                          ) : (
+                            <>
+                              <Chip tone="warning">Pendente</Chip>
+                              <button
+                                type="button"
+                                className="ov-confirm__contact-btn"
+                                onClick={() => navigate('/comunicacao')}
+                                title={`Entrar em contato com responsável de ${patientName}`}
+                                aria-label={`Entrar em contato com responsável de ${patientName}`}
+                              >
+                                <Icon name="message-circle" size={15} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {confirmations.unconfirmed && !optIn ? (
+                  <p className="ov-confirm__note report-note--danger">
+                    <Icon name="alert-triangle" size={13} />
+                    Nenhuma família registrou consentimento para mensagens: a confirmação
+                    automática não sai até o opt-in ser registrado no prontuário.
+                  </p>
                 ) : null}
+              </>
+            ) : (
+              <div className="ov-confirm__row">
+                <div className="ov-confirm__pill">
+                  <span className="ov-confirm__count">Nada agendado para os próximos 7 dias</span>
+                </div>
+                <Button size="sm" icon="plus" onClick={() => navigate('/agenda')}>Agendar</Button>
               </div>
-              {confirmations.firstUnconfirmed ? (
-                <p className="ov-confirm__note">
-                  Primeira sem confirmação: {nameOf(confirmations.firstUnconfirmed.pacienteId)},{' '}
-                  {new Date(confirmations.firstUnconfirmed.inicio).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}{' '}
-                  às {time(confirmations.firstUnconfirmed.inicio)}.
-                </p>
-              ) : null}
-              {confirmations.unconfirmed && !optIn ? (
-                <p className="ov-confirm__note report-note--danger">
-                  <Icon name="alert-triangle" size={13} />
-                  Nenhuma família registrou consentimento para mensagens: a confirmação
-                  automática não sai até o opt-in ser registrado no prontuário.
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <div className="ov-confirm__row">
-              <div className="ov-confirm__pill">
-                <span className="ov-confirm__count">Nada agendado para os próximos 7 dias</span>
-              </div>
-              <Button size="sm" icon="plus" onClick={() => navigate('/agenda')}>Agendar</Button>
-            </div>
-          )}
-        </div>
-      </Card>
+            )}
+          </div>
+        </Card>
+      </div>
 
-
-      {/* ——— Agenda: dia, semana, mês e lista, no espaço do antigo card do dia ——— */}
+      {/* ——— Agenda: dia, semana, mês e lista (Ocupa Toda a Horizontal) ——— */}
       <AgendaPanel
+        span={12}
         appointments={appointments}
         patients={patients}
         rooms={rooms}
@@ -533,31 +590,6 @@ function DoctorHome({ appointments, patients, documents, entries = [], consents 
         confirmations={confirmations}
         onChanged={onChanged}
       />
-
-      {/* ——— Produção da semana ——— */}
-      <Card span={5} rows={2} className="ov-production">
-        <CardHeader
-          title="Produção assistencial"
-          subtitle="Atendimentos concluídos nos últimos 14 dias"
-          onExpand={() => navigate('/relatorios')}
-        />
-        <CardBody>
-          <BarChart
-            data={weekBars}
-            height={320}
-            title="Atendimentos concluídos por dia nos últimos 14 dias"
-            valueLabel="Atendimentos concluídos"
-            bucketNoun="dias"
-            zeroLabel="sem atendimento concluído"
-            summary={{
-              value: weekBars.reduce((t, d) => t + d.value, 0),
-              label: `concluídos em 14 dias · ${weekBars.filter((d) => d.value > 0).length} dias com atendimento`,
-            }}
-            emptyMessage="Assim que os primeiros atendimentos forem concluídos, a produção diária aparece aqui."
-            emptyAction={<Button size="sm" icon="calendar" onClick={() => navigate('/agenda')}>Abrir agenda</Button>}
-          />
-        </CardBody>
-      </Card>
 
       <RescheduleDialog
         appointment={rescheduling}
@@ -732,8 +764,9 @@ function FinanceHome({ entries }) {
       <MetricStripCard>
         <Metric
           featured
+          mood={hasData && summary.revenue - summary.expense < 0 ? 'attention' : 'positive'}
           label="Resultado nos últimos 30 dias"
-          value={hasData ? money(summary.revenue - summary.expense) : '—'}
+          value={hasData ? <MoneyValue value={summary.revenue - summary.expense} cents={false} /> : '—'}
           target={hasData
             ? `${money(summary.revenue)} recebido · ${money(summary.expense)} pago`
             : 'Nenhum lançamento registrado'}
@@ -821,12 +854,14 @@ function OverviewSkeleton() {
 }
 
 /** As fatias da rosca do hero, na mesma ordem em todo período. */
+// Cor pelo sentido (validada para daltonismo): concluído é positivo, a
+// realizar é volume, sem desfecho pede atenção, falta é perda, cancelado sai.
 const SITUATION_SLICES = [
-  { key: 'done', label: 'Concluídos', color: '--blue-700' },
-  { key: 'upcoming', label: 'A realizar', color: '--blue-300' },
-  { key: 'open', label: 'Sem desfecho', color: '--signal-amber' },
-  { key: 'noshow', label: 'Faltas', color: '--signal-red' },
-  { key: 'cancelled', label: 'Cancelados', color: '--ink-200' },
+  { key: 'done', label: 'Concluídos', color: '--mark-positive' },
+  { key: 'upcoming', label: 'A realizar', color: '--mark-volume' },
+  { key: 'open', label: 'Sem desfecho', color: '--mark-attention' },
+  { key: 'noshow', label: 'Faltas', color: '--mark-serious' },
+  { key: 'cancelled', label: 'Cancelados', color: '--mark-neutral' },
 ];
 
 /** Fim do período de calendário que começa em `from` (a semana vai até sábado, o mês até o último dia). */
@@ -870,24 +905,41 @@ function buildStatusPeriods(appointments, today) {
   });
 }
 
-/** Últimos 14 dias de atendimentos concluídos, por dia. */
-function buildWeekBars(appointments) {
-  const days = [];
-  const now = new Date();
-  for (let i = 13; i >= 0; i -= 1) {
-    const day = new Date(now);
-    day.setDate(now.getDate() - i);
-    const key = isoDay(day);
-    const count = appointments.filter(
-      (a) => localDay(a.inicio) === key && a.status === APPOINTMENT_STATUS.DONE,
-    ).length;
-    days.push({
-      label: day.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      value: count,
-      current: i === 0,
-      weekend: [0, 6].includes(day.getDay()),
-    });
+/** Atendimentos concluídos no período selecionado (semana, mês, trimestre ou ano), agregados no grão adequado. */
+function buildProductionBars(appointments, period, today) {
+  const ref = new Date(`${today}T12:00:00`);
+  const from = periodRange(period, ref).from;
+  const to = periodEnd(period, from);
+  const range = { from, to };
+  const todayKey = bucketKey(today, period);
+
+  const rawBuckets = bucketsFor(range, period);
+  const buckets = new Map(
+    rawBuckets.map((b) => [
+      b.key,
+      {
+        key: b.key,
+        label: b.label,
+        value: 0,
+        current: b.key === todayKey,
+        partial: b.partial,
+        weekend: b.weekend,
+      },
+    ]),
+  );
+
+  for (const a of appointments) {
+    if (a.tipo === 'evento') continue;
+    if (a.status !== APPOINTMENT_STATUS.DONE) continue;
+    const day = localDay(a.inicio);
+    if (!day || day < from || day > to) continue;
+    const key = bucketKey(day, period);
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.value += 1;
+    }
   }
-  return days.some((d) => d.value > 0) ? days : [];
+
+  return Array.from(buckets.values());
 }
 

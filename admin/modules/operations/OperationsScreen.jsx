@@ -121,7 +121,7 @@ function SuppliesTab({ plaza }) {
   return (
     <>
       <MetricStrip>
-        <Metric featured label="Abaixo do mínimo" value={low.length} tone={low.length ? 'warning' : undefined}
+        <Metric featured label="Abaixo do mínimo" value={low.length} tone={low.length ? 'warning' : undefined} mood={low.length ? 'attention' : 'positive'}
           target={low.length ? 'Reposição necessária' : 'Estoque em dia'} />
         <Metric label="Itens cadastrados" value={supplies.length} />
         {/* Sem validade cadastrada não há como afirmar "0 vencendo". */}
@@ -277,6 +277,7 @@ function RoomsTab({ plaza }) {
       <MetricStrip>
         <Metric
           featured
+          mood="positive"
           label="Salas disponíveis"
           value={available}
           denominator={rooms.length || null}

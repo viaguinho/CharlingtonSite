@@ -2,44 +2,88 @@
    CARDS, MÉTRICAS E ESTADOS DE CONTEÚDO
    ========================================================================== */
 
+/* Vidro claro (redesign 14/10): branco translúcido com desfoque da aurora,
+   borda de luz e sombra longa. `isolation` cria o contexto em que o reflexo
+   (::after, z-index −1) fica ATRÁS do texto e acima do fundo do card. */
 .card {
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--ink-a06);
-  border-radius: var(--r-lg);
-  padding: var(--s-5);
-  box-shadow: var(--e-1);
-  transition: box-shadow var(--dur-2) var(--ease),
-              transform var(--dur-2) var(--ease),
+  background: var(--card-glass);
+  border: 1px solid var(--card-glass-edge);
+  border-radius: var(--r-card);
+  padding: var(--s-6);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  transition: box-shadow var(--dur-3) var(--ease),
+              transform var(--dur-3) var(--ease),
               border-color var(--dur-2) var(--ease);
 }
 
+/* ——— Reflexo que segue o cursor ———
+   As coordenadas (--gx, --gy) vêm de UM ouvinte global (core/useGlare.js) que
+   só escreve variáveis CSS: nada re-renderiza. Dentro, uma luz larga e suave;
+   na borda, um aro de luz mais vivo, recortado por máscara. */
+.card::after,
+.metric-strip > :not(.is-featured)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(520px circle at var(--gx, 50%) var(--gy, -60%), var(--glare), transparent 42%);
+  opacity: 0;
+  transition: opacity var(--dur-4) var(--ease);
+}
+.card::before,
+.metric-strip > :not(.is-featured)::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, -60%), var(--blue-300), transparent 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0;
+  transition: opacity var(--dur-4) var(--ease);
+}
+.card:hover::after, .card:hover::before,
+.metric-strip > :not(.is-featured):hover::after,
+.metric-strip > :not(.is-featured):hover::before { opacity: 1; }
+
 .card--tinted {
-  background: var(--blue-050);
+  background: linear-gradient(180deg, rgba(232, 242, 253, .92) 0%, rgba(232, 242, 253, .70) 100%);
   border-color: var(--blue-100);
 }
 
 .card--outline {
   background: transparent;
   box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .card--flush { padding: 0; overflow: hidden; }
-.card--flush > .card__header { padding: var(--s-5) var(--s-5) var(--s-4); }
-.card--flush > .card__footer { padding: var(--s-3) var(--s-5); }
+.card--flush > .card__header { padding: var(--s-6) var(--s-6) var(--s-4); }
+.card--flush > .card__footer { padding: var(--s-3) var(--s-6); }
 
 .card--raised { background: var(--surface-raised); box-shadow: var(--e-2); }
 
+/* Só o card que é clicável sobe: levantar um card parado prometeria um
+   clique que não existe. Todos reagem ao cursor com o reflexo. */
 .card.is-interactive { cursor: pointer; }
 .card.is-interactive:hover {
   transform: translateY(-2px);
-  box-shadow: var(--e-3);
-  border-color: var(--ink-a08);
+  box-shadow: var(--e-glass-hover);
 }
-.card.is-interactive:active { transform: translateY(0); }
+.card.is-interactive:active { transform: translateY(0) scale(.995); transition-duration: var(--dur-1); }
 
 /* ———————————————————————————— Cabeçalho ———————————————————————————— */
 
@@ -53,21 +97,37 @@
 
 .card__heading { min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
 
+/* Ícone do card num círculo de vidro branco (CreditPros, Dynamics 365). */
+.card__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-circle);
+  background: var(--surface-raised);
+  color: var(--ink-600);
+  box-shadow: inset 0 0 0 1px var(--ink-a06), var(--e-1);
+}
+.card__header:has(> .card__icon) { align-items: center; }
+.card__tools .icon-btn { background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--ink-a06), var(--e-1); }
+
 /* O título nunca fica espremido sobre abas ou botões: as ações descem para a linha de baixo quando não cabem ao lado. */
 .card__header { flex-wrap: wrap; row-gap: var(--s-3); }
 .card__heading { flex: 1 1 calc(var(--s-20) * 3); }
 .card__tools { flex-wrap: wrap; max-width: 100%; }
 
 .card__title {
-  font-size: var(--t-body);
+  font-size: calc(var(--t-body) + 3px);
   line-height: var(--lh-small);
   font-weight: var(--w-medium);
-  letter-spacing: 0;
-  color: var(--ink-900);
+  letter-spacing: -.01em;
+  color: var(--ink-950);
 }
 
 .card__subtitle {
   font-size: var(--t-caption);
+  line-height: 1.4;
   color: var(--ink-400);
 }
 
@@ -88,7 +148,7 @@
   gap: var(--s-3);
   margin-top: var(--s-4);
   padding-top: var(--s-3);
-  border-top: 1px solid var(--ink-a06);
+  border-top: 1px dashed var(--ink-a12);
 }
 
 /* ————————————————————————————— Métrica ————————————————————————————— */
@@ -122,9 +182,9 @@
 /* Sem valor: o traço tem a mesma tinta em KPI, tabela e prontuário. */
 .metric__value.metric__value--empty { color: var(--ink-400); }
 .metric__value {
-  font-size: var(--t-title);
-  line-height: var(--lh-title);
-  letter-spacing: var(--ls-title);
+  font-size: var(--t-h2);
+  line-height: 1.1;
+  letter-spacing: -.03em;
   font-weight: var(--w-light);
   color: var(--ink-950);
   display: flex;
@@ -186,7 +246,7 @@
 }
 .metric--sm .metric__value { font-size: var(--t-title); }
 
-.metric-strip .metric:not(.is-featured) .metric__value { font-size: var(--t-title); }
+.metric-strip .metric:not(.is-featured) .metric__value { font-size: var(--t-h2); }
 
 .metric--accent .metric__value { color: var(--blue-600); }
 /* Resultado negativo lê como perda, não como destaque: o azul é a cor de
@@ -196,124 +256,137 @@
 .metric--warning .metric__value,
 .metric.is-featured.metric--warning .metric__value { color: var(--signal-amber-ink); }
 
-/* ——————————————— Faixa de métricas com hairlines (REF 1) ——————————————— */
-
-/* Flex, não grid: a faixa recebe um número variável de métricas e a primeira
-   precisa ser mais larga que as demais. `repeat(auto-fit, minmax(0,1fr))` é
-   inválido — a faixa colapsava em pilha vertical. */
-.metric-strip {
+/* ——————————— Faixa de métricas: ladrilhos de vidro (Superpower) ———————————
+   Cada métrica é o seu próprio ladrilho, com vão entre eles; a métrica em
+   destaque vira o ladrilho em gradiente do humor do número. Flex, não grid:
+   a faixa recebe um número variável de métricas e o destaque é mais largo. */
+.metric-strip,
+.metric-strip--bento,
+.bento-strip > .metric-strip {
   display: flex;
-  gap: 0;
-  background: var(--surface);
-  border: 1px solid var(--ink-a06);
-  border-radius: var(--r-lg);
-  box-shadow: var(--e-1);
-  overflow: hidden;
+  gap: var(--s-4);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
-.metric-strip > * { flex: 1 1 0; }
-.metric-strip > .is-featured,
-.metric-strip:not(:has(> .is-featured)) > *:first-child { flex: 1.7 1 0; }
-
 .metric-strip > * {
-  padding: var(--s-5) var(--s-5);
-  border-left: 1px solid var(--ink-a06);
+  position: relative;
+  isolation: isolate;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
   /* Topo, não centro: com a nota de rodapé opcional, centralizar subia o
      número das métricas que a têm e desalinhava a linha de valores. */
   justify-content: flex-start;
-}
-.metric-strip > *:first-child { border-left: 0; }
-
-@media (max-width: 1080px) {
-  .metric-strip:not(.metric-strip--bento) { flex-wrap: wrap; }
-  .metric-strip:not(.metric-strip--bento) > *, .metric-strip:not(.metric-strip--bento) > *:first-child { flex: 1 1 50%; }
-  .metric-strip:not(.metric-strip--bento) > *:nth-child(odd) { border-left: 0; }
-  .metric-strip:not(.metric-strip--bento) > *:nth-child(n + 3) { border-top: 1px solid var(--ink-a06); }
-}
-
-/* ——————————————— Pílulas Bento Separadas (Visão Geral) ——————————————— */
-
-.metric-strip--bento,
-.bento-strip > .metric-strip {
-  display: flex;
-  gap: var(--gutter);
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  overflow: visible;
-}
-
-.metric-strip--bento > *,
-.bento-strip > .metric-strip > * {
-  flex: 1 1 0;
-  min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--ink-a06) !important;
+  padding: var(--s-5) var(--s-6) var(--s-6);
+  background: var(--card-glass);
+  border: 1px solid var(--card-glass-edge);
   border-radius: var(--r-lg);
-  box-shadow: var(--e-1);
-  padding: var(--s-5);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  transition: transform var(--dur-2) var(--ease),
-              box-shadow var(--dur-2) var(--ease),
-              border-color var(--dur-2) var(--ease);
+  box-shadow: var(--e-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  transition: transform var(--dur-3) var(--ease), box-shadow var(--dur-3) var(--ease);
+  animation: bento-in var(--dur-3) var(--ease) backwards;
 }
-
-.metric-strip--bento > *:hover,
-.bento-strip > .metric-strip > *:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--e-2);
-  border-color: var(--ink-a08);
-}
-
-.metric-strip--bento > .is-featured,
-.metric-strip--bento:not(:has(> .is-featured)) > *:first-child,
-.bento-strip > .metric-strip > .is-featured,
-.bento-strip > .metric-strip:not(:has(> .is-featured)) > *:first-child {
-  flex: 1.25 1 0;
-}
-
-.metric-strip--bento .metric,
-.bento-strip > .metric-strip .metric {
-  height: 100%;
-}
-
-.metric-strip--bento .metric__target,
-.bento-strip > .metric-strip .metric__target {
-  margin-top: auto;
-  padding-top: var(--s-2);
-}
+.metric-strip > :nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
+.metric-strip > :nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
+.metric-strip > :nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
+.metric-strip > :nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
+.metric-strip > .is-featured,
+.metric-strip:not(:has(> .is-featured)) > *:first-child { flex: 1.6 1 0; }
+/* O ladrilho estica com a fileira (altura automática); só a métrica dentro
+   de um invólucro (faixa do bento) ocupa 100% dele. */
+.metric-strip > .metric { align-self: stretch; }
+.metric-strip > :not(.metric) .metric { height: 100%; }
+.metric-strip .metric__target { margin-top: auto; padding-top: var(--s-2); }
 
 @media (max-width: 1080px) {
+  .metric-strip,
   .metric-strip--bento,
   .bento-strip > .metric-strip {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--gutter);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .metric-strip--bento > *,
-  .metric-strip--bento > *:first-child,
-  .metric-strip--bento > *:nth-child(odd),
-  .bento-strip > .metric-strip > *,
-  .bento-strip > .metric-strip > *:first-child,
-  .bento-strip > .metric-strip > *:nth-child(odd) {
-    flex: initial;
-    border: 1px solid var(--ink-a06) !important;
-  }
+  .metric-strip > .is-featured { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .metric-strip,
+  .metric-strip--bento,
+  .bento-strip > .metric-strip { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
 }
 
-@media (max-width: 640px) {
-  .metric-strip--bento,
-  .bento-strip > .metric-strip {
-    grid-template-columns: 1fr;
-    gap: var(--s-3);
-  }
+/* ——————————— Métrica em destaque: o ladrilho em gradiente ———————————
+   O tom profundo fica à esquerda e embaixo, onde mora o texto branco
+   (≥ 4,5:1 medido); o claro e o brilho ficam no canto oposto. Uma grade de
+   pontos esmaecida no canto superior direito é textura (Metria), não dado. */
+.metric.is-featured[data-mood] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--on-mood);
+  background: var(--mood-volume);
+  border: none;
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28), var(--e-2);
+  padding: var(--s-5) var(--s-6) var(--s-6);
 }
+.metric.is-featured[data-mood='positive']  { background: var(--mood-positive); }
+.metric.is-featured[data-mood='attention'] { background: var(--mood-attention); }
+.metric.is-featured[data-mood='clinical']  { background: var(--mood-clinical); }
+.metric-strip > .metric.is-featured[data-mood] { padding: var(--s-5) var(--s-6) var(--s-6); }
+.metric.is-featured[data-mood]::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto auto;
+  width: 62%;
+  height: 78%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--on-mood-faint) 1.3px, transparent 1.6px) 0 0 / 12px 12px;
+  -webkit-mask: radial-gradient(80% 80% at 100% 0%, #000 0%, transparent 72%);
+  mask: radial-gradient(80% 80% at 100% 0%, #000 0%, transparent 72%);
+}
+/* Reflexo do cursor desativado nos cards coloridos */
+.metric.is-featured[data-mood]::after {
+  display: none;
+}
+.metric.is-featured[data-mood] .metric__label,
+.metric.is-featured[data-mood] .metric__target,
+.metric.is-featured[data-mood] .metric__unit,
+.metric.is-featured[data-mood] .metric__suffix,
+.metric.is-featured[data-mood] .metric__denominator,
+.metric.is-featured[data-mood] .metric__empty { color: var(--on-mood-soft); }
+.metric.is-featured[data-mood] .metric__value,
+.metric.is-featured[data-mood].metric--danger .metric__value,
+.metric.is-featured[data-mood].metric--warning .metric__value,
+.metric.is-featured[data-mood].metric--accent .metric__value { color: var(--on-mood); }
+.metric.is-featured[data-mood] .metric__label { font-weight: var(--w-medium); }
+.metric.is-featured[data-mood] a,
+.metric.is-featured[data-mood] .link-button { color: var(--on-mood); text-decoration-color: var(--on-mood-soft); }
+/* Botão dentro do destaque: pílula de vidro branco (o "View Challenge" da Metria). */
+.metric.is-featured[data-mood] .btn--secondary,
+.metric.is-featured[data-mood] .btn--ghost {
+  background: rgba(255, 255, 255, .92);
+  border-color: transparent;
+  color: var(--ink-950);
+}
+.metric.is-featured[data-mood] .btn--secondary:hover:not(:disabled),
+.metric.is-featured[data-mood] .btn--ghost:hover:not(:disabled) { background: var(--surface-raised); }
+.metric.is-featured[data-mood] .delta,
+.metric.is-featured[data-mood] .chip {
+  background: rgba(255, 255, 255, .18);
+  color: var(--on-mood);
+  border-color: transparent;
+}
+/* O número em pontos: um pouco maior que o corpo do número comum, porque o
+   ponto ocupa menos tinta que o traço. */
+.metric.has-dots .metric__value { font-size: calc(var(--t-metric-lg) + 6px); align-items: flex-end; gap: var(--s-1); }
+.metric.has-dots .metric__unit,
+.metric.has-dots .metric__suffix { align-self: flex-end; padding-bottom: 2px; }
 
 /* ————————————————— Mini-card de métrica (REF 3) ————————————————— */
 
@@ -321,10 +394,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  padding: var(--s-4);
-  background: var(--surface);
-  border: 1px solid var(--ink-a06);
+  padding: var(--s-4) var(--s-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--card-glass-edge);
   border-radius: var(--r-md);
+  box-shadow: var(--e-1);
 }
 
 .mini-metric__label {
@@ -387,10 +461,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px; height: 44px;
+  width: 48px; height: 48px;
   border-radius: var(--r-circle);
-  background: var(--ink-a04);
-  color: var(--ink-300);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--ink-a06), var(--e-1);
+  color: var(--ink-400);
 }
 .empty--compact .empty__icon { width: 36px; height: 36px; }
 
@@ -424,10 +499,10 @@
    ao carregar — a mesma peça com duas aparências invertidas. */
 .skeleton--card {
   box-sizing: border-box; width: 100% !important;
-  background-color: var(--surface);
+  background-color: rgba(255, 255, 255, .7);
   background-image: linear-gradient(90deg, transparent 0%, var(--ink-a06) 50%, transparent 100%);
-  border: 1px solid var(--ink-a06);
-  box-shadow: var(--e-1);
+  border: 1px solid var(--card-glass-edge);
+  box-shadow: var(--e-glass);
 }
 
 @keyframes shimmer {

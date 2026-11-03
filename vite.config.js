@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    open: '/admin.html',
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

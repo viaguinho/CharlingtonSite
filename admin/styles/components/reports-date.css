@@ -1,0 +1,387 @@
+/* Painel de datas dos Relatórios (DateRangePopover). */
+
+/* ———————————————————————————————— Painel ———————————————————————————————— */
+
+.rp-date {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-popover);
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 20px;
+  color: var(--rp-ink);
+  font-family: var(--font);
+  background: var(--rp-glass-strong);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--rp-glass-edge);
+  border-radius: var(--rp-radius);
+  box-shadow: var(--rp-lift-shadow);
+  animation: rp-date-in 180ms var(--ease) backwards;
+}
+
+/* Sem suporte a vidro, o painel vira cartão fosco: o texto nunca fica sobre o fundo da tela. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .rp-date { background: var(--rp-card); }
+}
+
+@keyframes rp-date-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rp-date *,
+.rp-date *::before,
+.rp-date *::after { box-sizing: border-box; }
+
+:where(.rp-date) button {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rp-date__body {
+  display: grid;
+  grid-template-columns: 188px auto;
+  align-items: start;
+  gap: 28px;
+}
+
+/* ——————————————————————————————— Atalhos ——————————————————————————————— */
+
+.rp-date__presets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rp-date__preset {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--rp-ink-2);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+
+.rp-date__preset:hover { background: var(--rp-chip); color: var(--rp-ink); }
+
+.rp-date__preset.is-active,
+.rp-date__preset.is-active:hover {
+  background: var(--rp-ink);
+  color: var(--rp-accent-ink);
+}
+
+.rp-date__preset:active { transform: scale(.98); }
+
+.rp-date__preset:focus-visible { border-radius: 999px; }
+
+/* ——————————————————————————————— Calendário ——————————————————————————————— */
+
+.rp-date__months {
+  display: flex;
+  gap: 32px;
+}
+
+.rp-date__month {
+  width: 280px;
+}
+
+.rp-date__month-head {
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  align-items: center;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+.rp-date__month-title {
+  color: var(--rp-ink);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+}
+
+.rp-date__nav {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--rp-ink-2);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+
+.rp-date__nav:hover { background: var(--rp-chip); color: var(--rp-ink); }
+.rp-date__nav:active { transform: scale(.94); }
+.rp-date__nav:focus-visible { border-radius: 50%; }
+
+.rp-date__nav[aria-disabled='true'] {
+  color: var(--rp-muted);
+  opacity: .4;
+  cursor: default;
+}
+
+.rp-date__nav[aria-disabled='true']:hover { background: transparent; }
+.rp-date__nav[aria-disabled='true']:active { transform: none; }
+
+.rp-date__weekdays,
+.rp-date__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.rp-date__weekday {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  color: var(--rp-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .02em;
+}
+
+.rp-date__week { height: 40px; margin-top: 4px; }
+
+.rp-date__blank { display: block; }
+
+/* ————————————————————————————————— Dias ————————————————————————————————— */
+
+.rp-date__day {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* A faixa do intervalo mora atrás do número: assim ela emenda de célula em célula. */
+.rp-date__day.is-band::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--rp-chip);
+}
+
+.rp-date__day.is-band-start::before { left: 50%; }
+.rp-date__day.is-band-end::before { right: 50%; }
+
+.rp-date__day.is-band.is-row-start:not(.is-band-start)::before {
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+.rp-date__day.is-band.is-row-end:not(.is-band-end)::before {
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+.rp-date__dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: min(40px, 100%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  color: var(--rp-ink);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+.rp-date__day:hover:not(.is-edge):not(.is-disabled) .rp-date__dot { background: var(--rp-bar); }
+
+.rp-date__day.is-today .rp-date__dot {
+  box-shadow: inset 0 0 0 1.5px var(--rp-accent);
+  font-weight: 700;
+}
+
+.rp-date__day.is-edge .rp-date__dot {
+  background: var(--rp-ink);
+  color: var(--rp-accent-ink);
+}
+
+.rp-date__day.is-disabled {
+  cursor: not-allowed;
+}
+
+.rp-date__day.is-disabled .rp-date__dot {
+  color: var(--rp-muted);
+  opacity: .45;
+}
+
+/* O anel de foco acompanha o círculo, não a célula quadrada. */
+.rp-date__day:focus-visible { outline: none; }
+
+.rp-date__day:focus-visible .rp-date__dot {
+  outline: 2px solid var(--rp-accent);
+  outline-offset: 2px;
+}
+
+/* ———————————————————————————————— Rodapé ———————————————————————————————— */
+
+.rp-date__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rp-chip);
+}
+
+.rp-date__summary {
+  min-width: 0;
+  margin: 0;
+  color: var(--rp-ink-2);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.rp-date__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.rp-date__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+
+.rp-date__btn:active { transform: scale(.97); }
+.rp-date__btn:focus-visible { border-radius: 999px; }
+
+.rp-date__btn--ghost {
+  background: transparent;
+  color: var(--rp-ink-2);
+}
+
+.rp-date__btn--ghost:hover { background: var(--rp-chip); color: var(--rp-ink); }
+
+.rp-date__btn--primary {
+  background: var(--rp-ink);
+  color: var(--rp-accent-ink);
+}
+
+.rp-date__btn--primary:hover { background: var(--rp-ink-2); }
+
+/* Só para leitor de tela: avisa o início escolhido e o período aplicado. */
+.rp-date__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ——————————————————————————————— Celular ——————————————————————————————— */
+
+@media (max-width: 639px) {
+  .rp-date {
+    width: calc(100vw - 32px);
+    padding: 16px;
+  }
+
+  .rp-date__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .rp-date__presets {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .rp-date__preset {
+    width: auto;
+    padding: 0 14px;
+    background: var(--rp-chip);
+  }
+
+  .rp-date__preset.is-active,
+  .rp-date__preset.is-active:hover { background: var(--rp-ink); }
+
+  .rp-date__months { display: block; }
+
+  .rp-date__month { width: 100%; }
+
+  .rp-date__month-head { grid-template-columns: 40px 1fr 40px; }
+
+  .rp-date__nav { width: 40px; height: 40px; }
+
+  .rp-date__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rp-date__actions { width: 100%; }
+  .rp-date__btn { flex: 1; }
+}
+
+/* ——————————————————————————— Movimento reduzido ——————————————————————————— */
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-date { animation: none; }
+
+  .rp-date__preset,
+  .rp-date__nav,
+  .rp-date__dot,
+  .rp-date__btn { transition: none; }
+
+  .rp-date__preset:active,
+  .rp-date__nav:active,
+  .rp-date__btn:active { transform: none; }
+}
+
+/* Alto contraste: as pontas do intervalo perdem a cor de fundo, então ganham contorno. */
+@media (forced-colors: active) {
+  .rp-date__day.is-edge .rp-date__dot { outline: 2px solid CanvasText; }
+  .rp-date__preset.is-active { outline: 2px solid CanvasText; }
+}

@@ -18,6 +18,8 @@ import { ROLES, canRead, canWrite, canManage, needsStepUp, visibleModules } from
  * fica visível para o acompanhante enquanto o médico atende a criança.
  */
 
+const ENABLE_SESSION_LOCK = false; // Flag para bloquear sessão por inatividade (desativada a pedido do usuário)
+
 const IDLE_TIMEOUT = 15 * 60 * 1000;
 const IDLE_WARNING = 13 * 60 * 1000;
 const ABSOLUTE_TIMEOUT = 8 * 60 * 60 * 1000;
@@ -58,6 +60,7 @@ export function SessionProvider({ children }) {
 
   useEffect(() => {
     if (status !== 'active') return undefined;
+    if (!ENABLE_SESSION_LOCK) return undefined;
 
     const schedule = () => {
       clearTimeout(timers.current.warn);

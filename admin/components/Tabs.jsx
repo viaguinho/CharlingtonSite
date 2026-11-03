@@ -1,4 +1,6 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
+import { withViewTransition } from '../core/viewTransition.js';
 
 /**
  * Três gramáticas de aba, cada uma com um papel distinto:
@@ -8,9 +10,47 @@ import Icon from './Icon.jsx';
  *  segment   — alternância de modo de visualização, ex.: dia/semana/mês
  */
 
+/**
+ * Indicador deslizante: a pílula (ou o sublinhado) da aba ativa é UM elemento
+ * que anda até a aba escolhida, como o seletor segmentado do iOS. Mede a aba
+ * ativa no layout e acompanha mudanças de tamanho. Até a primeira medida, a
+ * aba ativa pinta o próprio fundo (sem salto na montagem).
+ */
+function useThumb(ref, value, count) {
+  const [thumb, setThumb] = useState(null);
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return undefined;
+    const measure = () => {
+      const el = root.querySelector('.tabs__item.is-active');
+      setThumb(el ? { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight } : null);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    root.querySelectorAll('.tabs__item').forEach((el) => ro.observe(el));
+    return () => ro.disconnect();
+  }, [ref, value, count]);
+  return thumb;
+}
+
 export function Tabs({ items = [], value, onChange, variant = 'pill', className = '', ariaLabel = 'Abas' }) {
+  const ref = useRef(null);
+  const thumb = useThumb(ref, value, items.length);
   return (
-    <div className={`tabs tabs--${variant} ${className}`.trim()} role="tablist" aria-label={ariaLabel}>
+    <div
+      ref={ref}
+      className={`tabs tabs--${variant} ${thumb ? 'has-thumb' : ''} ${className}`.replace(/\s+/g, ' ').trim()}
+      role="tablist"
+      aria-label={ariaLabel}
+    >
+      {thumb ? (
+        <span
+          className="tabs__thumb"
+          aria-hidden="true"
+          style={{ width: thumb.w, height: thumb.h, transform: `translate(${thumb.x}px, ${thumb.y}px)` }}
+        />
+      ) : null}
       {items.map((item) => {
         const active = item.value === value;
         return (
@@ -51,7 +91,9 @@ export function PeriodTabs({ value, onChange, caption }) {
       <Tabs
         items={PERIOD_OPTIONS.map((o) => ({ ...o, label: PERIOD_LABELS[o.value] ?? o.label }))}
         value={value}
-        onChange={onChange}
+        // Trocar o período troca todos os números da tela: um cruzamento curto
+        // (View Transition) diz "mesma tela, outro recorte".
+        onChange={(next) => withViewTransition(() => onChange?.(next))}
         variant="underline"
         ariaLabel="Período"
       />
@@ -76,12 +118,8 @@ export function IndexList({ items = [], value, onChange }) {
             >
               <span className="index-list__num num">{String(i + 1).padStart(2, '0')}</span>
               <span className="index-list__label">{item.label}</span>
-              {item.count != null ? (
-                // Contagem de pendência é escrita por extenso numa segunda linha:
-                // um "9" solto ao lado de "Documentos" se lia como 9 emitidos.
-                typeof item.count === 'object'
-                  ? <span className={`index-list__pending index-list__pending--${item.count.tone}`}>{item.count.hint}</span>
-                  : <span className="index-list__count num">{item.count}</span>
+              {item.count != null && typeof item.count === 'object' ? (
+                <span className={`index-list__pending index-list__pending--${item.count.tone}`}>{item.count.hint}</span>
               ) : null}
             </button>
           </li>

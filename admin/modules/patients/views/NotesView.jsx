@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../../data/repository.js';
-import { STORES, newNote } from '../../../data/schema.js';
+import { STORES, newNote, APPOINTMENT_TYPE_LABELS } from '../../../data/schema.js';
 import { useSession } from '../../../core/session.jsx';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, Chip, IconButton, CidCode } from '../../../components/primitives.jsx';
 import { TextArea, Combobox, TextField } from '../../../components/Field.jsx';
 import { Modal, ConfirmDialog, useToast } from '../../../components/Overlay.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import Icon from '../../../components/Icon.jsx';
-import { dateTime, relative } from '../../../core/format.js';
+import { dateTime, relative, timeOf } from '../../../core/format.js';
 import { CID10 } from '../../../data/cid10.js';
 
 /**
@@ -18,16 +19,32 @@ import { CID10 } from '../../../data/cid10.js';
  * original permanece visível. Prontuário que se edita em silêncio não serve
  * como prova nem para o médico nem para a família.
  */
-export function NotesView({ patient, notes, appointments, reload }) {
+// 150 evoluções montadas de uma vez custavam mais de meio segundo: as mais recentes primeiro, o resto sob pedido.
+const PAGE = 30;
+
+// Memoizada: o relógio do prontuário (60 s) não refaz a lista.
+export const NotesView = memo(function NotesView({ patient, notes, appointments, reload, intent = null }) {
   const { can } = useSession();
+  const [limit, setLimit] = useState(PAGE);
+  // "Mostrar mais" leva o foco à primeira evolução nova: o botão pula para o fim da lista.
+  const pendingFocus = useRef(null);
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    const el = document.getElementById(pendingFocus.current);
+    pendingFocus.current = null;
+    if (el) { el.tabIndex = -1; el.focus(); }
+  }, [limit]);
   const [composing, setComposing] = useState(false);
+  // Vindo de "Registrar primeira evolução" fora do painel: o formulário já abre.
+  useEffect(() => { if (intent?.create) setComposing(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const [addendumFor, setAddendumFor] = useState(null);
   const [signing, setSigning] = useState(null);
 
   const ordered = useMemo(
-    () => [...notes].sort((a, b) => (b.assinadaEm ?? b.criadoEm).localeCompare(a.assinadaEm ?? a.criadoEm)),
+    () => [...notes].sort((a, b) => (timeOf(b.assinadaEm ?? b.criadoEm) ?? 0) - (timeOf(a.assinadaEm ?? a.criadoEm) ?? 0)),
     [notes],
   );
+  const visitById = useMemo(() => new Map(appointments.map((a) => [a.id, a])), [appointments]);
 
   if (!can.read('patients.clinical')) {
     return (
@@ -46,18 +63,23 @@ export function NotesView({ patient, notes, appointments, reload }) {
       <Card variant="flush">
         <CardHeader
           title="Evoluções clínicas"
-          subtitle={ordered.length ? `${ordered.length} registros` : undefined}
+          subtitle={ordered.length ? `${ordered.length} ${ordered.length === 1 ? 'registro' : 'registros'}` : undefined}
           actions={<Button size="sm" variant="primary" icon="plus" onClick={() => setComposing(true)}>Nova evolução</Button>}
         />
         <CardBody>
           {ordered.length ? (
             <ol className="notes">
-              {ordered.map((note) => (
-                <li key={note.id} className={`note ${note.travada ? 'is-locked' : 'is-draft'}`}>
+              {ordered.slice(0, limit).map((note) => (
+                <li key={note.id} id={`note-${note.id}`} className={`note ${note.travada ? 'is-locked' : 'is-draft'}`}>
                   <header className="note__head">
                     <div className="note__meta">
                       <strong>{note.travada ? 'Evolução assinada' : 'Rascunho'}</strong>
-                      <span>{dateTime(note.assinadaEm ?? note.criadoEm)} · {relative(note.assinadaEm ?? note.criadoEm)}</span>
+                      {/* A data que importa ao médico é a da consulta; a assinatura é outro fato. */}
+                      {visitById.get(note.atendimentoId) ? (
+                        <span>Consulta de {dateTime(visitById.get(note.atendimentoId).inicio)} · {note.travada ? 'assinada' : 'criada'} em {dateTime(note.assinadaEm ?? note.criadoEm)} · {relative(note.assinadaEm ?? note.criadoEm)}</span>
+                      ) : (
+                        <span>{dateTime(note.assinadaEm ?? note.criadoEm)} · {relative(note.assinadaEm ?? note.criadoEm)}</span>
+                      )}
                     </div>
                     {note.cidPrincipal ? <CidCode code={note.cidPrincipal} /> : null}
                     {note.travada ? (
@@ -82,7 +104,7 @@ export function NotesView({ patient, notes, appointments, reload }) {
                         <div key={index} className="note__addendum">
                           <span className="note__addendum-head">
                             <Icon name="edit" size={12} />
-                            Adendo · {dateTime(addendum.em)}
+                            Adendo · {dateTime(addendum.em)}{addendum.por ? ` · ${addendum.por}` : ''}
                           </span>
                           <p>{addendum.texto}</p>
                         </div>
@@ -97,6 +119,17 @@ export function NotesView({ patient, notes, appointments, reload }) {
                   ) : null}
                 </li>
               ))}
+              {ordered.length > limit ? (
+                <li className="notes__more">
+                  <Button size="sm" onClick={() => {
+                    const next = ordered[limit];
+                    pendingFocus.current = next ? `note-${next.id}` : null;
+                    setLimit(limit + PAGE);
+                  }}>
+                    Mostrar mais {Math.min(PAGE, ordered.length - limit)} de {ordered.length - limit} evoluções anteriores
+                  </Button>
+                </li>
+              ) : null}
             </ol>
           ) : (
             <EmptyState
@@ -119,18 +152,20 @@ export function NotesView({ patient, notes, appointments, reload }) {
 
       <AddendumDialog
         note={addendumFor}
+        patient={patient}
         onClose={() => setAddendumFor(null)}
         onSaved={() => { setAddendumFor(null); reload(); }}
       />
 
       <SignDialog
         note={signing}
+        patient={patient}
         onClose={() => setSigning(null)}
         onSigned={() => { setSigning(null); reload(); }}
       />
     </>
   );
-}
+});
 
 function SoapBlock({ letter, label, text }) {
   if (!text?.trim()) return null;
@@ -152,6 +187,7 @@ function NoteComposer({ open, patient, appointments, onClose, onSaved }) {
   const toast = useToast();
   const [draft, setDraft] = useState(() => newNote({ praca: plaza, userId: user?.id }));
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   const set = (field) => (event) => {
     const value = event?.target ? event.target.value : event;
@@ -171,6 +207,8 @@ function NoteComposer({ open, patient, appointments, onClose, onSaved }) {
       toast.error('Preencha ao menos um campo da evolução.');
       return;
     }
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       const payload = { ...draft, pacienteId: patient.id };
@@ -186,6 +224,7 @@ function NoteComposer({ open, patient, appointments, onClose, onSaved }) {
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -206,6 +245,7 @@ function NoteComposer({ open, patient, appointments, onClose, onSaved }) {
       }
     >
       <div className="note-form">
+        <AllergyNotice patient={patient} typed={draft.plano ?? ''} hint="Confirme com o responsável antes de prescrever no plano." />
         {recent.length ? (
           <Combobox
             label="Vincular ao atendimento"
@@ -213,7 +253,7 @@ function NoteComposer({ open, patient, appointments, onClose, onSaved }) {
             onChange={(value) => setDraft((d) => ({ ...d, atendimentoId: value }))}
             options={recent.map((a) => ({
               value: a.id,
-              label: dateTime(a.inicio),
+              label: `${dateTime(a.inicio)} · ${APPOINTMENT_TYPE_LABELS[a.tipo] ?? 'Consulta'}`,
               hint: a.observacoes,
             }))}
             placeholder="Selecione a consulta correspondente"
@@ -256,27 +296,29 @@ function NoteComposer({ open, patient, appointments, onClose, onSaved }) {
 
 /* ═══════════════════════════ Adendo ═══════════════════════════ */
 
-function AddendumDialog({ note, onClose, onSaved }) {
+function AddendumDialog({ note, patient, onClose, onSaved }) {
   const toast = useToast();
+  const { user } = useSession();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   async function submit() {
     if (!text.trim()) { toast.error('Escreva o texto do adendo.'); return; }
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       // A evolução está travada para edição comum; o adendo é a única
       // alteração permitida, e ele acrescenta sem apagar nada.
-      const existing = await repo.get(STORES.NOTES, note.id, { silent: true });
-      const adendos = [...(existing.adendos ?? []), { texto: text.trim(), em: new Date().toISOString() }];
-      await repo.update(STORES.NOTES, note.id, { adendos, travada: false });
-      await repo.update(STORES.NOTES, note.id, { travada: true });
+      await repo.appendAddendum(STORES.NOTES, note.id, { texto: text.trim(), em: new Date().toISOString(), por: user?.nome ?? null });
       toast.success('Adendo registrado.');
       setText('');
       onSaved();
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -295,6 +337,8 @@ function AddendumDialog({ note, onClose, onSaved }) {
         </>
       }
     >
+      {/* O modal cobre as pílulas de alerta: a alergia vem junto, e acusa o que se digita. */}
+      <AllergyNotice patient={patient} typed={text} hint="Confirme com o responsável antes de registrar conduta." />
       <TextArea
         label="Texto do adendo" rows={5} autoFocus
         value={text} onChange={(e) => setText(e.target.value)}
@@ -305,12 +349,15 @@ function AddendumDialog({ note, onClose, onSaved }) {
 
 /* ═══════════════════════════ Assinatura ═══════════════════════════ */
 
-function SignDialog({ note, onClose, onSigned }) {
+function SignDialog({ note, patient, onClose, onSigned }) {
   const { user, requireStepUp } = useSession();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   async function confirm() {
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await requireStepUp('documents.issue', 'Assinar uma evolução a torna imutável.');
@@ -324,6 +371,7 @@ function SignDialog({ note, onClose, onSigned }) {
     } catch (error) {
       if (error.message !== 'Ação cancelada.') toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -336,6 +384,8 @@ function SignDialog({ note, onClose, onSigned }) {
       loading={busy}
       tone="primary"
       title="Assinar esta evolução?"
+      // Assinar trava a conduta: o rascunho pode ser anterior ao registro da alergia.
+      notice={<AllergyNotice patient={patient} typed={`${note?.plano ?? ''} ${note?.avaliacao ?? ''}`} hint="Confirme com o responsável antes de assinar a conduta." />}
       message="Depois de assinada, a evolução não pode mais ser editada. Correções só podem ser feitas por adendo, que fica registrado com data própria."
       confirmLabel="Assinar e travar"
     />

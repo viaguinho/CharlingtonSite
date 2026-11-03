@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
 import { SCALES, SCALE_DOMAIN_LABELS, findScale, interpretScore, scalesForAge } from '../../../data/scales.js';
@@ -7,9 +7,10 @@ import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card
 import { Button, Chip } from '../../../components/primitives.jsx';
 import { Select, TextField, TextArea, FieldRow } from '../../../components/Field.jsx';
 import { Modal, useToast } from '../../../components/Overlay.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
 import { RulerScale, LineChart } from '../../../charts/index.jsx';
 import Icon from '../../../components/Icon.jsx';
-import { date, relative, age, isoDay } from '../../../core/format.js';
+import { date, relative, age, isoDay, timeOf } from '../../../core/format.js';
 
 /**
  * Escalas e instrumentos.
@@ -19,9 +20,12 @@ import { date, relative, age, isoDay } from '../../../core/format.js';
  * (linha). Um escore isolado diz pouco; o que importa em neuropediatria é a
  * trajetória.
  */
-export function ScalesView({ patient, scales, reload }) {
+export function ScalesView({ patient, scales, reload, intent = null }) {
   const [applying, setApplying] = useState(false);
   const [instrument, setInstrument] = useState(null);
+
+  // "Aplicar escala" da visão geral chega aqui pedindo o formulário aberto.
+  useEffect(() => { if (intent?.create) setApplying(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const byInstrument = useMemo(() => {
     const map = new Map();
@@ -30,7 +34,7 @@ export function ScalesView({ patient, scales, reload }) {
       map.get(record.instrumentoId).push(record);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => (a.aplicadaEm ?? '').localeCompare(b.aplicadaEm ?? ''));
+      list.sort((a, b) => (timeOf(a.aplicadaEm) ?? -Infinity) - (timeOf(b.aplicadaEm) ?? -Infinity));
     }
     return map;
   }, [scales]);
@@ -43,7 +47,7 @@ export function ScalesView({ patient, scales, reload }) {
       <Card variant="flush">
         <CardHeader
           title="Escalas e instrumentos"
-          subtitle={scales.length ? `${byInstrument.size} instrumentos aplicados` : undefined}
+          subtitle={scales.length ? `${byInstrument.size} ${byInstrument.size === 1 ? 'instrumento aplicado' : 'instrumentos aplicados'}` : undefined}
           actions={<Button size="sm" variant="primary" icon="plus" onClick={() => setApplying(true)}>Registrar aplicação</Button>}
         />
         <CardBody>
@@ -53,7 +57,31 @@ export function ScalesView({ patient, scales, reload }) {
                 const scale = findScale(id);
                 const latest = applications[applications.length - 1];
                 const band = interpretScore(id, latest.escore);
-                if (!scale) return null;
+                if (!scale) {
+                  // Instrumento que o catálogo não conhece (renomeado, removido ou importado): o painel mostra o que foi gravado.
+                  return (
+                    <article key={id} className="scale-card">
+                      <header className="scale-card__head">
+                        <div>
+                          <h4>{latest.instrumento || 'Instrumento fora do catálogo'}</h4>
+                          <p>{applications.length} {applications.length === 1 ? 'aplicação' : 'aplicações'} · fora do catálogo</p>
+                        </div>
+                        <div className="scale-card__score">
+                          <span className="scale-card__value num">{latest.escore ?? '—'}</span>
+                        </div>
+                      </header>
+                      {latest.interpretacao ? (
+                        <p className="scale-card__conduct">
+                          <Icon name="info" size={13} />
+                          {latest.interpretacao}{latest.risco ? ` · risco ${latest.risco}` : ''}
+                        </p>
+                      ) : null}
+                      <footer className="scale-card__foot">
+                        <span>Aplicada {relative(latest.aplicadaEm)} · {latest.aplicadaPorNome || 'profissional não informado'}</span>
+                      </footer>
+                    </article>
+                  );
+                }
 
                 return (
                   <article key={id} className="scale-card">
@@ -141,6 +169,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
   const [appliedAt, setAppliedAt] = useState(isoDay());
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   const scale = findScale(scaleId);
   const band = scale && score !== '' ? interpretScore(scaleId, Number(score)) : null;
@@ -152,7 +181,11 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
       toast.error(`O escore de ${scale.nome} vai de ${scale.escoreMin} a ${scale.escoreMax}.`);
       return;
     }
+    // Aplicação de uma data que ainda não chegou viraria "o escore atual" do card.
+    if (!appliedAt || appliedAt > isoDay()) { toast.error('A data da aplicação não pode ser futura.'); return; }
 
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await repo.create(STORES.SCALES, {
@@ -173,6 +206,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -197,6 +231,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
       }
     >
       <div className="scale-form">
+        <AllergyNotice patient={patient} />
         <Select
           label="Instrumento" required value={scaleId}
           onChange={(e) => { setScaleId(e.target.value); setScore(''); }}
@@ -229,7 +264,7 @@ function ApplyScaleModal({ open, patient, preselected, suggested, onClose, onSav
                 value={score} onChange={(e) => setScore(e.target.value)}
               />
               <TextField
-                label="Data de aplicação" type="date" required
+                label="Data de aplicação" type="date" required max={isoDay()}
                 value={appliedAt} onChange={(e) => setAppliedAt(e.target.value)}
               />
             </FieldRow>

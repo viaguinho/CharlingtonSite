@@ -202,7 +202,9 @@ export function Combobox({
             placeholder={selected ? selected.label : placeholder}
             value={query}
             onChange={(e) => { setQuery(e.target.value); setOpen(true); setHighlighted(0); }}
-            onFocus={() => setOpen(true)}
+            // Abre ao clicar, digitar ou com a seta; não ao receber foco: o foco automático de um diálogo
+            // abria a lista sozinha e cobria o campo seguinte.
+            onClick={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 140)}
             onKeyDown={onKeyDown}
           />

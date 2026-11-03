@@ -251,7 +251,7 @@ export const CONSENT_PURPOSE_LABELS = {
  */
 export const LEGAL_BASIS = {
   HEALTH_PROTECTION: { id: 'tutela_saude', label: 'Tutela da saúde (art. 11, II, "f")', requiresConsent: false },
-  GUARDIAN_CONSENT: { id: 'consentimento_responsavel', label: 'Consentimento do responsável (art. 14, §1º)', requiresConsent: true },
+  GUARDIAN_CONSENT: { id: 'consentimento_responsavel', label: 'Consentimento do responsável (art. 14, § 1º)', requiresConsent: true },
   LEGAL_OBLIGATION: { id: 'obrigacao_legal', label: 'Obrigação legal ou regulatória (art. 7º, II)', requiresConsent: false },
   CONTRACT: { id: 'execucao_contrato', label: 'Execução de contrato (art. 7º, V)', requiresConsent: false },
 };

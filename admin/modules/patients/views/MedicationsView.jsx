@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
@@ -6,6 +6,9 @@ import { Button, IconButton } from '../../../components/primitives.jsx';
 import { TextField, TextArea, FieldRow } from '../../../components/Field.jsx';
 import { Modal, useToast } from '../../../components/Overlay.jsx';
 import Icon from '../../../components/Icon.jsx';
+import { AllergyNotice } from '../record/AllergyNotice.jsx';
+import { medicationLabel } from '../record/medicationLabel.js';
+import { allergyConflict, declaredAllergies } from '../record/allergyConflict.js';
 import { date, relative, isoDay } from '../../../core/format.js';
 
 /**
@@ -16,9 +19,12 @@ import { date, relative, isoDay } from '../../../core/format.js';
  * sistema de suporte à decisão: avisa, não bloqueia, e a responsabilidade
  * clínica continua sendo do médico.
  */
-export function MedicationsView({ patient, medications, reload }) {
+export function MedicationsView({ patient, medications, reload, intent = null }) {
   const [composing, setComposing] = useState(false);
   const [suspending, setSuspending] = useState(null);
+
+  // Vindo de "Registrar medicação" fora do painel: o formulário já abre.
+  useEffect(() => { if (intent?.create) setComposing(true); }, [intent?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { active, past } = useMemo(() => ({
     active: medications
@@ -29,12 +35,8 @@ export function MedicationsView({ patient, medications, reload }) {
       .sort((a, b) => (b.suspensaEm ?? '').localeCompare(a.suspensaEm ?? '')),
   }), [medications]);
 
-  const allergies = patient.clinico?.alergias ?? [];
+  const allergies = declaredAllergies(patient.clinico?.alergias ?? []);
 
-  function allergyConflict(medication) {
-    const needle = `${medication.principioAtivo ?? ''} ${medication.nome ?? ''}`.toLowerCase();
-    return allergies.filter((a) => needle.includes(String(a).toLowerCase().trim()) && String(a).trim().length > 2);
-  }
 
   return (
     <>
@@ -52,13 +54,13 @@ export function MedicationsView({ patient, medications, reload }) {
                 {active.length ? (
                   <ul className="meds__list">
                     {active.map((medication) => {
-                      const conflicts = allergyConflict(medication);
+                      const conflicts = allergyConflict(medication, allergies);
                       return (
                         <li key={medication.id} className={`med ${conflicts.length ? 'has-conflict' : ''}`}>
                           <span className="med__icon"><Icon name="pill" size={15} /></span>
                           <div className="med__text">
-                            <strong>{medication.principioAtivo || medication.nome}</strong>
-                            <span>{medication.concentracao} · {medication.posologia}</span>
+                            <strong>{medicationLabel(medication)}</strong>
+                            <span>{[medication.concentracao, medication.posologia].filter(Boolean).join(' · ')}</span>
                             <span className="med__since">Desde {date(medication.iniciadaEm)} · {relative(medication.iniciadaEm)}</span>
                             {conflicts.length ? (
                               <span className="med__conflict">
@@ -67,7 +69,7 @@ export function MedicationsView({ patient, medications, reload }) {
                               </span>
                             ) : null}
                           </div>
-                          <IconButton name="minus" label="Suspender" onClick={() => setSuspending(medication)} />
+                          <IconButton name="minus" label={`Suspender ${medication.principioAtivo || medication.nome}`} onClick={() => setSuspending(medication)} />
                         </li>
                       );
                     })}
@@ -102,7 +104,7 @@ export function MedicationsView({ patient, medications, reload }) {
             <EmptyState
               icon="pill"
               title="Nenhuma medicação registrada"
-              description="Registre o que a criança usa para que apareça no painel de contexto durante a consulta e nas prescrições."
+              description="Confirme com o responsável antes de prescrever. O que for registrado aqui aparece na visão geral do prontuário e nas prescrições."
               action={<Button size="sm" icon="plus" onClick={() => setComposing(true)}>Registrar medicação</Button>}
             />
           )}
@@ -118,6 +120,7 @@ export function MedicationsView({ patient, medications, reload }) {
 
       <SuspendDialog
         medication={suspending}
+        patient={patient}
         onClose={() => setSuspending(null)}
         onSaved={() => { setSuspending(null); reload(); }}
       />
@@ -129,6 +132,7 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState(blank());
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   function blank() {
     return {
@@ -145,7 +149,11 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
       return;
     }
     if (!form.posologia.trim()) { toast.error('Informe a posologia.'); return; }
+    // Início no futuro entraria em "Medicações em uso" hoje. Como a suspensão e as escalas, recusa.
+    if (form.iniciadaEm && form.iniciadaEm > isoDay()) { toast.error('A data de início do uso não pode ser futura.'); return; }
 
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await repo.create(STORES.MEDICATIONS, { ...form, pacienteId: patient.id });
@@ -155,6 +163,7 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -173,13 +182,14 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
       }
     >
       <div className="med-form">
+        <AllergyNotice patient={patient} typed={`${form.principioAtivo} ${form.nome} ${form.concentracao} ${form.posologia} ${form.observacoes}`} hint="Confirme com o responsável antes de prescrever." />
         <FieldRow>
           <TextField label="Princípio ativo" required autoFocus value={form.principioAtivo} onChange={set('principioAtivo')} />
           <TextField label="Nome comercial" value={form.nome} onChange={set('nome')} />
         </FieldRow>
         <FieldRow>
           <TextField label="Concentração" placeholder="Ex.: 1 mg/mL" value={form.concentracao} onChange={set('concentracao')} />
-          <TextField label="Início do uso" type="date" value={form.iniciadaEm} onChange={set('iniciadaEm')} />
+          <TextField label="Início do uso" type="date" value={form.iniciadaEm} max={isoDay()} onChange={set('iniciadaEm')} />
         </FieldRow>
         <TextField
           label="Posologia" required
@@ -192,24 +202,35 @@ function MedicationForm({ open, patient, onClose, onSaved }) {
   );
 }
 
-function SuspendDialog({ medication, onClose, onSaved }) {
+function SuspendDialog({ medication, patient, onClose, onSaved }) {
   const toast = useToast();
   const [reason, setReason] = useState('');
+  const [since, setSince] = useState(isoDay());
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
 
   async function confirm() {
+    // Sem motivo e sem data a suspensão não explica nada a quem lê o histórico depois.
+    if (!reason.trim()) { toast.error('Informe o motivo da suspensão.'); return; }
+    if (!since || since > isoDay()) { toast.error('A data da suspensão não pode ser futura.'); return; }
+    if (medication.iniciadaEm && since < medication.iniciadaEm.slice(0, 10)) { toast.error('A suspensão não pode ser anterior ao início do uso.'); return; }
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       await repo.update(STORES.MEDICATIONS, medication.id, {
-        suspensaEm: new Date().toISOString(),
-        motivoSuspensao: reason.trim() || null,
-      });
+        // Hoje vale o instante; um dia passado vale o meio-dia daquele dia.
+        suspensaEm: since === isoDay() ? new Date().toISOString() : `${since}T12:00:00`,
+        motivoSuspensao: reason.trim(),
+      }, { auditDetail: `Suspensão de ${medication.principioAtivo || medication.nome}: ${reason.trim()}` });
       toast.success('Medicação suspensa. O registro permanece no histórico.');
       setReason('');
+      setSince(isoDay());
       onSaved();
     } catch (error) {
       toast.error(error.message);
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -228,12 +249,14 @@ function SuspendDialog({ medication, onClose, onSaved }) {
         </>
       }
     >
+      <AllergyNotice patient={patient} />
       <TextField
-        label="Motivo da suspensão"
+        label="Motivo da suspensão *"
         placeholder="Ex.: efeito adverso, troca de esquema, alta"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
       />
+      <TextField label="Data da suspensão" type="date" value={since} max={isoDay()} onChange={(e) => setSince(e.target.value)} />
     </Modal>
   );
 }
