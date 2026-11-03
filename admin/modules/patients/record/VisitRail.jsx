@@ -128,7 +128,7 @@ export function VisitRail({ appointments, onOpen, unreadable = false, onSchedule
         {from > 0 ? (
           <li className="pr-rail__item">
             <button type="button" className="pr-visit pr-visit--more" onClick={() => { widthBefore.current = scroller.current?.scrollWidth ?? 0; focusAdded.current = Math.min(WINDOW, from); setMore((m) => ({ ...m, before: m.before + WINDOW })); }}
-              tabIndex={-1} aria-label={`Mostrar mais ${Math.min(WINDOW, from)} consultas anteriores (${from} ao todo)`}>
+              tabIndex={-1} aria-label={`Mostrar mais ${Math.min(WINDOW, from)} ${Math.min(WINDOW, from) === 1 ? 'consulta anterior' : 'consultas anteriores'} (${from} ao todo)`}>
               <span className="pr-visit__date num">Anteriores</span>
               <span className="pr-visit__status">+{from}</span>
             </button>
@@ -163,7 +163,7 @@ export function VisitRail({ appointments, onOpen, unreadable = false, onSchedule
         {to < list.length ? (
           <li className="pr-rail__item">
             <button type="button" className="pr-visit pr-visit--more" onClick={() => setMore((m) => ({ ...m, after: m.after + WINDOW }))}
-              tabIndex={-1} aria-label={`Mostrar mais ${Math.min(WINDOW, list.length - to)} consultas posteriores (${list.length - to} ao todo)`}>
+              tabIndex={-1} aria-label={`Mostrar mais ${Math.min(WINDOW, list.length - to)} ${Math.min(WINDOW, list.length - to) === 1 ? 'consulta posterior' : 'consultas posteriores'} (${list.length - to} ao todo)`}>
               <span className="pr-visit__date num">Posteriores</span>
               <span className="pr-visit__status">+{list.length - to}</span>
             </button>

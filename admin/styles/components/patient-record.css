@@ -1239,7 +1239,9 @@
   cursor: pointer;
 }
 .pr-alert__summary:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
-.pr-alert--summary .pr-alert__text span { max-width: 56ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-alert__summary { min-width: 0; max-width: 100%; }
+.pr-alert--summary .pr-alert__text { min-width: 0; }
+.pr-alert--summary .pr-alert__text span { max-width: min(56ch, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Alto contraste do sistema (forced-colors): a cor de fundo some, então o que separa e o que
    está ativo precisa de borda e de cor de sistema. */

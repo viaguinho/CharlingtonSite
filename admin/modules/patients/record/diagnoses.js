@@ -18,9 +18,15 @@ export function diagnosesOf(patient) {
     if (typeof item === 'string' || typeof item === 'number') {
       code = String(item).trim();
     } else if (item && typeof item === 'object') {
-      const pick = (keys) => keys.map((key) => item[key]).find((value) => typeof value === 'string' && value.trim());
-      code = (pick(CODE_KEYS) ?? '').trim();
-      description = (pick(TEXT_KEYS) ?? '').trim() || null;
+      const pick = (keys) => keys.map((key) => item[key])
+        .find((value) => (typeof value === 'string' && value.trim()) || typeof value === 'number');
+      code = String(pick(CODE_KEYS) ?? '').trim();
+      description = String(pick(TEXT_KEYS) ?? '').trim() || null;
+      // Chave que o esquema não conhece: o primeiro texto ou número do objeto vale como o código, nunca como "nenhum".
+      if (!code && !description) {
+        const any = Object.values(item).find((value) => (typeof value === 'string' && value.trim()) || typeof value === 'number');
+        code = any == null ? '' : String(any).trim();
+      }
     }
     if (!code && !description) continue;
     const key = code || description;

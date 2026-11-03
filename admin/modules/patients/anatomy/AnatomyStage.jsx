@@ -458,7 +458,7 @@ export default function AnatomyStage({
     if (!returnFocusRef.current) {
       const active = document.activeElement;
       // O <main> da página (foco programático do roteador) não é um lugar para voltar: ganhava um anel azul na página inteira.
-      returnFocusRef.current = active && active !== document.body && !active.matches?.('main, [role="main"]') ? active : listRef.current;
+      returnFocusRef.current = active && active !== document.body && !active.matches?.('main, [role="main"]') ? active : null;
     }
     // Foco vai para o popover; o leitor de tela lê o título.
     const raf = requestAnimationFrame(() => {

@@ -42,10 +42,24 @@ function guardianIdsOf(patient) {
   if (Array.isArray(raw)) return raw;
   return typeof raw === 'string' && raw.trim() ? [raw.trim()] : [];
 }
-/** Verdadeiro desde a primeira abertura: depois disso o diálogo fica montado, como antes. */
+/**
+ * Verdadeiro desde a primeira abertura: depois disso o diálogo fica montado, como antes. Com a tela já parada
+ * (ocioso), monta-o fechado: o pedaço desce fora do caminho crítico e o clique não paga o atraso fixo de 300 ms
+ * que o React põe num <Suspense> novo (325 a 415 ms medidos na primeira abertura).
+ */
 function useEverOpened(open) {
   const [seen, setSeen] = useState(Boolean(open));
   if (open && !seen) setSeen(true);
+  useEffect(() => {
+    if (seen) return undefined;
+    const warm = () => setSeen(true);
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(warm, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(warm, 2500);
+    return () => window.clearTimeout(id);
+  }, [seen]);
   return seen || Boolean(open);
 }
 if (typeof window !== 'undefined') {
