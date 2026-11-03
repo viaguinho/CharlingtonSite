@@ -21,13 +21,23 @@ Data: 04/11/2026. Dois críticos opus de contexto limpo: [dados e robustez](crit
 
 Bateria de 338 casos do crítico: 290 de 294 pares certos (de 43 falsos-negativos para 4, dos quais 3 resolvidos depois e 1 deliberado); bateria da passada 11 (259 casos) igual: 7 falhas deliberadas. 25 estados sintéticos sem erro; diálogos de ficha e documento abrem e fecham.
 
-## Aberto de propósito ou para a próxima passada
+## Menores aplicados depois (commit `fix(admin): passada 12, menores…` e `dist` em seguida)
 
-- Cefalexina → amoxicilina: a cadeia R1 da cefalexina é a da ampicilina, não a da amoxicilina; o crítico esperava aviso. Fica para a revisão médica.
-- Dados M1 ("?" e `clinico` como texto), M2 (diagnóstico em texto com vírgula), M3 (data de 1900), M4 (anexo com data ilegível vira o mais recente), M5 (falha das consultas apaga "N a emitir"; responsável com id numérico), M6 (nome de medicação sem espaço abre rolagem lateral a 1440), M7 (GLB que não baixa deixa canvas sem `dispose`), M8 ("Agendar retorno" sem permissão), M9 ("Tentar de novo" do painel chama `load`).
-- Sistema: 11 menores (relatório), entre eles `DocumentSheet` e `LetterheadPreview` (40 kB) na abertura (M10) e o raycast do hover a 4× (388 ms/s, conhecido).
-- Fidelidade 8,0/10: o mecanismo 6 (leque de folhas) segue parcial (as folhas sobem 14 px; miniaturas escuras viram faixas pretas).
+Dados: M1 (alergia ilegível: `?`, número, booleano, "null" e `clinico` como texto aparecem como "Alergia em formato ilegível"), M2 (diagnóstico em texto corta só em `;` e quebra de linha; vírgula só entre códigos; "G40.9 Epilepsia" vira código e descrição), M3 (data que não existe ou anterior ao nascimento sai da linha do tempo e entra no aviso de datas ilegíveis), M4 (anexo com data ruim vai para o fim, na pasta e no painel), M5 (pílulas de Linha do tempo e Documentos marcam "!" quando as consultas não foram lidas; responsável com id numérico), M6 (nomes sem espaço quebram), M7 (o WebGL é descartado quando o modelo falha), M8 ("Agendar retorno" só com permissão de agenda), M9 ("Tentar de novo" do painel usa `retry`).
+Sistema: M1 da faixa (`EDGE` era 24 e a máscara é de 28 px; a escolha da rolagem agora evita cápsula cortada pela máscara; medido a 1280 sem corte), M3 (totais de Marcos a 96 px mínimos), M4 (leque −30 px), M5 (o "+" da pasta aparece com `--dur-1` de atraso), M6 (popover, "Abrindo o modelo 3D" e mensagens da faixa em 14 px), M7 (14 espaços em `anatomy.css`, 2 em `patient-record.css`, camadas locais), M8 (faixa grudada opaca; vidro do palco desligado sob o painel), M9 (janela baixa com painel: sem faixa duplicada nem pílula vazando), M10 (`DocumentSheet` sob demanda), M11 (nomes das folhas somem abaixo de 1024 px).
+Verificado: 25 estados em memória sem erro; datas ruins contadas no aviso; pílulas "!" com consultas ilegíveis; diálogos abrem e fecham.
+
+## Ainda aberto
+
+- **Sistema M2 (estados expandidos cobrem a cabeça):** não verificado na tela nem corrigido.
+- **Raycast do hover a 4× (p11 M4):** decisão: não adicionar `three-mesh-bvh`. É um pico de CPU sob limite artificial de 4× (média segue em 60 fps); uma dependência nova pesa mais que o ganho. Reabrir se aparecer queixa em máquina real.
+- **Composição a 1920 e presença do plexo (p11 M6):** decisão visual, não alterada sem verificação visual (fidelidade 8,0).
+- **Vidro sobre o fundo animado do shell (p11 M5):** fora de escopo (shell). O vidro do palco já sai sob o painel.
+- **`startTransition` na abertura do painel (p11 M11):** não aplicado; ganho não medido.
+- **Cápsula da ponta a 1440 (conteúdo 14 px maior que a janela):** não existe posição sem máscara sobre alguma borda; o "Hoje" ou a 1ª cápsula fica levemente esmaecido.
+- **"Não informado" (p11 M2) e cefalexina → amoxicilina:** decisões de redação e de revisão médica.
+- Valores soltos que não batem com a escala (6, 5, 7, 10 px) ficaram como estão.
 
 ## Ainda por fazer
 
-Passada 13, só se o dono quiser: duas rodadas seguidas reprovaram P1 a P3 por achados novos de dados. Os de sistema estão perto de aprovar (P2 e P4 aprovam; P1 e P3 só por GRAVE já corrigidos).
+Passada 13 só se o dono quiser. Cota da janela de 5 horas em ~96% no fim desta etapa.
