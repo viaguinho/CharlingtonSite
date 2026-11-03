@@ -9,7 +9,6 @@ import { Button, Chip, StatusDot } from '../../components/primitives.jsx';
 import ErrorBoundary from '../../components/ErrorBoundary.jsx';
 import Icon from '../../components/Icon.jsx';
 import { age, date, relative } from '../../core/format.js';
-import { PatientForm } from './PatientForm.jsx';
 import { TimelineView } from './views/TimelineView.jsx';
 import { NotesView } from './views/NotesView.jsx';
 import { ScalesView } from './views/ScalesView.jsx';
@@ -18,8 +17,6 @@ import { MedicationsView } from './views/MedicationsView.jsx';
 import { AttachmentsView } from './views/AttachmentsView.jsx';
 import { DocumentsView } from './views/DocumentsView.jsx';
 import { ConsentsView } from './views/ConsentsView.jsx';
-import { ClinicalDocumentModal } from '../documents/ClinicalDocumentModal.jsx';
-import RescheduleDialog from '../agenda/RescheduleDialog.jsx';
 import { ProfileColumn } from './record/ProfileColumn.jsx';
 import { InsightsColumn, recordedMilestones } from './record/InsightsColumn.jsx';
 import { AlertPills } from './record/AlertPills.jsx';
@@ -35,6 +32,16 @@ import { diagnosesOf } from './record/diagnoses.js';
 // carrega, em paralelo com a leitura dos dados.
 const loadStage = () => import('./anatomy/AnatomyStage.jsx');
 const AnatomyStage = lazy(loadStage);
+// Os diálogos só descem na primeira abertura (cerca de 25 kB gzip que a abertura do prontuário não usa).
+const PatientForm = lazy(() => import('./PatientForm.jsx').then((m) => ({ default: m.PatientForm })));
+const ClinicalDocumentModal = lazy(() => import('../documents/ClinicalDocumentModal.jsx').then((m) => ({ default: m.ClinicalDocumentModal })));
+const RescheduleDialog = lazy(() => import('../agenda/RescheduleDialog.jsx'));
+/** Verdadeiro desde a primeira abertura: depois disso o diálogo fica montado, como antes. */
+function useEverOpened(open) {
+  const [seen, setSeen] = useState(Boolean(open));
+  if (open && !seen) setSeen(true);
+  return seen || Boolean(open);
+}
 if (typeof window !== 'undefined') {
   loadStage().catch(() => {});
   import('./anatomy/scene.js').catch(() => {});
@@ -134,6 +141,9 @@ export default function PatientRecordScreen() {
   const [editing, setEditing] = useState(false);
   const [docModal, setDocModal] = useState(null);
   const [rescheduling, setRescheduling] = useState(null);
+  const formMounted = useEverOpened(editing);
+  const docMounted = useEverOpened(!!docModal);
+  const rescheduleMounted = useEverOpened(!!rescheduling);
   const [attachIntent, setAttachIntent] = useState(null);
   const [timelineFocus, setTimelineFocus] = useState(null);
   // Ação pedida junto com a seção ("Aplicar escala" abre o formulário, não só o painel).
@@ -274,6 +284,9 @@ export default function PatientRecordScreen() {
   const unreadable = new Set(record.failed);
   const unreadableStores = [SECTION_STORES[section], ...(SECTION_EXTRA_STORES[section] ?? [])].filter((store) => store && unreadable.has(store));
 
+  // Seção cuja leitura falhou: a pílula sem contagem seria igual à de "zero registros".
+  const unreadSections = new Set(SECTIONS.filter((sec) => [SECTION_STORES[sec.value], ...(SECTION_EXTRA_STORES[sec.value] ?? [])]
+    .some((store) => store && unreadable.has(store))).map((sec) => sec.value));
   const counts = {
     'linha-do-tempo': null,
     evolucoes: record.notes.length || null,
@@ -326,7 +339,12 @@ export default function PatientRecordScreen() {
   // A faixa e as colunas falham sozinhas: um registro ruim nunca derruba a barra, a alergia e o resto.
   const rail = (
     <ErrorBoundary scope="faixa de consultas" fallback={null}>
-      <VisitRail appointments={record.appointments} onOpen={(a) => { setTimelineFocus(a.id); setSection('linha-do-tempo'); }} />
+      <VisitRail
+        appointments={record.appointments}
+        unreadable={unreadable.has(STORES.APPOINTMENTS)}
+        onSchedule={can.write('agenda') ? () => navigate(`/agenda?agendar=${encodeURIComponent(patient.id)}`) : null}
+        onOpen={(a) => { setTimelineFocus(a.id); setSection('linha-do-tempo'); }}
+      />
     </ErrorBoundary>
   );
 
@@ -403,6 +421,7 @@ export default function PatientRecordScreen() {
         listRef={pillsRef}
         value={section}
         counts={counts}
+        unread={unreadSections}
         behind={behindPanel}
         onChange={(value) => (value === section ? null : value ? goToSection(value) : closePanel())}
       >
@@ -495,15 +514,21 @@ export default function PatientRecordScreen() {
         ) : null}
       </div>
 
-      <ErrorBoundary scope="ficha do paciente" fallback={null}>
-        <PatientForm
-          open={editing}
-          patient={patient}
-          onClose={() => setEditing(false)}
-          onSaved={() => { setEditing(false); load(); }}
-        />
-      </ErrorBoundary>
+      {formMounted ? (
+        <ErrorBoundary scope="ficha do paciente" fallback={null}>
+          <Suspense fallback={null}>
+            <PatientForm
+              open={editing}
+              patient={patient}
+              onClose={() => setEditing(false)}
+              onSaved={() => { setEditing(false); load(); }}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      ) : null}
 
+      {docMounted ? (
+      <Suspense fallback={null}>
       <ClinicalDocumentModal
         open={!!docModal}
         patient={patient}
@@ -515,13 +540,19 @@ export default function PatientRecordScreen() {
         onClose={() => setDocModal(null)}
         onIssued={() => { setDocModal(null); load(); }}
       />
+      </Suspense>
+      ) : null}
 
-      <RescheduleDialog
-        appointment={rescheduling}
-        notice={<AllergyNotice patient={patient} />}
-        onClose={() => setRescheduling(null)}
-        onDone={() => { setRescheduling(null); load(); }}
-      />
+      {rescheduleMounted ? (
+        <Suspense fallback={null}>
+          <RescheduleDialog
+            appointment={rescheduling}
+            notice={<AllergyNotice patient={patient} />}
+            onClose={() => setRescheduling(null)}
+            onDone={() => { setRescheduling(null); load(); }}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
@@ -530,7 +561,7 @@ export default function PatientRecordScreen() {
    As pílulas "Hormone · Circulatory · …" da referência. Tabindex móvel:
    Tab entra uma vez, setas andam, Enter/Espaço abre. */
 
-function SectionPills({ listRef, value, counts, onChange, behind, children }) {
+function SectionPills({ listRef, value, counts, unread = new Set(), onChange, behind, children }) {
   const items = [{ value: null, label: 'Visão geral' }, ...SECTIONS];
   const activeIndex = Math.max(0, items.findIndex((i) => i.value === value));
   // Tabindex móvel de verdade: a parada de Tab acompanha a pílula focada.
@@ -618,6 +649,12 @@ function SectionPills({ listRef, value, counts, onChange, behind, children }) {
               title={count && typeof count === 'object' ? count.hint : undefined}
             >
               {item.label}
+              {item.value && unread.has(item.value) ? (
+                <span className="pr-pill__count is-warning num" title="Não foi possível ler esta seção">
+                  <span aria-hidden="true">!</span>
+                  <span className="sr-only">Não foi possível ler esta seção</span>
+                </span>
+              ) : null}
               {countValue ? (
                 <span className={`pr-pill__count num ${count?.tone === 'warning' ? 'is-warning' : ''}`.trim()}>
                   {count && typeof count === 'object' && count.tone === 'warning' ? count.hint : countValue}

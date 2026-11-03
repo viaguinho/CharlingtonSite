@@ -142,7 +142,8 @@ function DotPlot({ scale, applications }) {
   const x = (a, i) => {
     if (single) return 86;
     const t = new Date(a.aplicadaEm).getTime();
-    const frac = t1 > t0 ? (t - t0) / (t1 - t0) : i / (applications.length - 1);
+    // Data ilegível não pode virar "NaN%": o ponto cai na posição da ordem.
+    const frac = t1 > t0 && Number.isFinite(t) ? (t - t0) / (t1 - t0) : i / Math.max(1, applications.length - 1);
     return 8 + frac * 78;
   };
 

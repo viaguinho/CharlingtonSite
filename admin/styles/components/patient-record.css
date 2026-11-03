@@ -1015,7 +1015,7 @@
   color: var(--ink-600);
 }
 .attachments__filter button {
-  min-height: 32px;
+  min-height: var(--touch);
   padding: 0 var(--s-3);
   border: 0;
   border-radius: var(--r-pill);
@@ -1406,8 +1406,8 @@
   .pr-panel .tabs {
     animation: pr-tabs-fade linear both;
     animation-timeline: scroll(self inline);
-    -webkit-mask: linear-gradient(to right, transparent, #000 var(--pr-fade-start), #000 calc(100% - var(--pr-fade-end)), transparent);
-    mask: linear-gradient(to right, transparent, #000 var(--pr-fade-start), #000 calc(100% - var(--pr-fade-end)), transparent);
+    -webkit-mask: linear-gradient(to right, transparent, black var(--pr-fade-start), black calc(100% - var(--pr-fade-end)), transparent);
+    mask: linear-gradient(to right, transparent, black var(--pr-fade-start), black calc(100% - var(--pr-fade-end)), transparent);
   }
 }
 

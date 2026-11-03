@@ -98,14 +98,14 @@ export function AlertPills({ states, onReschedule, compact = false, part = 'all'
   return (
     <ul className={`pr-alerts ${compact ? 'pr-alerts--compact' : ''}`.trim()} aria-label={part === 'others' ? 'Estados do paciente' : 'Alertas do paciente'}>
       {visible.map((item) => (
-        <li key={item.key} className={`pr-alert pr-alert--${item.tone}${item.key === 'alergia' ? ' pr-alert--allergy' : ''}`} role={item.key === 'alergia' ? 'status' : undefined}>
+        <li key={item.key} className={`pr-alert pr-alert--${item.tone}${item.key === 'alergia' ? ' pr-alert--allergy' : ''}`}>
           <span className="pr-alert__icon" aria-hidden="true"><Icon name={item.icon} size={14} /></span>
-          <span className="pr-alert__text">
+          <span className="pr-alert__text" role={item.key === 'alergia' && !compact ? 'status' : undefined}>
             <strong>{item.label}</strong>
             <span>{item.text}</span>
           </span>
           {item.action ? (
-            <button type="button" className="pr-alert__action" onClick={item.action}>Remarcar</button>
+            <button type="button" className="pr-alert__action" onClick={item.action} aria-label={`Remarcar: ${item.label}`}>Remarcar</button>
           ) : null}
         </li>
       ))}

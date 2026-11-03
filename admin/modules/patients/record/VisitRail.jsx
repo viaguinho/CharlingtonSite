@@ -22,7 +22,7 @@ const WINDOW = 40;
 // Ícone do tipo da consulta (guia §4.3): lê-se o tipo sem texto.
 const TYPE_ICON = { teleconsulta: 'video', laudo: 'file-text', evento: 'calendar' };
 
-export function VisitRail({ appointments, onOpen }) {
+export function VisitRail({ appointments, onOpen, unreadable = false, onSchedule = null }) {
   const scroller = useRef(null);
   const todayRef = useRef(null);
   // Tabindex móvel: com 300 consultas eram 303 paradas de Tab. Tab entra uma vez e as setas andam.
@@ -30,10 +30,18 @@ export function VisitRail({ appointments, onOpen }) {
   const [more, setMore] = useState({ before: 0, after: 0 });
   // Largura antes de abrir mais cápsulas à esquerda: a rolagem compensa, e o que estava à vista não pula.
   const widthBefore = useRef(0);
+  // O botão "Anteriores" some quando acaba o que carregar, e com ele o foco: vai para a cápsula nova ao lado.
+  const focusAdded = useRef(0);
   useLayoutEffect(() => {
     const el = scroller.current;
     if (el && widthBefore.current) el.scrollLeft += el.scrollWidth - widthBefore.current;
     widthBefore.current = 0;
+    if (el && focusAdded.current) {
+      const buttons = [...el.querySelectorAll('button')];
+      const offset = buttons[0]?.classList.contains('pr-visit--more') ? 1 : 0;
+      buttons[offset + focusAdded.current - 1]?.focus({ preventScroll: true });
+      focusAdded.current = 0;
+    }
   }, [more.before]);
 
   const list = appointments
@@ -65,7 +73,27 @@ export function VisitRail({ appointments, onOpen }) {
     };
   }, [list.length]);
 
-  if (!list.length) return null;
+  if (!list.length) {
+    // Sem consulta (ou sem leitura delas) a base do palco não some calada: diz o que é e, se pode, oferece agendar.
+    return (
+      <nav className="pr-rail" aria-label="Consultas do paciente">
+        <ol className="pr-rail__list">
+          <li className="pr-rail__item">
+            {onSchedule && !unreadable ? (
+              <button type="button" className="pr-visit pr-visit--neutral" onClick={onSchedule}>
+                <span className="pr-visit__date num">Nenhuma consulta</span>
+                <span className="pr-visit__status"><i aria-hidden="true" />Agendar</span>
+              </button>
+            ) : (
+              <span className="pr-visit pr-visit--neutral" role="status">
+                <span className="pr-visit__date num">{unreadable ? 'Consultas não lidas' : 'Nenhuma consulta'}</span>
+              </span>
+            )}
+          </li>
+        </ol>
+      </nav>
+    );
+  }
 
   const onKeyDown = (e) => {
     const buttons = [...scroller.current.querySelectorAll('button')];
@@ -99,7 +127,7 @@ export function VisitRail({ appointments, onOpen }) {
       <ol ref={scroller} className="pr-rail__list" onKeyDown={onKeyDown}>
         {from > 0 ? (
           <li className="pr-rail__item">
-            <button type="button" className="pr-visit pr-visit--more" onClick={() => { widthBefore.current = scroller.current?.scrollWidth ?? 0; setMore((m) => ({ ...m, before: m.before + WINDOW })); }}
+            <button type="button" className="pr-visit pr-visit--more" onClick={() => { widthBefore.current = scroller.current?.scrollWidth ?? 0; focusAdded.current = Math.min(WINDOW, from); setMore((m) => ({ ...m, before: m.before + WINDOW })); }}
               tabIndex={-1} aria-label={`Mostrar mais ${Math.min(WINDOW, from)} consultas anteriores (${from} ao todo)`}>
               <span className="pr-visit__date num">Anteriores</span>
               <span className="pr-visit__status">+{from}</span>

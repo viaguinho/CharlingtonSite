@@ -75,7 +75,7 @@ export function visitState(appointment, now = Date.now()) {
   const key = stateOf(appointment, now);
   return {
     key,
-    label: VISIT_LABEL[key] ?? APPOINTMENT_STATUS_LABELS[key] ?? key,
+    label: VISIT_LABEL[key] ?? APPOINTMENT_STATUS_LABELS[key] ?? 'Status não reconhecido',
     tone: VISIT_TONE[key] ?? 'neutral',
   };
 }

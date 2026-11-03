@@ -231,12 +231,16 @@ function DiagnosesCard({ patient }) {
 
 /* ─────────────────────────── Pastas ─────────────────────────── */
 
+// Anexo de origem que nenhuma pasta conhece (legado, importado) cai em "Outros": a contagem do card e das pílulas
+// precisa bater com o que as pastas mostram.
+const KNOWN_ORIGINS = new Set(FOLDER_GROUPS.flatMap((g) => g.origens));
+
 function Folders({ attachments, onOpen, onUpload, onPreview, canUpload, unreadable = false }) {
   const groups = useMemo(() => FOLDER_GROUPS
     .map((g) => ({
       ...g,
       files: attachments
-        .filter((a) => g.origens.includes(a.origem))
+        .filter((a) => g.origens.includes(a.origem) || (g.key === 'outros' && !KNOWN_ORIGINS.has(a.origem)))
         .sort((a, b) => (b.realizadoEm ?? b.criadoEm ?? '').localeCompare(a.realizadoEm ?? a.criadoEm ?? '')),
     }))
     .filter((g) => g.files.length), [attachments]);
@@ -367,7 +371,7 @@ function NextVisit({ states, onReschedule, onSchedule }) {
         <span>{APPOINTMENT_TYPE_LABELS[next.tipo]} · {relative(next.inicio)}</span>
       </span>
       {onReschedule && canReschedule(next) ? (
-        <button type="button" className="pr-next__action" onClick={() => onReschedule(next)}>Remarcar</button>
+        <button type="button" className="pr-next__action" onClick={() => onReschedule(next)} aria-label="Remarcar a próxima consulta">Remarcar</button>
       ) : null}
     </div>
   );

@@ -426,7 +426,9 @@ export default function AnatomyStage({
     narrow.addEventListener('change', sync);
     sync();
     return () => { ro.disconnect(); narrow.removeEventListener('change', sync); };
-  }, [status, alerts]);
+  // `alerts` é um elemento novo a cada render do pai (tique de 60 s, cada recarga): como dependência, o observador
+  // se desligava e religava a cada commit. O ResizeObserver já acompanha o contêiner dos alertas.
+  }, [status]);
 
   /* ——— Estruturas navegáveis (só as presentes e visíveis) ——— */
   const options = useMemo(

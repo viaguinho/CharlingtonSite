@@ -167,7 +167,7 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
     <>
       <Card variant="flush">
         <CardHeader
-          title="Exames e pareceres"
+          title="Exames e anexos"
           subtitle={attachments.length ? (() => {
             // Filtrado, o subtítulo diz o que a lista mostra: "3 de 7 arquivos".
             const shown = filter ? attachments.filter((a) => filter.includes(a.origem)).length : attachments.length;
