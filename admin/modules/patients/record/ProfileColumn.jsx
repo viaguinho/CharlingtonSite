@@ -115,6 +115,8 @@ function ProfileCard({ patient, guardians, appointments, unreadable = false, gua
  */
 const NOT_A_VISIT = new Set(['evento']);
 
+const DENSE_AT = 40;
+
 function FollowUpTrail({ appointments, onOpen }) {
   const now = Date.now();
   const visits = appointments.filter((a) => !NOT_A_VISIT.has(a.tipo));
@@ -144,6 +146,25 @@ function FollowUpTrail({ appointments, onOpen }) {
   const end = Math.max(Date.now(), upcoming ? new Date(upcoming.inicio).getTime() : 0);
   const span = Math.max(1, end - start);
   const at = (iso) => 2 + ((new Date(iso).getTime() - start) / span) * 96;
+  // Com muitas consultas (300 em memória) 255 traços viravam uma barra preta contínua e as faltas sumiam sob ela:
+  // acima de DENSE_AT a trilha agrupa em faixas do eixo e cada faixa mostra o que pesa mais nela. Os números
+  // exatos seguem no texto ao lado.
+  const dense = past.length > DENSE_AT;
+  const buckets = [];
+  if (dense) {
+    const cells = new Map();
+    const put = (list, key) => list.forEach((a) => {
+      const i = Math.min(DENSE_AT - 1, Math.max(0, Math.floor(((new Date(a.inicio).getTime() - start) / span) * DENSE_AT)));
+      const cell = cells.get(i) ?? { done: 0, missed: 0, pending: 0 };
+      cell[key] += 1;
+      cells.set(i, cell);
+    });
+    put(done, 'done'); put(missed, 'missed'); put(pending, 'pending');
+    for (const [i, c] of cells) {
+      const kind = c.pending ? 'pending' : c.missed >= c.done ? 'miss' : 'done';
+      buckets.push({ i, kind, x: 2 + ((i + 0.5) / DENSE_AT) * 96 });
+    }
+  }
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const total = done.length + missed.length + pending.length;
   const summary = [
@@ -163,9 +184,15 @@ function FollowUpTrail({ appointments, onOpen }) {
       <span className="pr-trail__track">
       <svg className="pr-trail__svg" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
         <line className="pr-trail__base" x1="0" x2="100" y1="5" y2="5" />
-        {missed.map((a) => <line key={a.id} className="pr-trail__miss" x1={at(a.inicio) - .6} x2={at(a.inicio) + .6} y1="5" y2="5" />)}
-        {pending.map((a) => <line key={a.id} className="pr-trail__pending" x1={at(a.inicio) - 1.2} x2={at(a.inicio) + 1.2} y1="5" y2="5" />)}
-        {done.map((a) => <line key={a.id} className="pr-trail__done" x1={at(a.inicio) - 1.6} x2={at(a.inicio) + 1.6} y1="5" y2="5" />)}
+        {dense ? buckets.map((b) => (
+          <line key={b.i} className={`pr-trail__${b.kind}`} x1={b.x - .9} x2={b.x + .9} y1="5" y2="5" />
+        )) : (
+          <>
+            {missed.map((a) => <line key={a.id} className="pr-trail__miss" x1={at(a.inicio) - .6} x2={at(a.inicio) + .6} y1="5" y2="5" />)}
+            {pending.map((a) => <line key={a.id} className="pr-trail__pending" x1={at(a.inicio) - 1.2} x2={at(a.inicio) + 1.2} y1="5" y2="5" />)}
+            {done.map((a) => <line key={a.id} className="pr-trail__done" x1={at(a.inicio) - 1.6} x2={at(a.inicio) + 1.6} y1="5" y2="5" />)}
+          </>
+        )}
         <line className="pr-trail__today" x1={at(new Date().toISOString())} x2={at(new Date().toISOString())} y1="1.5" y2="8.5" />
 
       </svg>

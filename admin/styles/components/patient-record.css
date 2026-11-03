@@ -435,7 +435,7 @@
 .pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) {
   /* Em repouso as folhas saem do bolso (M6 da régua): com `--gf-lift: 42px` a mais alta ficava a 0 px acima da
      frente e o leque escondido; a 1 arquivo, a folha de PDF sumia. O hover abre mais (-34px), o repouso já mostra. */
-  --gf-lift: -8px; --gf-spread: 22px; --gf-fan: 1deg; --gf-stack: 17px; --gf-hinge: -4deg;
+  --gf-lift: -16px; --gf-spread: 22px; --gf-fan: 1deg; --gf-stack: 19px; --gf-hinge: -4deg;
 }
 .pr-folder:has(.gf-hit:focus-visible) { box-shadow: var(--e-glass), 0 0 0 2px var(--surface), 0 0 0 4px var(--blue-500); }
 
@@ -1298,6 +1298,11 @@
    A alergia gruda no topo do corpo, que rola por baixo dela. */
 @media (max-height: 600px) {
   .modal:has(.pr-rx-allergy) .modal__description { display: none; }
+  .overlay:has(.pr-rx-allergy) { padding: var(--s-2); }
+  .modal:has(.pr-rx-allergy) { max-height: calc(100vh - var(--s-4)); }
+  .modal--full:has(.pr-rx-allergy) { height: calc(100vh - var(--s-4)); }
+  .modal:has(.pr-rx-allergy) .modal__title { font-size: var(--t-body); line-height: 1.3; }
+  .modal:has(.pr-rx-allergy) .doc-footer-note { display: none; }
   .modal:has(.pr-rx-allergy) .modal__header { padding: var(--s-2) var(--s-4); }
   .modal:has(.pr-rx-allergy) .modal__footer { padding: var(--s-2) var(--s-4); }
   .modal__body > .doc-notice:has(.pr-rx-allergy) { position: sticky; top: 0; z-index: 2; }

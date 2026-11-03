@@ -36,6 +36,12 @@ const AnatomyStage = lazy(loadStage);
 const PatientForm = lazy(() => import('./PatientForm.jsx').then((m) => ({ default: m.PatientForm })));
 const ClinicalDocumentModal = lazy(() => import('../documents/ClinicalDocumentModal.jsx').then((m) => ({ default: m.ClinicalDocumentModal })));
 const RescheduleDialog = lazy(() => import('../agenda/RescheduleDialog.jsx'));
+/** Ids dos responsáveis na ficha. Fichas antigas guardam um texto só: vale como um id, nunca como "nenhum cadastrado". */
+function guardianIdsOf(patient) {
+  const raw = patient?.responsaveis;
+  if (Array.isArray(raw)) return raw;
+  return typeof raw === 'string' && raw.trim() ? [raw.trim()] : [];
+}
 /** Verdadeiro desde a primeira abertura: depois disso o diálogo fica montado, como antes. */
 function useEverOpened(open) {
   const [seen, setSeen] = useState(Boolean(open));
@@ -172,7 +178,7 @@ export default function PatientRecordScreen() {
           // Só os da ficha: a loja inteira obrigava a decifrar o responsável de todos os pacientes da clínica.
           // Um id da ficha sem registro (null) é leitura que não achou o responsável, não "não cadastrado":
           // a tela diz que não conseguiu ler. Registro excluído de propósito (excluidoEm) sai em silêncio.
-          Promise.all((Array.isArray(patient.responsaveis) ? patient.responsaveis : []).map((gid) => repo.get(STORES.GUARDIANS, gid, { silent: true })))
+          Promise.all(guardianIdsOf(patient).map((gid) => repo.get(STORES.GUARDIANS, gid, { silent: true })))
             .then((list) => {
               if (list.some((g) => !g)) failed.push(STORES.GUARDIANS);
               return list.filter((g) => g && !g.excluidoEm);
@@ -198,7 +204,7 @@ export default function PatientRecordScreen() {
       setRecord({
         patient,
         // Na ordem da ficha: o primeiro cadastrado é o responsável principal.
-        guardians: (Array.isArray(patient.responsaveis) ? patient.responsaveis : []).map((gid) => guardians.find((g) => g.id === gid)).filter(Boolean),
+        guardians: guardianIdsOf(patient).map((gid) => guardians.find((g) => g.id === gid)).filter(Boolean),
         appointments: sane, notes, scales, milestones, medications, attachments, documents, consents,
         failed, skipped: appointments.length - sane.length,
       });
