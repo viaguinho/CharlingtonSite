@@ -2,7 +2,7 @@
 
 Data: 03/11/2026. Dois críticos opus de contexto limpo: [dados e robustez](critica-p11-dados-robustez.md) (3 BLOQUEIA, 7 GRAVE, 14 MENOR) e [sistema, fidelidade e desempenho](critica-p11-sistema-fidelidade-desempenho.md) (0 BLOQUEIA, 1 GRAVE, 14 MENOR, fidelidade 7,5/10). Vereditos: P4 aprova nos dois; P1, P2 e P3 reprovam no de dados; P3 reprova no de sistema.
 
-Decisão do dono (03/11): dúvidas são julgadas pelos próprios agentes. Pausa no teto de 80% da janela de 5 horas: o lote 1 foi aplicado, o resto ficou aberto abaixo.
+Decisão do dono (03/11): dúvidas são julgadas pelos próprios agentes. O dono liberou seguir até o teto de 100% da janela. Lotes 1 e 2 aplicados; a passada 12 não cabe no que restou da janela.
 
 ## Lote 1: aplicado (commit `cc98787` é só o `PatientForm`; o lote vem no commit seguinte)
 
@@ -30,14 +30,37 @@ Bateria do crítico (259 casos, Node): de 58 falhas para 7, todas deliberadas (a
 - **Marcas sem bula conferida, fora da tabela:** Benegrip, Maxalgina, Doril, Engov. Seguem fora até a revisão médica (decisão do dono de 28/10). As marcas acrescentadas neste lote vêm de conhecimento geral e **entram na lista de revisão médica** (Flanax, Toragesic, Feldene, Tilatil, Tandrilax, Torsilax, Sonrisal, Alka-Seltzer, Ecasil, Nisulid, Arcoxia, Celebra, Infectrin, Assepium, Cefamox, Depakene, Depakote, Valpakine, Ritalina, Concerta, Risperdal, Frisium, Urbanil, Keppra, Topamax, Neurontin, Rivotril, Valium, Sabril, Vimpat, Abilify, Strattera).
 - **M2 "Não informado":** continua "Nenhuma registrada" (neutra e verdadeira: nada foi registrado). Mudar o texto é decisão de redação.
 
-## Aberto para o próximo lote (não aplicado por causa do teto de 80%)
+## Lote 2: aplicado (commits `124e139` e `ff155a8`)
 
-Dados e robustez: M7 (responsáveis como texto e responsável órfão), M8 (datas: antes do nascimento, `02-30`, data sem hora, status desconhecido), M9 (foco na faixa), M10 (faixa vazia sem consultas), M11 (anexo de origem desconhecida fora das pastas, cair em "Outros"), M12 (escala com data ilegível `cx=NaN%`), M13 (acessibilidade: `li role=status`, cópias vivas da alergia, nomes "Abrir" e "Remarcar"), M14 (pílula de seção sem sinal de leitura falha). G3 conferir na tela a 320×256.
+| Achado | O que foi feito |
+|---|---|
+| M10 faixa vazia | sem consulta a base do palco diz "Nenhuma consulta · Agendar" (ou "Consultas não lidas"); verificado em memória |
+| M9 foco | ao carregar "Anteriores", o foco vai para a cápsula nova ao lado em vez de cair no `body` |
+| M8 (parte) | status de consulta desconhecido vira "Status não reconhecido" |
+| M11 pasta | anexo de origem desconhecida cai em "Outros" |
+| M12 escala | data ilegível não vira `cx="NaN%"` |
+| M13 | `role=status` saiu do `li` (só a cópia viva do palco anuncia); "Remarcar" ganhou objeto no nome |
+| M14 pílula | seção cuja leitura falhou mostra "!" (com texto para leitor de tela); nome único "Exames e anexos" no painel |
+| M7 responsáveis | responsável gravado como texto vale como id (falha de leitura em vez de "Nenhum cadastrado") |
+| sistema M2 trilha | com mais de 40 consultas a trilha agrupa em faixas do eixo; os números exatos ficam no texto |
+| sistema M1 leque | folhas sobem (lift −16 px, empilhamento 19 px); capturado a 1440 |
+| sistema M8, M10, M12, M13 | `#000` da máscara virou `black`; "Mostrar todos" com 40 px; diálogos de ficha, documento e remarcação só descem na primeira abertura (chunk do prontuário 45,8 → 43,8 kB gzip); efeito do palco depende só de `status` |
+| G3 diálogos a 320×256 | cabeçalho e rodapé compactos e alergia grudada: a alergia fica à vista em 50 de 50 posições do diálogo de documento (era 6 de 7 sem à vista) |
 
-Sistema: M1 (leque de folhas), M2 (trilha com 300 consultas), M3 (cápsula da ponta cortada), M4 (raycast do hover a 4×), M5 (vidro sobre o fundo animado, fora de escopo: shell), M6 (composição a 1920, 7,5/10), M7 (11 px), M8 (`#000` em `patient-record.css`), M9 (valores soltos), M10 (alvo de 32 px em "Mostrar todos"), M11 (`startTransition` na abertura com carga), M12 (`lazy()` dos modais), M13 (efeito do palco com `alerts` JSX), M14 (três nomes da seção Exames).
+Verificado com o harness em memória do crítico (25 estados): nenhum erro de tela; diagnóstico em texto e objeto sem código renderizam; "Sem alergia medicamentosa; alergia alimentar" aparece como alergia; `false` e negação pura mostram "Nenhuma registrada"; sem consultas mostra "Nenhuma consulta · Agendar"; 300 consultas abrem com 64 cápsulas. A trilha agrupada (acima de 40 consultas) e o estado vazio da faixa foram conferidos só pelo DOM, não por captura.
 
-Fora do escopo, observado: `#/pacientes` (lista) cai quando uma consulta tem `inicio` numérico (`core/appointments.js:166`); fundo animado do shell ignora `prefers-reduced-motion`.
+## Aberto de propósito ou para a próxima passada
+
+- **Dados M8 (resto):** data antes do nascimento ("desde 01/01/1900"), data impossível (`02-30`) e data sem hora ("Atrasado" num dia e "Hoje" noutro). Exige decidir a regra de data válida na ficha.
+- **Sistema M3:** cápsula da ponta direita cortada no estado "futuro".
+- **Sistema M4:** raycast do hover a 4× (449 ms/s de thread principal; média segue em 60 fps). Pede BVH (`three-mesh-bvh`, dependência nova) ou malha de sondagem: decisão de dependência do dono.
+- **Sistema M5:** vidro sobre o fundo animado do shell (fora de escopo: shell).
+- **Sistema M6:** composição a 1920, plexo com pouca presença (7,5/10). Decisão visual, não corrigida sem passar pelo dono.
+- **Sistema M7:** 11 px na data da cápsula e no rótulo do popover: o guia permite micro para o mês da faixa; um 12 px viraria o quinto tamanho da tela.
+- **Sistema M9:** valores soltos de espaço, desfoque e z-index em `anatomy.css` e `glass-folder.css` (dívida de tokens, sem efeito visível).
+- **Sistema M11:** `startTransition` na abertura com 300 consultas e CPU 4× (242 a 477 ms).
+- **Dados M2:** "Não informado" segue "Nenhuma registrada".
 
 ## Ainda por fazer
 
-Regenerar o `dist` em commit separado depois do último lote; nova passada de críticos só depois do lote 2.
+`dist` regenerado (commit `build: regenera o dist com a passada 11`). Falta a passada 12 de críticos (dois críticos custam cerca de 60% da janela de 5 horas: rodar numa janela nova).
