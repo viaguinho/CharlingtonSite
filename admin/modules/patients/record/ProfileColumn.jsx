@@ -260,6 +260,8 @@ function DiagnosesCard({ patient }) {
 
 // Anexo de origem que nenhuma pasta conhece (legado, importado) cai em "Outros": a contagem do card e das pílulas
 // precisa bater com o que as pastas mostram.
+// Data ilegível não pode virar a "mais recente" da pasta ('d' > '2' na ordem de texto): vai para o fim.
+const attachmentTime = (a) => { const t = Date.parse(a.realizadoEm ?? a.criadoEm ?? ''); return Number.isFinite(t) ? t : Number.MIN_SAFE_INTEGER; };
 const KNOWN_ORIGINS = new Set(FOLDER_GROUPS.flatMap((g) => g.origens));
 
 function Folders({ attachments, onOpen, onUpload, onPreview, canUpload, unreadable = false }) {
@@ -268,7 +270,7 @@ function Folders({ attachments, onOpen, onUpload, onPreview, canUpload, unreadab
       ...g,
       files: attachments
         .filter((a) => g.origens.includes(a.origem) || (g.key === 'outros' && !KNOWN_ORIGINS.has(a.origem)))
-        .sort((a, b) => (b.realizadoEm ?? b.criadoEm ?? '').localeCompare(a.realizadoEm ?? a.criadoEm ?? '')),
+        .sort((a, b) => attachmentTime(b) - attachmentTime(a)),
     }))
     .filter((g) => g.files.length), [attachments]);
 
@@ -382,10 +384,17 @@ function NextVisit({ states, onReschedule, onSchedule }) {
 
   if (!next) {
     return (
-      <button type="button" className="pr-next pr-next--empty" onClick={onSchedule}>
+      onSchedule ? (
+<button type="button" className="pr-next pr-next--empty" onClick={onSchedule}>
         <Icon name="calendar" size={16} />
         <span>{busy ? 'Agendar retorno' : 'Sem retorno agendado — agendar retorno'}</span>
       </button>
+) : (
+<div className="pr-next pr-next--empty" role="note">
+        <Icon name="calendar" size={16} />
+        <span>{busy ? 'Agendar retorno' : 'Sem retorno agendado — agendar retorno'}</span>
+      </div>
+)
     );
   }
 

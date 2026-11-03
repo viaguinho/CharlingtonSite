@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import * as repo from '../../../data/repository.js';
 import { STORES } from '../../../data/schema.js';
+
+// Data ilegível vai para o fim da lista, nunca para o topo.
+const attachmentTime = (a) => { const t = Date.parse(a.realizadoEm ?? a.criadoEm ?? ''); return Number.isFinite(t) ? t : Number.MIN_SAFE_INTEGER; };
 import { sha256, uuid } from '../../../core/crypto.js';
 import { Card, CardHeader, CardBody, EmptyState } from '../../../components/Card.jsx';
 import { Button, IconButton } from '../../../components/primitives.jsx';
@@ -207,7 +210,7 @@ export function AttachmentsView({ patient, attachments, reload, intent = null })
             <ul className="attachments">
               {attachments
                 .filter((a) => !filter || filter.includes(a.origem))
-                .sort((a, b) => (b.realizadoEm ?? b.criadoEm ?? '').localeCompare(a.realizadoEm ?? a.criadoEm ?? ''))
+                .sort((a, b) => attachmentTime(b) - attachmentTime(a))
                 .map((attachment) => (
                   <li key={attachment.id}>
                     <button type="button" className="attachment" onClick={() => open(attachment)}>

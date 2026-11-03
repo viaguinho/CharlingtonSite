@@ -151,7 +151,7 @@ const wordsOf = (text) => text.split(/[^a-z0-9]+/).filter(Boolean);
 
 function isPlainNegation(text) {
   const words = wordsOf(text);
-  if (!words.length) return true;                       // vazio, "-", "."
+  if (!words.length) return /^[\s\-._/]*$/.test(text);   // vazio, "-", ".": "?" e "!!!" não são negação
   if (/^n ?\/ ?a$/.test(text)) return true;             // "N/A"
   if (!words.some(isNegator) || !words.every((w) => isNegator(w) || FILLER.has(w))) return false;
   let denied = false;
@@ -184,6 +184,8 @@ function splitTopLevel(text) {
 }
 
 /** Chaves que o jsonb sem esquema já trouxe para o nome da alergia. */
+/** Texto de uma alergia que não dá para ler (booleano, número, "null", só símbolos): aparece como tal, nunca como "nenhuma". */
+export const UNREADABLE_ALLERGY = 'Alergia em formato ilegível';
 const OBJECT_KEYS = ['nome', 'descricao', 'alergeno', 'substancia', 'texto', 'name', 'medicamento', 'farmaco', 'principioAtivo', 'droga', 'agente', 'produto', 'item', 'valor', 'label'];
 // Chaves que descrevem a reação, não o alérgeno: nunca viram o nome ("grave" não é uma alergia).
 const DESCRIBES_REACTION = new Set(['gravidade', 'severidade', 'severity', 'reacao', 'reacoes', 'sintomas', 'observacao', 'observacoes', 'nota', 'notas', 'data', 'desde', 'status', 'tipo', 'confirmada', 'criadoEm', 'atualizadoEm']);
@@ -210,8 +212,10 @@ function allergyTexts(list) {
   const items = Array.isArray(list) ? list : typeof list === 'string' ? splitTopLevel(list) : [list];
   return items.flatMap((item) => {
     if (item == null || item === false) return [];
-    if (typeof item === 'object') return [nameFrom(item) ?? 'Alergia em formato ilegível'];
-    return [String(item)];
+    if (typeof item === 'object') return [nameFrom(item) ?? UNREADABLE_ALLERGY];
+    if (typeof item === 'boolean' || typeof item === 'number') return [UNREADABLE_ALLERGY];
+    const text = String(item);
+    return [/^(null|undefined|true|false|nan|\[object object\])$/i.test(text.trim()) ? UNREADABLE_ALLERGY : text];
   });
 }
 
@@ -228,7 +232,8 @@ function withoutException(text) {
 export function declaredAllergies(list = []) {
   return allergyTexts(list)
     .map((a) => withoutException(a.trim()))
-    .filter((a) => a && !isPlainNegation(plain(a)));
+    .filter((a) => a && !isPlainNegation(plain(a)))
+    .map((a) => (/[a-z]/.test(plain(a)) ? a : UNREADABLE_ALLERGY));
 }
 
 /** Sigla curta ("AAS") e "sulfa" só valem como palavra inteira: "sulfato ferroso" não é sulfa. */
@@ -257,6 +262,7 @@ const NOT_A_DRUG = new Set([
   'referida', 'referido', 'relatada', 'relatado', 'declarada', 'declarado', 'registrada', 'registrado',
   // Sais e prefixos que muitos fármacos compartilham ("ácido valproico" não é "ácido acetilsalicílico").
   'acido', 'sodico', 'sodica', 'sodio', 'cloridrato', 'sulfato', 'fosfato', 'acetato', 'potassico', 'calcico', 'maleato', 'tartarato', 'succinato',
+  'formato', 'ilegivel',
   // Unidade, via e forma: nunca são o nome de um fármaco.
   'horas', 'minutos', 'dias', 'semanas', 'meses', 'gotas', 'febre', 'comprimido', 'comprimidos', 'intramuscular', 'endovenosa',
   'injecao', 'injetavel', 'xarope', 'pomada', 'creme', 'colirio', 'suspensao', 'solucao', 'capsula', 'capsulas', 'topico', 'topica',

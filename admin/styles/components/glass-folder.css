@@ -263,7 +263,7 @@ canvas.gf-sheet-art[data-ready] { opacity: 1; filter: none; }
 .gf-menu[data-open] { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
 .gf-menu-item {
   all: unset; box-sizing: border-box; padding: 9px 12px; border-radius: var(--r-xs);
-  font-size: 14px; font-weight: var(--w-medium); color: var(--gf-sheet-ink); cursor: pointer;
+  font-size: var(--t-body); font-weight: var(--w-medium); color: var(--gf-sheet-ink); cursor: pointer;
 }
 .gf-menu-item:hover, .gf-menu-item:focus-visible { background: var(--gf-menu-hover); }
 .gf-menu-item--danger { color: var(--gf-menu-danger); }
@@ -277,7 +277,7 @@ canvas.gf-sheet-art[data-ready] { opacity: 1; filter: none; }
 .gf-back, .gf-back-rim { transition: translate 1s var(--gf-ease), opacity .9s var(--gf-ease); }
 .gf-root[data-entered] .gf-sheet { transition-delay: calc(var(--gf-depth) * 40ms), 0s, calc(.18s + var(--gf-depth) * 90ms), calc(.18s + var(--gf-depth) * 90ms); }
 .gf-root[data-entered] .gf-front { transition-delay: 0s, .42s, .42s; }
-.gf-key { transition: transform .35s var(--gf-spring), box-shadow .35s var(--gf-ease), opacity .6s var(--gf-ease) .7s, scale .7s var(--gf-spring) .7s; }
+.gf-key { transition: transform var(--dur-3) var(--gf-spring), box-shadow var(--dur-3) var(--gf-ease), opacity var(--dur-3) var(--gf-ease) var(--dur-1), scale var(--dur-3) var(--gf-spring) var(--dur-1); }
 
 /* O texto usa o tamanho real da escala (calc com --gf-k). Em pasta estreita a
    folha é pequena demais para texto legível: como na referência, ela mostra a

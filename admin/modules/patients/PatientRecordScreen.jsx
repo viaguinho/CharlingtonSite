@@ -25,6 +25,7 @@ import { SectionPanel } from './record/SectionPanel.jsx';
 import { AllergyNotice } from './record/AllergyNotice.jsx';
 import { patientStates, firstVisit } from './record/patientStates.js';
 import { diagnosesOf } from './record/diagnoses.js';
+import { UNREADABLE_ALLERGY } from './record/allergyConflict.js';
 
 // O palco 3D (three + modelo) só carrega nesta rota. A cadeia rota → palco → cena
 // era pedida em série (a cena só era pedida depois de o palco montar: ~1 s até o
@@ -36,10 +37,26 @@ const AnatomyStage = lazy(loadStage);
 const PatientForm = lazy(() => import('./PatientForm.jsx').then((m) => ({ default: m.PatientForm })));
 const ClinicalDocumentModal = lazy(() => import('../documents/ClinicalDocumentModal.jsx').then((m) => ({ default: m.ClinicalDocumentModal })));
 const RescheduleDialog = lazy(() => import('../agenda/RescheduleDialog.jsx'));
+/**
+ * Consulta que entra na tela: data legível, que existe no calendário ("2026-02-30" não existe) e que não é anterior ao
+ * nascimento. Do contrário ficaria como fato ("em acompanhamento desde 01/01/1900") e é contada no aviso de datas ilegíveis.
+ */
+function plausibleVisit(appointment, birth) {
+  const t = Date.parse(appointment.inicio);
+  if (!Number.isFinite(t)) return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(appointment.inicio));
+  if (m) {
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    if (d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return false;
+  }
+  const born = birth ? Date.parse(birth) : NaN;
+  return !(Number.isFinite(born) && t < born - 864e5);
+}
 /** Ids dos responsáveis na ficha. Fichas antigas guardam um texto só: vale como um id, nunca como "nenhum cadastrado". */
 function guardianIdsOf(patient) {
   const raw = patient?.responsaveis;
   if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'number') return [raw];
   return typeof raw === 'string' && raw.trim() ? [raw.trim()] : [];
 }
 /**
@@ -180,7 +197,10 @@ export default function PatientRecordScreen() {
       if (seq !== loadSeq.current) return;
       if (!raw) { setNotFound(true); setLoadError(false); setRecord(emptyRecord()); return; }
       // Ficha antiga sem os blocos clínicos não pode derrubar a tela inteira.
-      const patient = { ...raw, clinico: raw.clinico ?? {}, perfilSensorial: raw.perfilSensorial ?? {} };
+      // `clinico` gravado como texto ou número: não dá para ler as alergias, e isso aparece como alergia ilegível, não como "nenhuma".
+      const clinico = raw.clinico && typeof raw.clinico === 'object' && !Array.isArray(raw.clinico) ? raw.clinico
+        : raw.clinico == null || raw.clinico === '' ? {} : { alergias: [UNREADABLE_ALLERGY] };
+      const patient = { ...raw, clinico, perfilSensorial: raw.perfilSensorial ?? {} };
 
       const byPatient = { where: { pacienteId: id } };
       // Leitura que falha NÃO é lista vazia: "Nenhuma medicação registrada" diria
@@ -211,7 +231,7 @@ export default function PatientRecordScreen() {
       if (seq !== loadSeq.current) return;
 
       // Uma consulta com data ilegível derrubaria a faixa e os alertas, alergia incluída.
-      const sane = appointments.filter((a) => Number.isFinite(Date.parse(a.inicio)));
+      const sane = appointments.filter((a) => plausibleVisit(a, patient.dataNascimento));
 
       setLoadError(false);
       setNotFound(false);
@@ -305,8 +325,13 @@ export default function PatientRecordScreen() {
   const unreadableStores = [SECTION_STORES[section], ...(SECTION_EXTRA_STORES[section] ?? [])].filter((store) => store && unreadable.has(store));
 
   // Seção cuja leitura falhou: a pílula sem contagem seria igual à de "zero registros".
-  const unreadSections = new Set(SECTIONS.filter((sec) => [SECTION_STORES[sec.value], ...(SECTION_EXTRA_STORES[sec.value] ?? [])]
-    .some((store) => store && unreadable.has(store))).map((sec) => sec.value));
+  // A linha do tempo junta várias lojas e "Documentos" conta as consultas a emitir: ler mal as consultas também marca essas duas.
+  const pillStores = (value) => [
+    SECTION_STORES[value], ...(SECTION_EXTRA_STORES[value] ?? []),
+    ...(value === 'linha-do-tempo' ? TIMELINE_STORES : []),
+    ...(value === 'documentos' ? [STORES.APPOINTMENTS] : []),
+  ];
+  const unreadSections = new Set(SECTIONS.filter((sec) => pillStores(sec.value).some((store) => store && unreadable.has(store))).map((sec) => sec.value));
   const counts = {
     'linha-do-tempo': null,
     evolucoes: record.notes.length || null,
@@ -317,7 +342,7 @@ export default function PatientRecordScreen() {
     medicacoes: record.medications.filter((m) => !m.suspensaEm).length || null,
     anexos: record.attachments.length || null,
     // Pendência vem antes do total: "9 a emitir" é o que precisa de ação.
-    documentos: unreadable.has(STORES.DOCUMENTS) ? null : (() => {
+    documentos: unreadable.has(STORES.DOCUMENTS) ? null : unreadable.has(STORES.APPOINTMENTS) ? record.documents.length || null : (() => {
       const issued = new Set(record.documents.map((d) => d.atendimentoId).filter(Boolean));
       const pending = record.appointments.filter((a) => a.tipo === 'laudo' && a.status === 'concluido' && !issued.has(a.id)).length;
       return pending ? { value: pending, tone: 'warning', hint: `${pending} a emitir` } : record.documents.length || null;
@@ -461,7 +486,7 @@ export default function PatientRecordScreen() {
           attachments={record.attachments}
           states={states}
           onReschedule={onReschedule}
-          onSchedule={() => navigate(`/agenda?agendar=${encodeURIComponent(patient.id)}`)}
+          onSchedule={can.write('agenda') ? () => navigate(`/agenda?agendar=${encodeURIComponent(patient.id)}`) : null}
           onOpenAttachments={(origens) => openAttachments({ filter: origens })}
           onUpload={(origem) => openAttachments({ upload: origem })}
           onPreview={(attachment) => openAttachments({ preview: attachment })}
@@ -506,7 +531,7 @@ export default function PatientRecordScreen() {
             states={<AlertPills states={states} onReschedule={onReschedule} compact part="others" />}>
             {unreadableStores.length ? (
               // Sem a leitura não há como saber o que já existe: criar agora duplicaria registro.
-              <RecordUnavailable inline what={joinNames(unreadableStores.map((store) => STORE_LABELS[store]))} onRetry={load} />
+              <RecordUnavailable inline what={joinNames(unreadableStores.map((store) => STORE_LABELS[store]))} onRetry={retry} />
             ) : (
               // Um registro ruim dentro da seção não derruba o cabeçalho, a alergia nem a tela.
               <ErrorBoundary scope="seção do prontuário" fallback={<RegionFailed label="esta seção" />}>

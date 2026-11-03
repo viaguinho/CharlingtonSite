@@ -14,7 +14,7 @@ import { visitState } from './patientStates.js';
  */
 
 const MONTH = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
-const EDGE = 24; // largura da máscara de esmaecimento nas bordas
+const EDGE = 28; // largura da máscara de esmaecimento nas bordas (--pr-fade-start/end em patient-record.css)
 // Cápsulas montadas em volta de "hoje" (para cada lado). Com 300 consultas eram 303 cápsulas e 3.300 nós; o resto
 // entra em blocos pelo botão da ponta.
 const WINDOW = 40;
@@ -81,12 +81,12 @@ export function VisitRail({ appointments, onOpen, unreadable = false, onSchedule
           <li className="pr-rail__item">
             {onSchedule && !unreadable ? (
               <button type="button" className="pr-visit pr-visit--neutral" onClick={onSchedule}>
-                <span className="pr-visit__date num">Nenhuma consulta</span>
+                <span className="pr-visit__msg">Nenhuma consulta</span>
                 <span className="pr-visit__status"><i aria-hidden="true" />Agendar</span>
               </button>
             ) : (
               <span className="pr-visit pr-visit--neutral" role="status">
-                <span className="pr-visit__date num">{unreadable ? 'Consultas não lidas' : 'Nenhuma consulta'}</span>
+                <span className="pr-visit__msg">{unreadable ? 'Consultas não lidas' : 'Nenhuma consulta'}</span>
               </span>
             )}
           </li>
@@ -187,11 +187,19 @@ function centerOnToday(el, mark) {
   const at = (node) => node.getBoundingClientRect().left - box.left + el.scrollLeft;
   const markCenter = at(mark) + mark.offsetWidth / 2;
   const wanted = Math.min(max, Math.max(0, markCenter - el.clientWidth / 2));
-  const starts = [...el.children].map((li) => at(li) - EDGE);
-  // A borda de cápsula mais próxima do alvo que ainda mantém o "hoje" à vista.
-  const fits = starts.filter((x) => x <= markCenter - EDGE && x + el.clientWidth >= markCenter + EDGE);
-  // Sem valor inicial: com `wanted` como semente o reduce devolvia sempre o
-  // próprio alvo, e a primeira cápsula ficava cortada sob a máscara.
-  const snap = (fits.length ? fits : starts).reduce((best, x) => (Math.abs(x - wanted) < Math.abs(best - wanted) ? x : best));
-  el.scrollLeft = Math.min(max, Math.max(0, snap));
+  const width = el.clientWidth;
+  const caps = [...el.children].map((li) => ({ a: at(li), b: at(li) + li.offsetWidth }));
+  // Uma posição é limpa quando nenhuma cápsula começa visível e termina sob a máscara (ou o contrário): é o que
+  // cortava "Concluído" em "luído". Nas pontas (0 e max) a máscara some, então ali não há corte.
+  const clean = (s) => caps.every(({ a, b }) => (
+    (s <= 0 || !(a < s + EDGE && b > s + EDGE))
+    && (s >= max - 1 || !(b > s + width - EDGE && a < s + width - EDGE))
+  ));
+  const candidates = [0, max, ...caps.map((c) => c.a - EDGE), ...caps.map((c) => c.b + EDGE - width)]
+    .map((x) => Math.min(max, Math.max(0, Math.round(x))));
+  const showsToday = (s) => markCenter >= s + EDGE && markCenter <= s + width - EDGE;
+  const nearest = (list) => list.reduce((best, x) => (Math.abs(x - wanted) < Math.abs(best - wanted) ? x : best));
+  const pool = candidates.filter(clean);
+  const withToday = pool.filter(showsToday);
+  el.scrollLeft = withToday.length ? nearest(withToday) : pool.length ? nearest(pool) : Math.round(wanted);
 }

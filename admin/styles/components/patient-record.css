@@ -6,6 +6,8 @@
    As colunas são cards de vidro que flutuam sobre a mesa pontilhada do
    palco; o painel de seção cobre o palco e a coluna direita.
    ========================================================================== */
+:root { --pr-z-1: 1; --pr-z-2: 2; }   /* camadas locais do prontuário (acima do vizinho, acima da barra) */
+
 
 /* A Urbanist desenha o ordinal (º, ª) como um "o" de corpo inteiro: "§ 1o" se confunde com "§ 10".
    Só estes dois caracteres vêm de uma fonte do sistema. */
@@ -116,9 +118,8 @@
   inset: calc(var(--s-3) * -1) calc(var(--pr-bleed) * -1) 0;
   z-index: -1;
   pointer-events: none;
-  background: var(--rp-glass);
-  -webkit-backdrop-filter: var(--glass-filter);
-  backdrop-filter: var(--glass-filter);
+  /* Faixa grande: quase opaca e sem desfoque (o vidro é só das pílulas e dos botões pequenos). */
+  background: var(--pr-card-solid);
   box-shadow: 0 1px 0 var(--ink-a06);
   opacity: 0;
   transition: opacity var(--dur-2) var(--ease);
@@ -285,7 +286,7 @@
 .pr-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-1);
   padding: 0 var(--s-2);
   margin-right: calc(var(--s-2) * -1);
   border: 0;
@@ -435,7 +436,7 @@
 .pr-folder .gf-root:not(:hover):not(:focus-within):not([data-open]) {
   /* Em repouso as folhas saem do bolso (M6 da régua): com `--gf-lift: 42px` a mais alta ficava a 0 px acima da
      frente e o leque escondido; a 1 arquivo, a folha de PDF sumia. O hover abre mais (-34px), o repouso já mostra. */
-  --gf-lift: -16px; --gf-spread: 22px; --gf-fan: 1deg; --gf-stack: 19px; --gf-hinge: -4deg;
+  --gf-lift: -30px; --gf-spread: 22px; --gf-fan: 1deg; --gf-stack: 18px; --gf-hinge: -4deg;
 }
 .pr-folder:has(.gf-hit:focus-visible) { box-shadow: var(--e-glass), 0 0 0 2px var(--surface), 0 0 0 4px var(--blue-500); }
 
@@ -665,7 +666,7 @@
 
 /* Em card estreito (1024–1180) os três não cabem lado a lado: quebram em linhas
    em vez de a palavra passar da borda do mini-card. */
-.pr-milestones__tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: var(--s-2); margin: var(--s-3) 0 0; }
+.pr-milestones__tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--s-2); margin: var(--s-3) 0 0; }
 .pr-milestones__tally > div { padding: var(--s-3); border-radius: var(--r-md); background: var(--ink-a04); }
 .pr-milestones__tally dt { display: flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--ink-600); }
 .pr-milestones__tally dt::before { content: ''; width: 2px; height: 10px; border-radius: var(--r-pill); background: var(--pr-tick-none); }
@@ -685,7 +686,7 @@
   list-style: none;
   margin: 0;
   /* Sem folga embaixo: as cápsulas e os botões + − 3D param na mesma linha de base. */
-  padding: var(--s-1) 24px 0;
+  padding: var(--s-1) var(--s-6) 0;
   display: flex;
   align-items: flex-end;
   gap: var(--s-2);
@@ -836,7 +837,7 @@
 .pr-rx-allergy {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: var(--pr-z-1);
   display: flex;
   align-items: flex-start;
   gap: var(--s-2);
@@ -1307,8 +1308,8 @@
   .modal:has(.pr-rx-allergy) .doc-footer-note { display: none; }
   .modal:has(.pr-rx-allergy) .modal__header { padding: var(--s-2) var(--s-4); }
   .modal:has(.pr-rx-allergy) .modal__footer { padding: var(--s-2) var(--s-4); }
-  .modal__body > .doc-notice:has(.pr-rx-allergy) { position: sticky; top: 0; z-index: 2; }
-  .modal__body .pr-rx-allergy { position: sticky; top: 0; z-index: 2; }
+  .modal__body > .doc-notice:has(.pr-rx-allergy) { position: sticky; top: 0; z-index: var(--pr-z-2); }
+  .modal__body .pr-rx-allergy { position: sticky; top: 0; z-index: var(--pr-z-2); }
   .doc-notice .pr-rx-allergy { position: static; }
 }
 
@@ -1326,7 +1327,7 @@
 
 /* A seta ↗ da pasta ficava por baixo da frente de vidro (margem negativa do palco da pasta):
    40% da área respondia ao clique. */
-.pr-folder__open { position: relative; z-index: 2; }
+.pr-folder__open { position: relative; z-index: var(--pr-z-2); }
 
 /* Segunda fileira de estados e aviso do painel começam na mesma borda do título e das linhas. */
 .pr-panel__states { padding-inline: var(--s-5); }
@@ -1424,3 +1425,26 @@
 /* Botão de ponta da faixa de consultas (“Anteriores +120”): mais discreto que uma cápsula de consulta. */
 .pr-visit--more { opacity: .85; }
 .pr-visit--more:hover, .pr-visit--more:focus-visible { opacity: 1; }
+
+
+/* ——— Passada 12 (menores) ——— */
+
+/* Mensagem da faixa de consultas sem cápsulas: texto de corpo, não micro. */
+.pr-visit__msg { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-600); }
+
+/* Princípio ativo ou nome sem espaço quebra em vez de abrir rolagem lateral. */
+.pr-meds__list strong, .pr-meds__list span, .pr-meds__since { overflow-wrap: anywhere; }
+
+/* Painel aberto: o palco inteiro está por baixo do painel opaco. O vidro dele só gastaria GPU sem aparecer. */
+.pr-grid.has-panel .pr-stage,
+.pr-grid.has-panel .pr-stage * { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Janela baixa com o painel aberto: a alergia já está no cabeçalho do painel; a faixa mínima e a pílula do palco
+   apareciam duplicadas (e um pedaço da pílula vazava entre a faixa e o painel). */
+@media (max-height: 600px) {
+  .pr:has(.pr-panel) .pr-allergy-strip { display: none; }
+  .pr-grid.has-panel .an-alerts { visibility: hidden; }
+}
+
+/* Pasta estreita: o nome da folha não cabe e aparecia truncado. O título inteiro está no painel Exames. */
+@media (max-width: 1023px) { .pr-folder .gf-sheet-name { display: none; } }

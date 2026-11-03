@@ -330,6 +330,9 @@ export default function AnatomyStage({
           },
           onError: (err) => {
             console.error('[anatomia] modelo 3D indisponível', err?.error ?? err);
+            // Sem isto o canvas (e o contexto WebGL) ficava vivo atrás da mensagem de falha.
+            scene?.dispose();
+            sceneRef.current = null;
             setFailKind(err?.type === 'load' ? 'load' : 'webgl');
             setStatus('error');
           },
@@ -610,7 +613,7 @@ export default function AnatomyStage({
   if (status === 'error') {
     return (
       <section className="an-stage an-stage--fallback" aria-label="Anatomia">
-        {alerts ? <div className="an-alerts">{alerts}</div> : null}
+        {alerts ? <div key="stage-failed" className="an-alerts">{alerts}</div> : null}
         <FallbackList attachments={attachments} onOpenAttachments={onOpenAttachments} kind={failKind} onRetry={failKind === 'webgl' ? null : retryScene} />
         {base}
         {creditLine}
